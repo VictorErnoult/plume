@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>fr</string>
+    <key>CFBundleExecutable</key>
+    <string>Plume</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIdentifier</key>
+    <string>studio.brigode.plume</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Plume</string>
+    <key>CFBundleDisplayName</key>
+    <string>Plume</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>15.0</string>
+    <key>ATSApplicationFontsPath</key>
+    <string>Fonts</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Plume écoute le micro pour transcrire ce que tu dictes. Tout reste sur ce Mac.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Plume capte le son de l'ordinateur pendant une réunion pour transcrire les autres participants. Tout reste sur ce Mac.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Plume reçoit les enregistrements envoyés par ton iPhone sur le réseau local.</string>
+</dict>
+</plist>

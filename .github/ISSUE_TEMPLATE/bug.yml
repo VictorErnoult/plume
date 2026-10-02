@@ -1,0 +1,32 @@
+name: Signaler un bug
+description: Quelque chose ne marche pas comme prévu.
+labels: [bug]
+body:
+  - type: textarea
+    id: probleme
+    attributes:
+      label: Ce qui se passe
+      description: Ce que tu as fait, ce que tu attendais, ce qui s'est passé à la place.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version de Plume
+      description: Visible en bas des Réglages.
+      placeholder: "0.9.0"
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac et macOS
+      placeholder: "MacBook Air M2, macOS 15.4"
+    validations:
+      required: true
+  - type: textarea
+    id: journal
+    attributes:
+      label: Journal (facultatif)
+      description: Les dernières lignes de `~/Library/Logs/Plume/plume.log` et la sortie de `plume doctor`. Relis-les avant d'envoyer, elles peuvent contenir des extraits de tes dictées.
+      render: text
