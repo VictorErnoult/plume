@@ -2,7 +2,7 @@
 
 Voice dictation and meeting transcription for the Mac. Free, open source, and entirely on your machine.
 
-![Plume in the notch of a MacBook, recording a meeting](docs/assets/encoche.png)
+![A MacBook with Plume in the notch, the words appearing in a note as they are dictated](docs/assets/dictee.png)
 
 **[Download for macOS →](https://github.com/soyAkil/plume/releases/latest/download/Plume.dmg)** · Apple Silicon · macOS 15 or later · free · about 12 MB, plus a 600 MB speech model fetched once
 
