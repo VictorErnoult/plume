@@ -1,39 +1,44 @@
-# Contribuer à Plume
+# Contributing
 
-Merci de passer par ici ! Plume est une petite app : toute aide compte, d'un signalement de
-bug à une nouvelle fonctionnalité.
+Plume is a small, mostly solo project. Help is welcome in every form — a bug report, an idea, code, a translation — and a few things make a change land faster.
 
-## Signaler un problème ou proposer une idée
+## Before writing code
 
-Ouvre une [issue](https://github.com/soyAkil/plume/issues/new/choose) : un formulaire te
-guide (bug ou idée). Si tu joins le journal de Plume, relis-le avant : il peut contenir des
-extraits de tes dictées.
+For anything beyond a small fix, open an issue first saying what you want to change and why. It saves a rewritten pull request later if the direction doesn't fit.
 
-## Proposer une modification
+## Reporting a bug or proposing an idea
 
-1. Forke le dépôt et crée une branche (`git switch -c ma-fonctionnalite`).
-2. Compile et essaie : `./scripts/build.sh --install` (Mac Apple Silicon, macOS 15+, Command
-   Line Tools ; Xcode n'est pas nécessaire).
-3. Lance les tests : `./scripts/test.sh`. La même vérification (compilation + tests) tourne
-   automatiquement sur chaque pull request.
-4. Ouvre une pull request qui explique le pourquoi du changement, avec une capture ou une
-   courte vidéo si l'interface change.
+Open an [issue](https://github.com/soyAkil/plume/issues/new/choose): a form guides you through it (bug or idea). If you attach Plume's log, `~/Library/Logs/Plume/plume.log`, read it first — it can contain excerpts of your dictations. It never leaves your Mac unless you paste it somewhere yourself.
 
-Pour une grosse fonctionnalité, ouvre d'abord une issue : on en discute avant que tu y
-passes du temps.
+## Proposing a change
 
-## Repères dans le code
+1. Fork the repository and make a branch (`git switch -c my-feature`).
+2. Build it and try it: `./scripts/build.sh --install` (an Apple Silicon Mac, macOS 15 or later, the Command Line Tools; Xcode is not needed).
+3. Run the tests: `./scripts/test.sh`. The same compile-and-test runs on every pull request.
+4. Open a pull request that explains *why*, with a screenshot or a short video if the interface changes.
 
-- `Sources/PlumeKit` : le cœur, indépendant de l'interface (moteur, pipeline, bibliothèque).
-- `Sources/Plume` : l'app macOS (île de l'encoche, fenêtre, raccourcis, sons, CLI, MCP).
-- La carte complète des fichiers est dans [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md#carte-du-code).
+## What tends to get merged
 
-Le code, les commentaires et l'interface sont en français : garde ce style, et calque-toi
-sur le code qui entoure ce que tu modifies.
+- **Small, focused changes.** One thing per pull request, easy to read start to finish.
+- **No new dependencies** without an issue first. The whole list is FluidAudio and Sparkle, and the app compiles without Xcode because of it.
+- **Matches the existing style.** Code, comments and the interface are in French; comments explain *why*, not what the next line does. Read the file you are in before adding to it. Settings go through `PlumeSettings` (PlumeKit) and `SettingsModel` (app).
+- **Nothing that phones home.** What leaves the Mac today is one model download and one update check; a change to that boundary needs a discussion, not a pull request.
+- **Nothing personal in the repository.** No recording, no transcription, nothing from `~/Plume`. Tests use invented sentences, and a `plume render` is only published with `--demo`.
+- **Builds clean, tests pass.**
 
-## Idées pour commencer
+## Finding your way
 
-- une app iOS qui réutilise `PlumeKit` (voir `docs/PLAN.md`) ;
-- de nouveaux packs de sons (voir `SoundPack` dans `Sources/Plume/Sounds.swift`) ;
-- la prise en charge d'autres modèles de transcription ;
-- des traductions de l'interface.
+- `Sources/PlumeKit/` is the core with no interface — engine, pipeline, formatting, library — and is what the tests cover.
+- `Sources/Plume/` is the Mac app: the island in the notch, the window, hotkeys, sounds, the CLI, the MCP server.
+- The file-by-file map is in [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) (French), with a section on testing without a microphone.
+
+## Ideas to start with
+
+- an iOS app that reuses `PlumeKit` (see [docs/PLAN.md](docs/PLAN.md));
+- new sound packs (`SoundPack` in `Sources/Plume/Sounds.swift`);
+- support for other transcription models;
+- translations of the interface.
+
+## Review
+
+Pull requests are reviewed by the maintainer. This isn't anyone's full-time job, so a review can take a while; pinging a quiet pull request after a couple of weeks is completely fine.
