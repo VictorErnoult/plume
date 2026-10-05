@@ -4,6 +4,9 @@ import Carbon.HIToolbox
 
 /// Insère le texte dans le champ actif : presse-papiers + ⌘V simulé, puis restauration.
 enum Paster {
+    /// Convention nspasteboard.org : contenu éphémère, à ne pas garder dans un historique.
+    private static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+
     /// macOS n'autorise la simulation de touches qu'aux apps cochées dans « Accessibilité ».
     static var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -12,10 +15,15 @@ enum Paster {
         AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
-    static func copy(_ text: String) {
+    /// - Parameter transient: le texte ne fait que passer. Il est écrit avec sa marque en une
+    ///   seule fois : un gestionnaire qui lirait entre les deux le garderait sans la voir.
+    static func copy(_ text: String, transient: Bool = false) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        let item = NSPasteboardItem()
+        item.setString(text, forType: .string)
+        if transient { item.setData(Data(), forType: transientType) }
+        pasteboard.writeObjects([item])
     }
 
     /// - Returns: `true` si le collage a été lancé, `false` si le texte est seulement copié
@@ -28,7 +36,9 @@ enum Paster {
             return false
         }
         let saved = restoreClipboard ? snapshot(pasteboard) : nil
-        copy(text)
+        // Rétabli juste après : les gestionnaires de presse-papiers (Maccy, Raycast…) ne retiennent
+        // pas un contenu marqué éphémère, la dictée ne s'ajoute pas à leur historique.
+        copy(text, transient: saved != nil)
         let marker = pasteboard.changeCount
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             postCommandV()
