@@ -16,6 +16,11 @@ Compiler, tester, comprendre le code et publier une version. Pour contribuer, vo
 Aucun Xcode requis : SwiftPM et les Command Line Tools suffisent. Il faut un Mac Apple
 Silicon sous macOS 15 ou plus récent.
 
+Avec le SDK macOS 27, les macros de SwiftUI (`@State`) ne sont livrées qu'avec Xcode : sans lui,
+les scripts se rabattent tout seuls sur un SDK macOS 26 installé (`scripts/sdk.sh`). Pour un
+`swift build` lancé à la main :
+`SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk swift build -c release`.
+
 ## Carte du code
 
 ```
