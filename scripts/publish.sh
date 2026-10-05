@@ -26,7 +26,13 @@ fi
 cp "$DMG" "$DIR/Plume.dmg"
 NOTES=(--generate-notes)
 [[ -f "notes/$VERSION.md" ]] && NOTES=(--notes-file "notes/$VERSION.md")
-gh release create "v$VERSION" "$DMG" "$DIR/Plume.dmg" "$DIR/appcast.xml" \
+# Les mises à jour partielles (.delta) que le flux annonce pour cette version : quelques Mo au
+# lieu de l'image entière. Sans elles, Sparkle se rabat sur l'image complète.
+DELTAS=()
+for name in $(grep -o "v$VERSION/[^\"]*\.delta" "$DIR/appcast.xml" | sed "s|v$VERSION/||" | sort -u); do
+  [[ -f "$DIR/$name" ]] && DELTAS+=("$DIR/$name")
+done
+gh release create "v$VERSION" "$DMG" "$DIR/Plume.dmg" "$DIR/appcast.xml" "${DELTAS[@]}" \
   --repo "$PLUME_REPO" --title "Plume $VERSION" "${NOTES[@]}"
 rm "$DIR/Plume.dmg"
 echo "Publiée : https://github.com/$PLUME_REPO/releases/tag/v$VERSION"
