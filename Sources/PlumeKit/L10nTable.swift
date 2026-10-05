@@ -306,7 +306,6 @@ enum L10nTable {
         "Séparation des voix": "Separating speakers",
         "Tape le raccourci…": "Press the shortcut…",
         "Taper le texte au lieu de le coller": "Type the text instead of pasting it",
-        "Terminer": "Finish",
         "Terminer l'enregistrement": "Finish recording",
         "Texte brut": "Plain text",
         "Thème clair": "Light theme",
@@ -399,5 +398,8 @@ enum L10nTable {
         "Tout voir": "See all",
         "Rien pour l'instant : ta première dictée apparaîtra ici.": "Nothing yet: your first dictation will show up here.",
         "Copier le texte": "Copy the text",
+        "Terminer la dictée": "Finish the dictation",
+        "Terminer": "Finish",
+        "mot": "word",
     ]
 }

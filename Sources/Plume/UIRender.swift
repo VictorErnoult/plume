@@ -38,6 +38,15 @@ enum UIRender {
                     name: "app-\(page.rawValue)-\(suffix)", in: output, appearance: appearance)
             }
         }
+        // L'accueil pendant une dictée : le bouton montre la voix qui arrive.
+        app.page = .home
+        session.debugSet(
+            phase: .recording, elapsed: 12,
+            levels: (0..<SessionController.levelCount).map { Float(0.25 + 0.6 * abs(sin(Double($0) * 0.9))) })
+        window(
+            AppShell(app: app, session: session), size: NSSize(width: 1040, height: 680),
+            name: "app-home-dictee-sombre", in: output, appearance: .darkAqua)
+        session.debugSet(phase: .idle)
         // Le journal des modifications, tel qu'il s'ouvre depuis « Nouveautés ».
         window(
             ChangelogView(releases: ChangelogFile.releases), size: NSSize(width: 420, height: 460),

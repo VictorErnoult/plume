@@ -2,6 +2,14 @@
 
 Une ligne par PR, regroupées par date, les plus récentes en haut. Une version prend la date de sa publication. Le détail est dans la PR.
 
+## 1.0.1 — 2026-10-05
+
+### 2026-10-05
+
+- Accueil : pendant une dictée, le bouton « Dicter » montre la voix qui arrive et le temps écoulé ; les dernières transcriptions affichent leurs mots et leur durée
+- Fenêtre : le coin en haut à droite s'allège (« Prêt » n'est plus affiché, Nouveautés devient une icône)
+- Publication : les mises à jour partielles sont jointes, quelques Mo au lieu de l'image entière
+
 ## 1.0.0 — 2026-10-05
 
 ### 2026-10-05

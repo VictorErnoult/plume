@@ -263,21 +263,22 @@ private struct ChangelogButton: View {
                 seen = Changelog.signature(of: releases)
                 PlumeSettings.shared.changelogSeen = seen
             } label: {
-                HStack(spacing: 6) {
-                    Icon(.sparkles, size: 12)
-                    Text(tr("Nouveautés")).font(UI.sans(12, .medium))
-                    if unseen {
-                        Circle().fill(Theme.recording).frame(width: 6, height: 6).transition(.scale.combined(with: .opacity))
+                // Une simple icône ; un point tant qu'il y a du nouveau.
+                Icon(.sparkles, size: 13)
+                    .foregroundStyle(hovering || open ? UI.text : UI.text2)
+                    .frame(width: 26, height: 24)
+                    .overlay(alignment: .topTrailing) {
+                        if unseen {
+                            Circle().fill(Theme.recording).frame(width: 6, height: 6).offset(x: -3, y: 3)
+                                .transition(.scale.combined(with: .opacity))
+                        }
                     }
-                }
-                .foregroundStyle(hovering || open ? UI.text : UI.text2)
-                .padding(.horizontal, 9)
-                .frame(height: 22)
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(hovering || open ? UI.hover : .clear))
                 .contentShape(Rectangle())
             }
             .buttonStyle(PressStyle())
             .onHover { hovering = $0 }
+            .help(tr("Nouveautés"))
             .animation(UI.quick, value: hovering)
             .animation(UI.spring, value: unseen)
             .popover(isPresented: $open, arrowEdge: .bottom) { ChangelogView(releases: releases) }
@@ -442,18 +443,21 @@ private struct StatusPill: View {
 
     var body: some View {
         let state = state
+        // Prêt, c'est l'état normal : rien à signaler. La pastille n'apparaît que quand il se
+        // passe quelque chose (chargement du modèle, dictée, transcription).
+        if !state.ready {
         HStack(spacing: 7) {
             Circle()
                 .fill(state.color)
                 .frame(width: 6, height: 6)
                 .shadow(color: state.color.opacity(0.7), radius: 3)
             Text(state.text).font(UI.sans(12)).foregroundStyle(UI.text2).contentTransition(.opacity)
-            if state.ready, !settings.dictationShortcut.isEmpty {
-                Keycaps(shortcut: HotkeyManager.describe(settings.dictationShortcut))
-            }
+
         }
         .frame(height: 22)
         .animation(UI.quick, value: state.text)
+        .transition(.opacity)
+        }
     }
 }
 
@@ -486,12 +490,7 @@ struct HomePage: View {
                     HStack(spacing: 8) {
                         PlumeButton(title: tr("Transcrire un fichier"), icon: .download) { app.chooseFiles() }
                         // Sans raccourci : la fenêtre se range et la dictée démarre dans l'encoche.
-                        PlumeButton(
-                            title: session.phase == .recording ? tr("Terminer") : tr("Dicter"),
-                            icon: session.phase == .recording ? .check : .mic, kind: .primary,
-                            help: tr("La fenêtre se range, l'encoche t'écoute ; le texte se colle là où était ton curseur.")
-                        ) { app.onStartFromWindow() }
-                        .disabled(session.modelStatus != .ready && session.phase != .recording)
+                        DictateButton(session: session) { app.onStartFromWindow() }
                     }
                 }
                 .padding(.bottom, 10)
@@ -560,6 +559,56 @@ struct HomePage: View {
     }
 }
 
+/// « Dicter », à côté de « Transcrire un fichier ». Pendant une dictée, le bouton montre la
+/// voix qui arrive (la même onde que dans l'encoche) et un carré pour terminer.
+private struct DictateButton: View {
+    @ObservedObject var session: SessionController
+    var action: () -> Void
+    @State private var hovering = false
+
+    private var recording: Bool { session.phase == .recording }
+
+    var body: some View {
+        Button {
+            Sounds.play(.click)
+            action()
+        } label: {
+            HStack(spacing: 8) {
+                if recording {
+                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                        .frame(width: 9, height: 9)
+                    Waveform(levels: session.levels, tint: .white)
+                        .scaleEffect(0.8)
+                        .frame(height: 18)
+                    Text(Format.clock(session.elapsed))
+                        .font(UI.mono(12.5, .medium))
+                        .monospacedDigit()
+                } else {
+                    Icon(.mic, size: 14)
+                    Text(tr("Dicter")).font(UI.sans(13, .medium))
+                }
+            }
+            .foregroundStyle(recording ? Color.white : UI.onText)
+            .padding(.horizontal, 12)
+            .frame(height: 30)
+            .background(
+                RoundedRectangle(cornerRadius: UI.radius, style: .continuous)
+                    .fill(recording ? Theme.recording : UI.text.opacity(hovering ? 0.86 : 1))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle())
+        .onHover {
+            hovering = $0
+            if $0 { Sounds.hover(.hoverButton) }
+        }
+        .animation(UI.quick, value: hovering)
+        .animation(UI.spring, value: recording)
+        .help(recording ? tr("Terminer la dictée") : tr("La fenêtre se range, l'encoche t'écoute ; le texte se colle là où était ton curseur."))
+        .disabled(session.modelStatus != .ready && !recording)
+    }
+}
+
 /// Les trois dernières transcriptions, à côté de l'activité.
 private struct RecentCard: View {
     @ObservedObject var app: AppModel
@@ -601,6 +650,12 @@ private struct RecentRow: View {
     @State private var hovering = false
     @State private var copied = false
 
+    /// « 42 mots · 18 s ».
+    private var summary: String {
+        let words = LibraryStats.wordCount(transcript.text)
+        return "\(HomePage.number(Double(words))) " + tr(words > 1 ? "mots" : "mot") + " · " + Format.duration(transcript.duration)
+    }
+
     private var when: String {
         let calendar = Calendar.current
         let time = DateFormatter()
@@ -620,7 +675,14 @@ private struct RecentRow: View {
                         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(UI.hover))
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(transcript.title ?? transcript.mode.label).font(UI.sans(13, .medium)).lineLimit(1)
+                            // Ce qui parle : combien de mots, combien de temps de parole (et le
+                            // titre, s'il y en a un).
+                            if let title = transcript.title {
+                                Text(title).font(UI.sans(13, .medium)).lineLimit(1)
+                                Text(summary).font(UI.sans(12)).foregroundStyle(UI.text3).lineLimit(1).fixedSize()
+                            } else {
+                                Text(summary).font(UI.sans(13, .medium)).lineLimit(1)
+                            }
                             Spacer(minLength: 4)
                             Text(when).font(UI.sans(12)).foregroundStyle(UI.text3).lineLimit(1)
                         }
