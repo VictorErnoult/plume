@@ -19,7 +19,7 @@ Xcode**, tout se compile avec les Command Line Tools. Mac Apple Silicon, macOS 1
 ## Commandes
 
 ```sh
-swift build -c release          # compile
+swift build -c release          # compile (sans Xcode, SDK macOS 27 : voir docs/DEVELOPPEMENT.md)
 ./scripts/test.sh               # tests (Swift Testing ; le script règle les chemins sans Xcode)
 ./scripts/build.sh --install    # app complète dans /Applications, relancée
 .build/release/Plume doctor     # état des autorisations, du modèle, des écrans

@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP="${1:?chemin de l'app à assembler}"
+source scripts/sdk.sh
 
 # Dossier de compilation. SwiftPM inscrit son chemin dans le binaire : une version publiée se
 # compile donc hors du dossier personnel (PLUME_SCRATCH, réglé par release.sh).

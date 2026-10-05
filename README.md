@@ -88,7 +88,7 @@ So anyone can read exactly what an app that hears everything you say does with i
 ### Building it
 
 - An Apple Silicon Mac, macOS 15 or later, and the Command Line Tools (Swift 6). Xcode is not needed.
-- `swift build -c release` — compiles the app and the `plume` command.
+- `swift build -c release` — compiles the app and the `plume` command. With only the Command Line Tools and the macOS 27 SDK, SwiftUI's macros are missing: point `SDKROOT` at an installed macOS 26 SDK (the scripts below do it for you).
 - `./scripts/build.sh` — assembles a double-clickable `build/Plume.app`, signed with a local certificate kept in its own keychain so macOS permissions survive rebuilds. `./scripts/build.sh --install` puts it in `/Applications`, links `plume` into `~/.local/bin` and relaunches it.
 - `./scripts/test.sh` — the tests (Swift Testing; the script finds the framework without Xcode). The same compile-and-test runs on every pull request.
 

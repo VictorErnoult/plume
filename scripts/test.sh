@@ -3,6 +3,7 @@
 # trouvé tout seul : on indique son emplacement.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/sdk.sh
 DEV=/Library/Developer/CommandLineTools/Library/Developer
 swift test \
   -Xswiftc -F -Xswiftc "$DEV/Frameworks" \
