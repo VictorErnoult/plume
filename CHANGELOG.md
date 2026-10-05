@@ -6,7 +6,7 @@ Une ligne par PR, regroupées par date, les plus récentes en haut. Une version 
 
 ### 2026-10-05
 
-- Accueil : un grand bouton « Commencer une transcription », et les trois dernières transcriptions à côté de l'activité (#7)
+- Accueil : un bouton « Dicter » qui range la fenêtre et lance la dictée, et les trois dernières transcriptions (copiables d'un clic) à côté de l'activité (#7)
 - Nouveautés : ce journal se lit dans l'app, depuis le bouton en haut à droite (#7)
 - Annulation : un enregistrement annulé reste récupérable quelques jours, et le raccourci d'annulation se choisit (#7)
 - Plume 1.0 : commandes vocales, règles par app, insertion selon le curseur, pause, appel détecté, IA locale (Apple Intelligence), exports, interface en anglais (#7)

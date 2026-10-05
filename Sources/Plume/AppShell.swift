@@ -483,7 +483,16 @@ struct HomePage: View {
                         Text(tr("pour dicter, le texte se colle là où est ton curseur."))
                     }
                 } trailing: {
-                    PlumeButton(title: tr("Transcrire un fichier"), icon: .download) { app.chooseFiles() }
+                    HStack(spacing: 8) {
+                        PlumeButton(title: tr("Transcrire un fichier"), icon: .download) { app.chooseFiles() }
+                        // Sans raccourci : la fenêtre se range et la dictée démarre dans l'encoche.
+                        PlumeButton(
+                            title: session.phase == .recording ? tr("Terminer") : tr("Dicter"),
+                            icon: session.phase == .recording ? .check : .mic, kind: .primary,
+                            help: tr("La fenêtre se range, l'encoche t'écoute ; le texte se colle là où était ton curseur.")
+                        ) { app.onStartFromWindow() }
+                        .disabled(session.modelStatus != .ready && session.phase != .recording)
+                    }
                 }
                 .padding(.bottom, 10)
                 .rise(0)
@@ -492,9 +501,6 @@ struct HomePage: View {
                     PermissionsCard(settings: settings).rise(1)
                 }
                 ModelCard(session: session)
-
-                StartButton(session: session, shortcut: settings.dictationShortcut) { app.onStartFromWindow() }
-                    .rise(1)
 
                 HStack(spacing: 10) {
                     TodayTile(stats: stats).rise(2)
@@ -554,72 +560,6 @@ struct HomePage: View {
     }
 }
 
-/// Le grand bouton de l'accueil : la fenêtre se range et la dictée démarre dans l'encoche,
-/// pour qui préfère cliquer plutôt que retenir le raccourci. Pendant une dictée, il la termine.
-private struct StartButton: View {
-    @ObservedObject var session: SessionController
-    var shortcut: Shortcut
-    var action: () -> Void
-    @State private var hovering = false
-
-    private var recording: Bool { session.phase == .recording }
-
-    var body: some View {
-        Button {
-            Sounds.play(.confirm)
-            action()
-        } label: {
-            HStack(spacing: 14) {
-                Group {
-                    if recording {
-                        RoundedRectangle(cornerRadius: 3, style: .continuous).frame(width: 12, height: 12)
-                    } else {
-                        Icon(.mic, size: 18)
-                    }
-                }
-                .foregroundStyle(UI.text)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(UI.onText))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(recording ? tr("Terminer la dictée") : tr("Commencer une transcription"))
-                        .font(UI.sans(17, .medium))
-                        .tracking(-0.3)
-                    Text(
-                        recording
-                            ? tr("Le texte se colle là où est ton curseur.")
-                            : tr("La fenêtre se range, l'encoche t'écoute ; le texte se colle là où était ton curseur.")
-                    )
-                    .font(UI.sans(13))
-                    .opacity(0.62)
-                }
-                Spacer(minLength: 12)
-                if !shortcut.isEmpty, !recording {
-                    Text(tr("ou") + " " + HotkeyManager.describe(shortcut))
-                        .font(UI.mono(12.5, .medium))
-                        .opacity(0.55)
-                }
-            }
-            .foregroundStyle(UI.onText)
-            .padding(.horizontal, 16)
-            .frame(height: 72)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: UI.radius, style: .continuous)
-                    .fill(recording ? Theme.recording : UI.text.opacity(hovering ? 0.88 : 1))
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PressStyle(scale: 0.99))
-        .onHover {
-            hovering = $0
-            if $0 { Sounds.hover(.hoverCard) }
-        }
-        .animation(UI.quick, value: hovering)
-        .animation(UI.ease, value: recording)
-        .disabled(session.modelStatus != .ready && !recording)
-    }
-}
-
 /// Les trois dernières transcriptions, à côté de l'activité.
 private struct RecentCard: View {
     @ObservedObject var app: AppModel
@@ -659,6 +599,7 @@ private struct RecentRow: View {
     var transcript: Transcript
     var action: () -> Void
     @State private var hovering = false
+    @State private var copied = false
 
     private var when: String {
         let calendar = Calendar.current
@@ -670,31 +611,49 @@ private struct RecentRow: View {
     }
 
     var body: some View {
-        Button(action: action) {
-            HStack(alignment: .top, spacing: 10) {
-                Icon(transcript.mode == .meeting ? .users : transcript.mode == .imported ? .fileAudio : .mic, size: 12)
-                    .foregroundStyle(UI.text2)
-                    .frame(width: 22, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(UI.hover))
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(transcript.title ?? transcript.mode.label).font(UI.sans(13, .medium)).lineLimit(1)
-                        Spacer(minLength: 4)
-                        Text(when).font(UI.sans(12)).foregroundStyle(UI.text3).lineLimit(1)
-                    }
-                    Text(transcript.preview)
-                        .font(UI.sans(13))
+        HStack(spacing: 4) {
+            Button(action: action) {
+                HStack(alignment: .top, spacing: 10) {
+                    Icon(transcript.mode == .meeting ? .users : transcript.mode == .imported ? .fileAudio : .mic, size: 12)
                         .foregroundStyle(UI.text2)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(width: 22, height: 22)
+                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(UI.hover))
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(transcript.title ?? transcript.mode.label).font(UI.sans(13, .medium)).lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text(when).font(UI.sans(12)).foregroundStyle(UI.text3).lineLimit(1)
+                        }
+                        Text(transcript.preview)
+                            .font(UI.sans(13))
+                            .foregroundStyle(UI.text2)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 7)
-            .background(RoundedRectangle(cornerRadius: UI.radius, style: .continuous).fill(hovering ? UI.hover : .clear))
-            .contentShape(Rectangle())
+            .buttonStyle(PressStyle(scale: 0.985))
+            // Copier en un clic, sans ouvrir la transcription.
+            Button {
+                Sounds.play(.confirm)
+                Paster.copy(transcript.text)
+                withAnimation(UI.spring) { copied = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation(UI.spring) { copied = false } }
+            } label: {
+                Icon(copied ? .check : .copy, size: 13)
+                    .foregroundStyle(copied ? UI.text : UI.text2)
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(hovering ? UI.selected : UI.hover))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PressStyle())
+            .help(tr("Copier le texte"))
         }
-        .buttonStyle(PressStyle(scale: 0.985))
+        .padding(.leading, 8)
+        .padding(.trailing, 6)
+        .padding(.vertical, 7)
+        .background(RoundedRectangle(cornerRadius: UI.radius, style: .continuous).fill(hovering ? UI.hover : .clear))
         .onHover {
             hovering = $0
             if $0 { Sounds.hover(.hoverRow) }

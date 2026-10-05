@@ -394,13 +394,10 @@ enum L10nTable {
         "24 heures": "24 hours",
         "Nouveautés": "What's new",
         "en cours": "in progress",
-        "Commencer une transcription": "Start a transcription",
-        "Terminer la dictée": "Finish the dictation",
-        "Le texte se colle là où est ton curseur.": "The text is pasted where your cursor is.",
         "La fenêtre se range, l'encoche t'écoute ; le texte se colle là où était ton curseur.": "The window steps aside and the notch listens; the text is pasted where your cursor was.",
-        "ou": "or",
         "Dernières transcriptions": "Latest transcriptions",
         "Tout voir": "See all",
         "Rien pour l'instant : ta première dictée apparaîtra ici.": "Nothing yet: your first dictation will show up here.",
+        "Copier le texte": "Copy the text",
     ]
 }
