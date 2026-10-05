@@ -12,7 +12,7 @@ Or build it yourself in two commands, without Xcode — see [For developers](#fo
 
 ## What it is
 
-Plume is dictation with nothing in the way. Press `⌃⇧`, talk, press `⌃⇧` again: the text lands where your cursor is. During a meeting it listens to your microphone *and* to the sound of the computer, then writes down who said what. The words appear in the notch while you speak, and the app lives there and in the menu bar, showing itself only when you are talking.
+Plume is dictation with nothing in the way. Press `⌃⇧`, talk, press `⌃⇧` again: the text lands where your cursor is. During a meeting it listens to your microphone *and* to the sound of the computer, then writes down who said what. The words can appear in the notch while you speak, and the app lives there and in the menu bar, showing itself only when you are talking.
 
 Everything happens on the Mac. The speech model runs on the Neural Engine — Parakeet Ultra, a 2026 retraining of NVIDIA's Parakeet TDT, converted to Core ML by [Fluid Inference](https://github.com/FluidInference/FluidAudio) — and turns five minutes of speech into text in under two seconds. Speaker separation and echo cancellation are local too. There is no account, no subscription, and nothing to send anywhere.
 
@@ -24,10 +24,10 @@ It started as a free alternative to Superwhisper, designed around what people ac
 - **Meetings, both sides.** `⌃⇧⌘`, or the Meeting button on the island in the middle of a dictation. Plume records your microphone and the computer's audio (Meet, Zoom, Teams, FaceTime, anything that makes sound), separates the voices once the recording ends, labels yours "Me" from a voiceprint it learns on your own dictations, and files the dialogue in the history instead of pasting it. No headset? The speakers leak back into the mic; Plume detects that echo and removes it before transcribing, so the other side isn't written down twice. Click a name to rename it everywhere, click a timestamp to listen from there, or redo the voice separation with the number of people who spoke.
 - **Live.** Optionally, the text appears in the notch as you talk, from the same model that produces the final result, so what you see is what you get.
 - **Vocabulary.** Replacements for names and jargon, applied after a light clean-up of hesitations and stutters.
-- **A history that is a folder.** Every transcription is a Markdown file, a JSON file and the audio, in `~/Plume`, one folder per month. Search it in the window or with `grep`, or re-transcribe the kept audio with a newer model. Keeping the audio is a switch; the text stays.
+- **A history that is a folder.** Every transcription is a Markdown file, a JSON file and the audio, in `~/Plume`, one folder per month. Search it in the window or with `grep`. Drop an audio file on the window to transcribe it. Keeping the audio is a switch; the text stays.
 - **Made for agents.** `plume last`, `plume search budget`, `plume transcribe meeting.m4a`. An MCP server, wired into Claude Code or Claude Desktop from Settings in one click. `plume toggle dictee`, `plume stop` and friends drive the app from a script, Raycast or a Stream Deck.
 - **The clipboard is yours.** It is restored after every paste, and the dictation is marked transient so clipboard managers don't keep it.
-- **Light.** The island in the notch and one window: home, history, vocabulary, settings. A sound at the start and end of each recording, with a few packs to choose from. If the app quits mid-recording, the audio is already on disk and is transcribed at the next launch.
+- **Light.** The island in the notch and one window: home, history, vocabulary, settings. A sound at the start and end of each recording, with a few packs to choose from. If the app quits during a meeting, the audio is already on disk and is transcribed at the next launch.
 - **Updates itself, quietly.** It checks the GitHub release feed for a newer build, verifies the signature, and installs it for the next launch.
 
 <p align="center">
@@ -46,7 +46,8 @@ Not in the app yet. Details and longer-term plans are in [docs/PLAN.md](docs/PLA
 - **Text that fits where it lands.** Read around the cursor to add a space, drop a capital or a final period as needed.
 - **It notices the call.** Offer to record when a call app takes the microphone.
 - **Local AI, if you ask.** With Apple Intelligence: clean-up, meeting summaries, rewriting a selection on instruction. Off by default; the raw transcript always kept.
-- **More from the history.** Titles, export to Markdown, plain text, SRT, WebVTT or JSON, audio kept 90, 30 or 7 days, voice snippets in the vocabulary.
+- **More from the history.** Titles, export to Markdown, plain text, SRT, WebVTT or JSON, audio kept 90, 30 or 7 days.
+- **Voice snippets.** A vocabulary entry spanning several lines: say "my signature", get your signature.
 - **More for agents.** An MCP `listen` tool (the agent opens the mic, you answer out loud), and `plume://` links for Shortcuts.
 - **Translations** of the interface, an iOS app on the same engine, acoustic vocabulary for proper nouns, notarization.
 
@@ -71,9 +72,9 @@ On purpose:
 | The log | `~/Library/Logs/Plume/plume.log`. It can contain excerpts of your dictations: read it before attaching it to an issue. | You. |
 | Anything else | Nowhere. There is no server. | — |
 
-Three permissions, each asked when first needed: **Microphone** (to hear you), **Accessibility** (to press `⌘V` for you and read around the cursor; without it the text is only copied), **System audio recording** (for the other side of a meeting). The app is signed with a stable certificate, so the permissions survive updates.
+Three permissions, each asked when first needed: **Microphone** (to hear you), **Accessibility** (to press `⌘V` for you; without it the text is only copied), **System audio recording** (for the other side of a meeting). The app is signed with a stable certificate, so the permissions survive updates.
 
-Audio is written to disk as it is recorded, for dictations and meetings alike. Delete a transcription from the history and its text and audio go to the Trash together.
+During a meeting, audio is written to disk as it is recorded. Delete a transcription from the history and its text and audio go to the Trash together.
 
 ## Keyboard
 
@@ -92,7 +93,7 @@ The full tour of settings — microphone, sounds, model, library — is in the [
 
 ### Why the source is here
 
-So anyone can read exactly what an app that hears everything you say does with it, build it themselves, or fix what bothers them. It is about 13,000 lines of Swift, two dependencies (FluidAudio for the models, Sparkle for updates), one file per concern, and no Xcode project.
+So anyone can read exactly what an app that hears everything you say does with it, build it themselves, or fix what bothers them. It is about 10,000 lines of Swift, two dependencies (FluidAudio for the models, Sparkle for updates), one file per concern, and no Xcode project.
 
 ### Building it
 
@@ -137,7 +138,7 @@ A development binary shares the settings and vocabulary of the installed app: a 
 
 Issues and pull requests are welcome — bugs, ideas, code, translations. [CONTRIBUTING.md](CONTRIBUTING.md) says how things are reviewed; the short version: small changes, no new dependency without an issue first, nothing that phones home, and a screenshot or a short video when the interface changes. Code, comments and the interface are in French; match the file you are in.
 
-What's next is in [docs/PLAN.md](docs/PLAN.md): an iOS app on the same engine, acoustic vocabulary for proper nouns, vocabulary learned from your corrections, an offer to end the meeting when the call ends, notarization, translations.
+What's next: [On the roadmap](#on-the-roadmap) above, and [docs/PLAN.md](docs/PLAN.md).
 
 ### License
 
