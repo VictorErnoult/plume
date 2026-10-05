@@ -1,6 +1,25 @@
 import AppKit
 import PlumeKit
 
+/// Lancé par un lien symbolique (`~/.local/bin/plume`), le binaire ne trouve pas son app :
+/// `Bundle.main` désigne le dossier du lien, sans les sons enregistrés ni les polices. On se
+/// relance depuis le chemin résolu du binaire lancé, transmis par le noyau, et non d'après
+/// `Bundle.main`, que la variable `CFProcessPath` peut détourner. `realpath` étant idempotent,
+/// la relance n'a lieu qu'une fois.
+private func relaunchFromRealPathIfNeeded() {
+    var size: UInt32 = 0
+    _NSGetExecutablePath(nil, &size)
+    var buffer = [CChar](repeating: 0, count: Int(size))
+    guard _NSGetExecutablePath(&buffer, &size) == 0, let resolved = realpath(buffer, nil) else { return }
+    let path = String(cString: buffer)
+    let real = String(cString: resolved)
+    free(resolved)
+    guard real != path, real.contains(".app/Contents/MacOS/") else { return }
+    execv(real, CommandLine.unsafeArgv)
+}
+
+relaunchFromRealPathIfNeeded()
+
 let arguments = CommandLine.arguments
 
 if CLI.handles(arguments) {
