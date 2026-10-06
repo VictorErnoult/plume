@@ -2,13 +2,13 @@ import AppKit
 import CoreText
 import SwiftUI
 
-/// Direction artistique de la fenêtre. Le socle vient du portfolio soyakil.fr :
-/// gris neutres, Geist, rayons de 8, touches de clavier dessinées, barre flottante en bas,
-/// icônes au trait, un son discret sur chaque geste. Aucune couleur d'accent : ce qui doit
-/// ressortir prend la couleur du texte (blanc en sombre, presque noir en clair). Une touche
-/// de jeu et de mouvement : séries, records, activité, compteurs.
+/// Art direction of the window. The base comes from the soyakil.fr portfolio:
+/// neutral grays, Geist, radius of 8, drawn keyboard keys, floating bar at the bottom,
+/// line icons, a discreet sound on every gesture. No accent color: what must stand
+/// out takes the text color (white in dark, near black in light). A touch
+/// of play and motion: streaks, records, activity, counters.
 enum UI {
-    // MARK: Couleurs
+    // MARK: Colors
 
     private static func dynamic(light: UInt32, dark: UInt32, lightAlpha: CGFloat = 1, darkAlpha: CGFloat = 1) -> Color {
         func make(_ hex: UInt32, _ alpha: CGFloat) -> NSColor {
@@ -22,24 +22,24 @@ enum UI {
             })
     }
 
-    // Les six gris du portfolio, du fond vers le premier plan.
+    // The portfolio's six grays, from the background to the foreground.
     static let window = dynamic(light: 0xF7F7F7, dark: 0x0F0F0F)
     static let card = dynamic(light: 0xFFFFFF, dark: 0x151515)
     static let raised = dynamic(light: 0xF1F1F1, dark: 0x1B1B1B)
     static let line = dynamic(light: 0xE6E6E6, dark: 0x242424)
-    /// Fond de l'entrée active de la barre, contour des touches.
+    /// Background of the bar's active entry, outline of the keys.
     static let active = dynamic(light: 0xD9D9D9, dark: 0x2F2F2F)
     static let hover = dynamic(light: 0x000000, dark: 0xFFFFFF, lightAlpha: 0.045, darkAlpha: 0.055)
     static let selected = dynamic(light: 0x000000, dark: 0xFFFFFF, lightAlpha: 0.075, darkAlpha: 0.09)
     static let text = dynamic(light: 0x292929, dark: 0xEDEDED)
     static let text2 = dynamic(light: 0x5D5D5D, dark: 0xA1A1A1)
     static let text3 = dynamic(light: 0x9E9E9E, dark: 0x6E6E6E)
-    /// Texte posé sur un bouton plein (qui prend la couleur du texte).
+    /// Text set on a solid button (which takes the text color).
     static let onText = dynamic(light: 0xFFFFFF, dark: 0x111111)
     static let success = Color(red: 0x22 / 255, green: 0xC5 / 255, blue: 0x5E / 255)
-    /// Étiquette « bêta » : un mauve, lisible sur les deux fonds.
+    /// "beta" label: a mauve, readable on both backgrounds.
     static let beta = dynamic(light: 0x7C4DCC, dark: 0xC9A7FF)
-    /// Intensité d'activité, de la plus faible à la plus forte : du gris discret à la couleur du texte.
+    /// Activity intensity, from weakest to strongest: from discreet gray to the text color.
     static let activity: [Color] = [
         dynamic(light: 0xD0D0D0, dark: 0x3A3A3A),
         dynamic(light: 0x9E9E9E, dark: 0x6E6E6E),
@@ -49,17 +49,17 @@ enum UI {
 
     static let radius: CGFloat = 8
     static let pagePadding: CGFloat = 36
-    /// Place laissée en bas de chaque page pour la barre flottante.
+    /// Space left at the bottom of each page for the floating bar.
     static let dockClearance: CGFloat = 96
 
-    // MARK: Mouvement
+    // MARK: Motion
 
-    /// Décélération franche : part vite, se pose en douceur.
+    /// Sharp deceleration: starts fast, settles softly.
     static let ease = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.38)
     static let quick = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.2)
     static let spring = Animation.spring(duration: 0.38, bounce: 0.22)
 
-    // MARK: Typographie
+    // MARK: Typography
 
     private static var cache: [String: Font] = [:]
 
@@ -73,7 +73,7 @@ enum UI {
         }
         let key = "\(family)-\(size)-\(value)"
         if let font = cache[key] { return font }
-        let weightAxis = 2_003_265_652  // « wght »
+        let weightAxis = 2_003_265_652  // "wght"
         let descriptor = NSFontDescriptor(fontAttributes: [
             .family: family,
             .variation: [weightAxis: value],
@@ -83,13 +83,13 @@ enum UI {
         return font
     }
 
-    /// Geist à graisse variable ; police système si elle n'a pas pu être chargée.
+    /// Variable-weight Geist; system font if it could not be loaded.
     static func sans(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         guard Fonts.available, let font = variable("Geist", size, weight) else { return .system(size: size, weight: weight) }
         return font
     }
 
-    /// Geist Mono, pour les durées et les chiffres alignés.
+    /// Geist Mono, for durations and aligned numbers.
     static func mono(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         guard Fonts.available, let font = variable("Geist Mono", size, weight) else {
             return .system(size: size, weight: weight, design: .monospaced)
@@ -99,9 +99,9 @@ enum UI {
 }
 
 extension Bundle {
-    /// Dossier `Resources/<name>` du dépôt, quand le binaire est lancé depuis `.build` plutôt
-    /// que depuis l'app : on remonte depuis l'exécutable jusqu'au `Package.swift`. Aucun chemin
-    /// de la machine de compilation n'est ainsi inscrit dans le binaire.
+    /// `Resources/<name>` folder of the repo, when the binary is launched from `.build` rather
+    /// than from the app: we walk up from the executable to `Package.swift`. No path
+    /// of the build machine is thus written into the binary.
     static func repositoryResource(_ name: String) -> URL? {
         var directory = main.executableURL?.resolvingSymlinksInPath().deletingLastPathComponent()
         while let current = directory, current.path != "/" {
@@ -114,13 +114,13 @@ extension Bundle {
     }
 }
 
-/// Chargement des polices embarquées (licence libre SIL OFL).
+/// Loading of the embedded fonts (free SIL OFL license).
 enum Fonts {
     private(set) static var available = false
 
     static func register() {
         let bundled = Bundle.main.resourceURL?.appendingPathComponent("Fonts", isDirectory: true)
-        // Binaire lancé hors de l'app (développement) : les polices sont dans le dépôt.
+        // Binary launched outside the app (development): the fonts are in the repo.
         let development = Bundle.repositoryResource("Fonts")
         for directory in [bundled, development].compactMap({ $0 }) {
             guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
@@ -134,7 +134,7 @@ enum Fonts {
     }
 }
 
-// MARK: - Composants
+// MARK: - Components
 
 struct Card<Content: View>: View {
     var padding: CGFloat = 16
@@ -150,7 +150,7 @@ struct Card<Content: View>: View {
     }
 }
 
-/// Tout ce qui se clique s'enfonce légèrement sous le doigt.
+/// Everything clickable sinks slightly under the finger.
 struct PressStyle: ButtonStyle {
     var scale: CGFloat = 0.96
 
@@ -168,7 +168,7 @@ struct PlumeButton: View {
     var icon: Glyph?
     var kind: Kind = .secondary
     var help: String?
-    /// Son joué au clic ; par défaut, seuls les boutons pleins sonnent.
+    /// Sound played on click; by default, only solid buttons sound.
     var sound: Sounds.Kind?
     var action: () -> Void
     @State private var hovering = false
@@ -214,7 +214,7 @@ struct PlumeButton: View {
     }
 }
 
-/// Interrupteur : allumé, il prend la couleur du texte ; le curseur glisse avec un léger rebond.
+/// Switch: when on, it takes the text color; the knob slides with a slight bounce.
 struct PlumeSwitch: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button {
@@ -237,7 +237,7 @@ struct PlumeSwitch: ToggleStyle {
     }
 }
 
-/// Une touche de clavier, dessinée comme sur le portfolio.
+/// A keyboard key, drawn as on the portfolio.
 struct Keycap: View {
     var label: String
 
@@ -252,7 +252,7 @@ struct Keycap: View {
             .frame(height: 18)
             .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(UI.raised))
             .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(UI.active, lineWidth: 1))
-            // Le filet du bas, plus épais, donne l'épaisseur de la touche.
+            // The thicker bottom edge gives the key its thickness.
             .overlay(alignment: .bottom) {
                 UnevenRoundedRectangle(bottomLeadingRadius: 5, bottomTrailingRadius: 5, style: .continuous)
                     .fill(UI.active)
@@ -262,7 +262,7 @@ struct Keycap: View {
     }
 }
 
-/// Un raccourci écrit en touches : une touche par modificateur, une pour le reste.
+/// A shortcut written as keys: one key per modifier, one for the rest.
 struct Keycaps: View {
     var shortcut: String
 
@@ -283,7 +283,7 @@ struct Keycaps: View {
     }
 }
 
-/// Nombre qui défile jusqu'à sa valeur quand il apparaît ou change.
+/// Number that counts up to its value when it appears or changes.
 struct CountingText: View, Animatable {
     var value: Double
     var format: (Double) -> String
@@ -298,8 +298,8 @@ struct CountingText: View, Animatable {
     }
 }
 
-/// Apparition d'un bloc : il monte de quelques points en se dévoilant, avec un retard
-/// proportionnel à son rang pour un effet de cascade.
+/// Appearance of a block: it rises a few points as it is revealed, with a delay
+/// proportional to its rank for a cascade effect.
 struct Rise: ViewModifier {
     var index: Int
     @State private var shown = false
@@ -317,7 +317,7 @@ struct Rise: ViewModifier {
 extension View {
     func rise(_ index: Int = 0) -> some View { modifier(Rise(index: index)) }
 
-    /// Son discret quand le pointeur arrive sur l'élément.
+    /// Discreet sound when the pointer arrives on the element.
     func hoverSound(_ kind: Sounds.Kind) -> some View {
         onHover { if $0 { Sounds.hover(kind) } }
     }

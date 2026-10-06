@@ -2,9 +2,9 @@ import AppKit
 import PlumeKit
 import SwiftUI
 
-/// La page « Applications » : pour chaque app, l'allure du texte dicté, l'envoi avec Entrée,
-/// la mise au propre par l'IA et la méthode d'insertion. Une seule liste, sans « modes » à
-/// configurer : Plume reconnaît l'app au premier plan et applique sa règle.
+/// The "Applications" page: for each app, the style of the dictated text, sending with Return,
+/// the AI clean-up and the insertion method. A single list, with no "modes" to
+/// configure: Plume recognizes the frontmost app and applies its rule.
 struct ApplicationsPage: View {
     @ObservedObject var settings: SettingsModel
 
@@ -67,7 +67,7 @@ struct ApplicationsPage: View {
     }
 }
 
-/// Une règle : l'app en tête, ses quatre réglages en dessous.
+/// A rule: the app on top, its four settings below.
 private struct RuleCard: View {
     @Binding var rule: AppRule
     var icon: NSImage?

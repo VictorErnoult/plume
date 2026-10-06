@@ -1,19 +1,19 @@
 import SwiftUI
 
-/// Les icônes de Plume : celles du portfolio (soyakil.fr), dessinées au trait. La barre du
-/// portfolio utilise des icônes Lucide à 1,6 d'épaisseur, bouts ronds, plus un soleil, une
-/// lune et un haut-parleur maison ; tout le reste de l'app suit la même famille.
+/// Plume's icons: those of the portfolio (soyakil.fr), drawn as lines. The portfolio's bar
+/// uses Lucide icons at a stroke width of 1.6, round caps, plus a custom sun, moon
+/// and speaker; the rest of the app follows the same family.
 enum Glyph: String {
     case appWindow, arrowRight, arrowUpRight, audioLines, book, check, chevronDown, circleCheck, circleX, clipboardPaste
     case copy, cornerDownLeft, download, fileAudio, fileDown, fileText, flame, folder, history, home, keyboard, layoutGrid, listChecks
     case mic, micOff, moon, pause, pencil, phoneCall, play, plus, search, sliders, smartphone, sparkles, speakerOff, speakerOn
-    /// La plume de l'icône de l'app (Resources/Plume.svg) : une forme pleine, pas un trait.
+    /// The feather of the app icon (Resources/Plume.svg): a solid shape, not a stroke.
     case plume
-    /// « zZ » : rien ne rentre dans le micro.
+    /// "zZ": nothing gets into the microphone.
     case sleep
     case sun, trash, triangleAlert, undo, users, volume, volumeHigh, wandSparkles, x
 
-    /// Côté de la grille dans laquelle l'icône est dessinée.
+    /// Side of the grid the icon is drawn in.
     var box: CGFloat {
         switch self {
         case .speakerOn, .speakerOff: return 17
@@ -22,7 +22,7 @@ enum Glyph: String {
         }
     }
 
-    /// Épaisseur du trait, dans l'unité de la grille.
+    /// Stroke width, in grid units.
     var stroke: CGFloat {
         switch self {
         case .speakerOn, .speakerOff: return 1.3
@@ -85,12 +85,12 @@ enum Glyph: String {
 
     private static var cache: [Glyph: Path] = [:]
 
-    /// Le tracé complet de l'icône, dans sa grille.
+    /// The icon's full path, in its grid.
     var path: Path {
         if let path = Self.cache[self] { return path }
         var path = Path()
         for data in Self.paths[self] ?? [] { path.addPath(SVGPath.parse(data)) }
-        // La plume est dessinée sur 856 × 1023 : on la centre dans sa grille carrée.
+        // The feather is drawn on 856 × 1023: we center it in its square grid.
         if self == .plume { path = path.offsetBy(dx: (1023 - 856) / 2, dy: 0) }
         Self.cache[self] = path
         return path
@@ -98,7 +98,7 @@ enum Glyph: String {
 }
 
 extension Glyph {
-    /// L'icône en image AppKit teintable, pour la barre de menus.
+    /// The icon as a tintable AppKit image, for the menu bar.
     func image(size: CGFloat) -> NSImage {
         let image = NSImage(size: NSSize(width: size, height: size), flipped: true) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
@@ -124,7 +124,7 @@ extension Glyph {
 struct Icon: View {
     var glyph: Glyph
     var size: CGFloat = 16
-    /// Remplit aussi la forme (lecture, pause, flamme allumée).
+    /// Also fills the shape (play, pause, lit flame).
     var filled = false
 
     init(_ glyph: Glyph, size: CGFloat = 16, filled: Bool = false) {
@@ -153,8 +153,8 @@ private struct GlyphShape: Shape {
     }
 }
 
-/// Lecture des données d'un tracé SVG (`M`, `L`, `H`, `V`, `C`, `S`, `Q`, `T`, `A`, `Z`,
-/// en absolu comme en relatif).
+/// Reading of the data of an SVG path (`M`, `L`, `H`, `V`, `C`, `S`, `Q`, `T`, `A`, `Z`,
+/// absolute as well as relative).
 enum SVGPath {
     static func parse(_ data: String) -> Path {
         var reader = Reader(data)
@@ -182,7 +182,7 @@ enum SVGPath {
                 start = current
                 path.move(to: current)
                 lastControl = nil
-                // Les couples suivants sont des lignes.
+                // The following pairs are lines.
                 command = relative ? "l" : "L"
             case "L":
                 guard let x = reader.number(), let y = reader.number() else { return path }
@@ -248,7 +248,7 @@ enum SVGPath {
         return path
     }
 
-    /// Arc d'ellipse SVG, converti en courbes de Bézier (au plus un quart de tour chacune).
+    /// SVG ellipse arc, converted into Bézier curves (at most a quarter turn each).
     private static func arc(
         _ path: inout Path, from p0: CGPoint, to p1: CGPoint, rx: CGFloat, ry: CGFloat, rotation: CGFloat, large: Bool,
         sweep: Bool
@@ -328,7 +328,7 @@ enum SVGPath {
             while let c = peek, c == " " || c == "," || c == "\n" || c == "\t" { index += 1 }
         }
 
-        /// Un nombre : signe, chiffres, point, exposant. `1.5.5` se lit `1.5` puis `.5`.
+        /// A number: sign, digits, point, exponent. `1.5.5` reads as `1.5` then `.5`.
         mutating func number() -> CGFloat? {
             skipSeparators()
             var text = ""
@@ -359,7 +359,7 @@ enum SVGPath {
             return Double(text).map { CGFloat($0) }
         }
 
-        /// Un drapeau d'arc : un seul caractère, `0` ou `1`, parfois collé au nombre suivant.
+        /// An arc flag: a single character, `0` or `1`, sometimes stuck to the next number.
         mutating func flag() -> Bool? {
             skipSeparators()
             guard let c = peek, c == "0" || c == "1" else { return nil }

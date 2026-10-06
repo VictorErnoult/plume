@@ -31,17 +31,17 @@ enum Page: String, CaseIterable, Identifiable {
     }
 }
 
-/// État partagé par toute la fenêtre de Plume.
+/// State shared by the whole Plume window.
 @MainActor
 final class AppModel: ObservableObject {
     @Published var page: Page = .home {
-        // Chaque page s'ouvre sur sa propre note, comme les sections du portfolio.
+        // Each page opens on its own note, like the portfolio sections.
         didSet { if page != oldValue { Sounds.play(.page(Page.allCases.firstIndex(of: page) ?? 0)) } }
     }
     @Published private(set) var stats = LibraryStats()
-    /// Les trois dernières transcriptions, pour l'accueil.
+    /// The three latest transcriptions, for home.
     @Published private(set) var recent: [Transcript] = []
-    /// Le bouton « Commencer une transcription » : la fenêtre se range, l'enregistrement part.
+    /// The "Dictate" button: the window steps aside and recording starts.
     var onStartFromWindow: () -> Void = {}
 
     let session: SessionController
@@ -52,7 +52,7 @@ final class AppModel: ObservableObject {
         self.session = session
     }
 
-    /// Relit la bibliothèque et recalcule les chiffres de l'accueil.
+    /// Reloads the library and recomputes the home figures.
     func refresh() {
         library.reload()
         let store = PlumeSettings.shared.store
@@ -65,7 +65,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Variante immédiate, pour le rendu hors écran des maquettes.
+    /// Immediate variant, for off-screen rendering of the mockups.
     func refreshNow() {
         library.reload()
         stats = LibraryStats(transcripts: PlumeSettings.shared.store.list())
@@ -77,7 +77,7 @@ final class AppModel: ObservableObject {
         library.select(transcript)
     }
 
-    /// Récupère un enregistrement annulé depuis l'historique, puis l'ouvre.
+    /// Restores a cancelled recording from history, then opens it.
     func restoreCancelled(_ recording: CancelledRecording) {
         guard library.restoring == nil else { return }
         library.restoring = recording.id
@@ -122,11 +122,11 @@ final class AppModel: ObservableObject {
 
 enum HistoryFilter: String, CaseIterable, Identifiable {
     case all, dictation, meeting, imported
-    /// Les enregistrements annulés encore récupérables : ouverts par leur propre bouton, pas
-    /// par la barre de filtres.
+    /// Cancelled recordings that can still be restored: opened by their own button, not
+    /// by the filter bar.
     case cancelled
 
-    /// Les onglets de la barre de filtres.
+    /// The filter bar tabs.
     static let tabs: [HistoryFilter] = [.all, .dictation, .meeting, .imported]
 
     var id: String { rawValue }
@@ -161,14 +161,14 @@ final class LibraryModel: ObservableObject {
     @Published var filter: HistoryFilter = .all {
         didSet { if filter != oldValue { reload() } }
     }
-    /// Nombre de fichiers en cours de transcription.
+    /// Number of files being transcribed.
     @Published var importing = 0
-    /// Enregistrements annulés encore récupérables (filtre `.cancelled`).
+    /// Cancelled recordings that can still be restored (`.cancelled` filter).
     @Published var cancelled: [CancelledRecording] = []
     @Published var cancelledSelection: String?
-    /// Enregistrement annulé en cours de récupération.
+    /// Cancelled recording being restored.
     @Published var restoring: String?
-    /// Transcription dont la séparation des voix est en train d'être refaite.
+    /// Transcription whose diarization is being redone.
     @Published var reprocessing: String?
 
     let player = AudioPlayerModel()
@@ -217,7 +217,7 @@ final class LibraryModel: ObservableObject {
         reload()
     }
 
-    /// Supprime pour de bon un enregistrement annulé.
+    /// Permanently deletes a cancelled recording.
     func deleteCancelled(_ recording: CancelledRecording) {
         player.stop()
         PlumeSettings.shared.cancelled.delete(id: recording.id)
@@ -225,7 +225,7 @@ final class LibraryModel: ObservableObject {
         reload()
     }
 
-    /// Sections par jour d'enregistrement, comme l'historique.
+    /// Sections by recording day, like history.
     var cancelledSections: [(title: String, items: [CancelledRecording])] {
         let calendar = Calendar.current
         let groups = Dictionary(grouping: cancelled) { calendar.startOfDay(for: $0.createdAt) }
@@ -239,7 +239,7 @@ final class LibraryModel: ObservableObject {
         reload()
     }
 
-    /// Donne (ou retire) un titre à une transcription.
+    /// Gives (or removes) a title on a transcription.
     func retitle(_ transcript: Transcript, to title: String) {
         guard var updated = store.load(id: transcript.id) else { return }
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -248,10 +248,10 @@ final class LibraryModel: ObservableObject {
         reload()
     }
 
-    /// Transcriptions dont on refait la transcription ou le résumé.
+    /// Transcriptions being re-transcribed or re-summarized.
     @Published var working = Set<String>()
 
-    /// Retranscrit l'audio conservé avec le modèle actuel (modèle changé, premier résultat raté).
+    /// Transcribes the kept audio again with the current model (model changed, first result failed).
     func retranscribe(_ transcript: Transcript) {
         guard !working.contains(transcript.id), let url = audioURLs(for: transcript).first else { return }
         working.insert(transcript.id)
@@ -282,7 +282,7 @@ final class LibraryModel: ObservableObject {
         }
     }
 
-    /// Résume avec l'IA locale (points clés, décisions, actions) et propose un titre.
+    /// Summarizes with the local AI (key points, decisions, actions) and suggests a title.
     func summarize(_ transcript: Transcript) {
         guard !working.contains(transcript.id) else { return }
         working.insert(transcript.id)
@@ -302,7 +302,7 @@ final class LibraryModel: ObservableObject {
         }
     }
 
-    /// Enregistre la transcription dans le format choisi, là où l'utilisateur le décide.
+    /// Saves the transcription in the chosen format, where the user decides.
     func export(_ transcript: Transcript, as format: ExportFormat) {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = Exporter.fileName(for: transcript, format: format)
@@ -312,8 +312,8 @@ final class LibraryModel: ObservableObject {
         try? Exporter.render(transcript, as: format).write(to: url, atomically: true, encoding: .utf8)
     }
 
-    /// Réécoute l'audio conservé pour refaire la séparation des voix, éventuellement avec un
-    /// nombre de personnes imposé.
+    /// Listens to the kept audio again to redo the diarization, possibly with a
+    /// forced number of people.
     func reprocess(_ transcript: Transcript, speakers: Int?) {
         guard reprocessing == nil else { return }
         reprocessing = transcript.id
@@ -338,7 +338,7 @@ final class LibraryModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([store.markdownURL(for: transcript)] + audio)
     }
 
-    /// Sections par jour, de la plus récente à la plus ancienne.
+    /// Sections by day, from the most recent to the oldest.
     var sections: [(title: String, items: [Transcript])] {
         let calendar = Calendar.current
         let groups = Dictionary(grouping: transcripts) { calendar.startOfDay(for: $0.createdAt) }
@@ -363,8 +363,8 @@ final class LibraryModel: ObservableObject {
     }
 }
 
-/// Lecture de l'enregistrement d'origine d'une transcription (micro et son de l'ordinateur
-/// joués ensemble pour une réunion).
+/// Playback of a transcription's original recording (microphone and system audio
+/// played together for a meeting).
 @MainActor
 final class AudioPlayerModel: ObservableObject {
     @Published private(set) var loadedID: String?
@@ -377,8 +377,8 @@ final class AudioPlayerModel: ObservableObject {
 
     func isLoaded(_ id: String) -> Bool { loadedID == id }
 
-    /// Ouvre l'audio d'une transcription. Appelé seulement quand on veut écouter : parcourir
-    /// l'historique ne doit pas solliciter le système audio.
+    /// Opens a transcription's audio. Called only when the user wants to listen: browsing
+    /// history must not wake the audio system.
     func load(id: String, urls: [URL]) {
         guard loadedID != id else { return }
         stop()
@@ -448,7 +448,7 @@ final class AudioPlayerModel: ObservableObject {
         if let longest, longest.isPlaying {
             currentTime = longest.currentTime
         } else if !players.contains(where: \.isPlaying) {
-            // Fin de l'enregistrement.
+            // End of the recording.
             pause()
             currentTime = duration
         }
@@ -465,7 +465,7 @@ final class SettingsModel: ObservableObject {
     var onRulesChanged: () -> Void = {}
     var onLanguageChanged: () -> Void = {}
 
-    /// Langue de l'interface ; la fenêtre se redessine entièrement quand elle change.
+    /// Interface language; the window is fully redrawn when it changes.
     @Published var language: Language {
         didSet {
             settings.language = language
@@ -481,7 +481,7 @@ final class SettingsModel: ObservableObject {
     @Published var transformShortcut: Shortcut { didSet { settings.transformShortcut = transformShortcut; onShortcutsChanged() } }
     @Published var cancelShortcut: Shortcut { didSet { settings.cancelShortcut = cancelShortcut; onShortcutsChanged() } }
     @Published var restoreShortcut: Shortcut { didSet { settings.restoreShortcut = restoreShortcut; onShortcutsChanged() } }
-    /// Heures pendant lesquelles un enregistrement annulé reste récupérable (0 : jamais gardé).
+    /// Hours during which a cancelled recording stays restorable (0: never kept).
     @Published var cancelledRetentionHours: Int {
         didSet {
             settings.cancelledRetentionHours = cancelledRetentionHours
@@ -510,29 +510,29 @@ final class SettingsModel: ObservableObject {
     @Published var keepAudio: Bool { didSet { settings.keepAudio = keepAudio } }
     @Published var keepHistory: Bool { didSet { settings.keepHistory = keepHistory } }
     @Published var model: EngineModel { didSet { settings.model = model; onModelChanged() } }
-    /// Dossier du modèle personnalisé (chaîne vide : aucun).
+    /// Custom model folder (empty string: none).
     @Published var customModelPath: String
-    /// Ce qui cloche avec le dossier de modèle choisi, le cas échéant.
+    /// What is wrong with the chosen model folder, if anything.
     @Published var modelMessage: String?
     @Published var appearance: String { didSet { settings.appearance = appearance; onAppearanceChanged() } }
-    /// Micro choisi : identifiant du périphérique, ou chaîne vide pour le micro intégré du Mac.
+    /// Chosen microphone: device identifier, or empty string for the Mac's built-in microphone.
     @Published var microphoneUID: String { didSet { settings.microphoneUID = microphoneUID.isEmpty ? nil : microphoneUID } }
     @Published private(set) var microphones: [InputDevice] = AudioDevices.inputs()
     @Published var replacements: [Replacement] { didSet { ReplacementStore.save(replacements) } }
     @Published var rules: [AppRule] { didSet { AppRuleStore.save(rules); onRulesChanged() } }
-    /// L'IA locale : disponible, ou pourquoi pas.
+    /// The local AI: available, or why not.
     @Published private(set) var ai = LocalAI.availability
     @Published var libraryPath: String
     @Published var launchAtLogin: Bool
     @Published var microphoneGranted = Permissions.microphoneGranted
     @Published var accessibilityGranted = Paster.isTrusted
-    // Liens avec le terminal et les assistants.
+    // Links with the terminal and the assistants.
     @Published private(set) var commandInstalled = Integrations.commandInstalled
     @Published private(set) var commandOnPath = true
     @Published private(set) var claudeCodeConnected = Integrations.claudeCodeConnected
     @Published private(set) var claudeDesktopConnected = Integrations.claudeDesktopConnected
     @Published private(set) var connectingClaudeCode = false
-    /// Dernier incident d'une connexion, affiché sous la section.
+    /// Last incident of a connection, shown under the section.
     @Published var integrationMessage: String?
 
     init() {
@@ -575,7 +575,7 @@ final class SettingsModel: ObservableObject {
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
-    /// Ce que Plume garde d'une dictée : tout, le texte, ou rien.
+    /// What Plume keeps of a dictation: everything, the text, or nothing.
     enum Retention: String, CaseIterable, Identifiable {
         case textAndAudio, textOnly, nothing
 
@@ -598,9 +598,9 @@ final class SettingsModel: ObservableObject {
         }
     }
 
-    // MARK: Modèle
+    // MARK: Model
 
-    /// Choisit le dossier d'un modèle au format Parakeet, et passe dessus s'il est complet.
+    /// Chooses the folder of a Parakeet-format model, and switches to it if it is complete.
     func chooseModelDirectory() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -622,13 +622,13 @@ final class SettingsModel: ObservableObject {
 
     var permissionsMissing: Bool { !microphoneGranted || !accessibilityGranted }
 
-    /// Relit la liste des micros branchés.
+    /// Reloads the list of connected microphones.
     func refreshMicrophones() {
         let devices = AudioDevices.inputs()
         if devices != microphones { microphones = devices }
     }
 
-    /// Le micro choisi n'est pas branché en ce moment (écouteurs éteints, par exemple).
+    /// The chosen microphone is not connected right now (headphones off, for example).
     var chosenMicrophoneMissing: Bool {
         !microphoneUID.isEmpty && !microphones.contains { $0.uid == microphoneUID }
     }
@@ -686,7 +686,7 @@ final class SettingsModel: ObservableObject {
 
     // MARK: Applications
 
-    /// Choisit une app dans le Finder et lui crée une règle (une seule par app).
+    /// Chooses an app in the Finder and creates a rule for it (one per app).
     func addRule() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
@@ -704,29 +704,29 @@ final class SettingsModel: ObservableObject {
         }
     }
 
-    /// La règle « toutes les autres applications », créée au besoin.
+    /// The "all other applications" rule, created if needed.
     func addDefaultRule() {
         guard !rules.contains(where: { $0.bundleID == "*" }) else { return }
         rules.append(AppRule(bundleID: "*", name: tr("All other applications")))
     }
 
-    /// Les messageries ont tout de suite le style « message ».
+    /// Messaging apps get the "message" style right away.
     static func suggestedStyle(for bundleID: String) -> DictationStyle {
         let messaging = ["slack", "messages", "whatsapp", "telegram", "discord", "ichat", "signal", "teams", "messenger"]
         return messaging.contains(where: { bundleID.lowercased().contains($0) }) ? .message : .standard
     }
 
-    /// L'icône de l'app, si elle est installée.
+    /// The app's icon, if it is installed.
     func icon(for rule: AppRule) -> NSImage? {
         guard rule.bundleID != "*", let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: rule.bundleID)
         else { return nil }
         return NSWorkspace.shared.icon(forFile: url.path)
     }
 
-    // MARK: Sauvegarde des réglages
+    // MARK: Settings backup
 
-    /// Écrit tous les réglages (raccourcis, options, vocabulaire, applications) dans un fichier,
-    /// pour les retrouver sur un autre Mac.
+    /// Writes all settings (shortcuts, options, vocabulary, applications) to a file,
+    /// to carry them over to another Mac.
     func exportSettings() {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = tr("Plume Settings.json")
@@ -755,7 +755,7 @@ final class SettingsModel: ObservableObject {
         }
     }
 
-    /// Relit les réglages depuis le disque, après un import.
+    /// Reloads the settings from disk, after an import.
     private func reloadFromSettings() {
         dictationShortcut = settings.dictationShortcut
         meetingShortcut = settings.meetingShortcut
@@ -792,7 +792,7 @@ final class SettingsModel: ObservableObject {
         rules = AppRuleStore.load()
     }
 
-    // MARK: Terminal et assistants
+    // MARK: Terminal and assistants
 
     func refreshIntegrations() {
         commandInstalled = Integrations.commandInstalled

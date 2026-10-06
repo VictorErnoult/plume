@@ -2,7 +2,7 @@ import AppKit
 import PlumeKit
 import SwiftUI
 
-// MARK: - Historique
+// MARK: - History
 
 struct HistoryPage: View {
     @ObservedObject var app: AppModel
@@ -161,7 +161,7 @@ struct HistoryPage: View {
     }
 }
 
-/// Filtres de l'historique ; le fond de l'onglet actif glisse de l'un à l'autre.
+/// History filters; the active tab's background slides from one to the other.
 private struct FilterBar: View {
     @Binding var selection: HistoryFilter
     @Namespace private var namespace
@@ -261,7 +261,7 @@ private struct HistoryRow: View {
     }
 }
 
-/// Un enregistrement annulé dans la liste : même allure qu'une transcription, en retrait.
+/// A cancelled recording in the list: looks like a transcription, set back.
 private struct CancelledRow: View {
     var recording: CancelledRecording
     var selected: Bool
@@ -320,7 +320,7 @@ private struct CancelledRow: View {
     }
 }
 
-/// Un enregistrement annulé : l'écouter, le récupérer dans l'historique, ou le jeter pour de bon.
+/// A cancelled recording: listen to it, restore it into history, or throw it away for good.
 private struct CancelledDetail: View {
     var recording: CancelledRecording
     @ObservedObject var app: AppModel
@@ -345,7 +345,7 @@ private struct CancelledDetail: View {
         return parts.joined(separator: "  ·  ")
     }
 
-    /// « Supprimé automatiquement dans 3 jours ».
+    /// "Deleted automatically in 3 days".
     private var expiry: String? {
         let hours = app.settings.cancelledRetentionHours
         guard hours > 0 else { return nil }
@@ -586,7 +586,7 @@ private struct TranscriptDetail: View {
         }
     }
 
-    /// Markdown, texte, sous-titres ou JSON, enregistrés où on veut.
+    /// Markdown, text, subtitles or JSON, saved wherever you like.
     private var exportMenu: some View {
         Menu {
             ForEach(ExportFormat.allCases) { format in
@@ -607,7 +607,7 @@ private struct TranscriptDetail: View {
         .help(tr("Export"))
     }
 
-    /// Le résumé écrit par l'IA locale : points clés, décisions, actions.
+    /// The summary written by the local AI: key points, decisions, actions.
     private func summaryCard(_ summary: String) -> some View {
         Card(fill: UI.raised) {
             VStack(alignment: .leading, spacing: 10) {
@@ -652,7 +652,7 @@ private struct TranscriptDetail: View {
             ?? AttributedString(text)
     }
 
-    /// Refaire la séparation des voix, en précisant au besoin combien de personnes parlaient.
+    /// Redo the diarization, saying how many people were speaking if needed.
     private var voices: some View {
         HStack(spacing: 8) {
             Menu {
@@ -724,12 +724,12 @@ private struct TranscriptDetail: View {
     }
 }
 
-/// Lecteur de l'enregistrement d'origine : lecture, position, durée.
+/// Player for the original recording: playback, position, duration.
 private struct PlayerBar: View {
     @ObservedObject var player: AudioPlayerModel
     var id: String
     var urls: [URL]
-    /// Durée connue de la transcription, affichée tant que l'audio n'est pas ouvert.
+    /// Known duration of the transcription, shown until the audio is opened.
     var length: TimeInterval
     @State private var hovering = false
 
@@ -795,7 +795,7 @@ private struct PlayerBar: View {
     }
 }
 
-// MARK: - Vocabulaire
+// MARK: - Vocabulary
 
 struct VocabularyPage: View {
     @ObservedObject var settings: SettingsModel
@@ -844,7 +844,7 @@ struct VocabularyPage: View {
                                     Icon(.arrowRight, size: 13)
                                         .foregroundStyle(UI.text3)
                                         .frame(width: 14)
-                                    // Plusieurs lignes possibles : une adresse, une signature.
+                                    // Several lines allowed: an address, a signature.
                                     TextField(tr("what should be written"), text: $item.with, axis: .vertical)
                                         .textFieldStyle(.plain)
                                         .lineLimit(1...6)
@@ -885,9 +885,9 @@ struct VocabularyPage: View {
     }
 }
 
-// MARK: - Réglages
+// MARK: - Settings
 
-/// Les groupes de réglages, dans l'ordre de la barre latérale.
+/// The settings groups, in sidebar order.
 enum SettingsGroup: String, CaseIterable, Identifiable {
     case general, shortcuts, dictation, meeting, ai, audio, model, library, access, permissions, about
 
@@ -926,8 +926,8 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
     }
 }
 
-/// Les réglages : une barre latérale à gauche, comme l'historique, et le groupe choisi à
-/// droite. Il y en a de plus en plus ; en colonne unique on ne s'y retrouvait plus.
+/// Settings: a sidebar on the left, like history, and the chosen group on the
+/// right. There are more and more of them; in a single column it was hard to find anything.
 struct SettingsPage: View {
     @ObservedObject var settings: SettingsModel
     @ObservedObject private var updates = Updates.shared
@@ -949,7 +949,7 @@ struct SettingsPage: View {
                 .frame(maxWidth: 740, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
-            // Chaque groupe arrive avec sa propre cascade.
+            // Each group arrives with its own cascade.
             .id(group)
         }
         .onReceive(refresh) { _ in
@@ -1176,7 +1176,7 @@ struct SettingsPage: View {
                     }
                     .labelsHidden()
                     .frame(width: 190)
-                    // On fait entendre le pack choisi.
+                    // Play the chosen pack.
                     .onChange(of: settings.soundPack) { _, _ in Sounds.play(.start) }
                     .disabled(!settings.sounds)
                 }
@@ -1184,13 +1184,13 @@ struct SettingsPage: View {
                     HStack(spacing: 8) {
                         Icon(.volume, size: 14).foregroundStyle(UI.text2)
                         Slider(value: $settings.soundVolume, in: 0.1...1) { editing in
-                            // Au relâchement, le son de début : c'est lui qu'on règle.
+                            // On release, the start sound: that is the one being adjusted.
                             if !editing { Sounds.play(.start) }
                         }
                         .controlSize(.small)
                         .tint(UI.text)
                         .frame(width: 150)
-                        // Un cran sonne à chaque quatorzième de la course, de plus en plus haut.
+                        // A notch sounds at every fourteenth of the travel, higher and higher.
                         .onChange(of: Int((settings.soundVolume - 0.1) / 0.9 * 14)) { _, notch in
                             Sounds.play(.sliderStep(notch * 8 / 14))
                         }
@@ -1351,11 +1351,11 @@ struct SettingsPage: View {
     }
 }
 
-/// Une entrée de la barre latérale des réglages.
+/// An entry of the settings sidebar.
 private struct SettingsGroupRow: View {
     var group: SettingsGroup
     var selected: Bool
-    /// Un point d'alerte : une autorisation manque.
+    /// An alert dot: a permission is missing.
     var attention = false
     var action: () -> Void
     @State private var hovering = false
@@ -1394,7 +1394,7 @@ private struct SettingsGroupRow: View {
     }
 }
 
-/// État d'un lien avec l'extérieur : un bouton pour l'établir, une coche une fois fait.
+/// State of a link with the outside: a button to set it up, a check mark once done.
 private struct LinkState: View {
     var done: Bool
     var action: String
@@ -1415,7 +1415,7 @@ private struct LinkState: View {
     }
 }
 
-/// Un groupe de réglages : un titre, une carte dont les lignes sont séparées d'un filet.
+/// A settings group: a title, a card whose rows are separated by a thin rule.
 private struct SettingsSection<Content: View>: View {
     var title: String
     var footer: String?
@@ -1431,7 +1431,7 @@ private struct SettingsSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             if !title.isEmpty { Text(title).font(UI.sans(14, .medium)) }
             Card(padding: 0) {
-                // Un filet entre chaque ligne de la section.
+                // A thin rule between each row of the section.
                 VStack(spacing: 0) {
                     Group(subviews: content()) { rows in
                         ForEach(rows) { row in
@@ -1453,7 +1453,7 @@ private struct SettingsSection<Content: View>: View {
 private struct SettingRow<Control: View>: View {
     var title: String
     var detail: String?
-    /// Petite étiquette à côté du titre : « bêta » pour ce qui n'est pas encore au point.
+    /// Small label next to the title: "beta" for what is not quite ready yet.
     var badge: String?
     @ViewBuilder var control: () -> Control
 
@@ -1470,8 +1470,8 @@ private struct SettingRow<Control: View>: View {
                 HStack(spacing: 7) {
                     Text(title).font(UI.sans(14))
                     if let badge {
-                        // En capitales et en mauve : la seule touche de couleur des réglages, pour ce qui
-                        // est encore en chantier.
+                        // In capitals and mauve: the only touch of color in settings, for what
+                        // is still a work in progress.
                         Text(badge.uppercased())
                             .font(UI.sans(10, .semibold))
                             .tracking(0.6)
@@ -1520,13 +1520,13 @@ private struct SettingToggle: View {
     }
 }
 
-/// Capte un raccourci : une touche avec modificateurs, ou au moins deux modificateurs
-/// seuls (⌃⇧).
+/// Captures a shortcut: a key with modifiers, or at least two modifiers
+/// alone (⌃⇧).
 struct ShortcutRecorder: View {
     @Binding var shortcut: Shortcut
     var optional = false
-    /// Une touche, seule ou avec modificateurs, Échap compris ; pas d'accord de modificateurs
-    /// seuls. Pour annuler la saisie, on reclique sur le bouton.
+    /// A key, alone or with modifiers, Escape included; no chord of modifiers alone.
+    /// To cancel the capture, click the button again.
     var keyOnly = false
     var onRecording: (Bool) -> Void = { _ in }
 
@@ -1577,9 +1577,9 @@ struct ShortcutRecorder: View {
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             let mask = HotkeyManager.mask(from: event.modifierFlags)
             if event.type == .keyDown {
-                if keyOnly, event.keyCode == 53 {  // Échap, seul ou non, est une touche comme une autre
+                if keyOnly, event.keyCode == 53 {  // Escape, alone or not, is a key like any other
                     finish(Shortcut(keyCode: 53, modifiers: mask))
-                } else if event.keyCode == 53 {  // Échap : on garde l'ancien raccourci
+                } else if event.keyCode == 53 {  // Escape: keep the old shortcut
                     finish(nil)
                 } else if mask != 0 || (96...122).contains(Int(event.keyCode)) {
                     finish(Shortcut(keyCode: Int(event.keyCode), modifiers: mask))
@@ -1587,7 +1587,7 @@ struct ShortcutRecorder: View {
                 return nil
             }
             if mask == 0 {
-                // Tout est relâché : un accord d'au moins deux modificateurs est valide.
+                // Everything is released: a chord of at least two modifiers is valid.
                 if !keyOnly, heldMask.nonzeroBitCount >= 2 { finish(Shortcut(keyCode: nil, modifiers: heldMask)) }
                 heldMask = 0
             } else {
