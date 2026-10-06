@@ -165,8 +165,10 @@ public final class TranscriptStore: @unchecked Sendable {
             try Self.readme.write(to: readme, atomically: true, encoding: .utf8)
         }
         retireLegacyGuide()
-        // Right after an upgrade `latest.md` doesn't exist yet: don't wait for the next save.
-        if !fm.fileExists(atPath: root.appendingPathComponent("latest.md").path) { refreshLatest() }
+        // Right after an upgrade `latest.md` doesn't exist yet, and an older version sharing the
+        // folder only updates `dernier.md`: don't wait for the next save. One read and a compare.
+        let current = try? String(contentsOf: root.appendingPathComponent("latest.md"), encoding: .utf8)
+        if current == nil || current != latestUnlocked().map(Self.markdown(for:)) { refreshLatest() }
     }
 
     /// Removes the French `LISEZMOI.md` only if it is exactly what an earlier version wrote and
@@ -181,12 +183,15 @@ public final class TranscriptStore: @unchecked Sendable {
     }
 
     /// Writes the newest transcript to `latest.md`, and to `dernier.md` as a plain copy (no
-    /// symlink: synced folders and some readers mishandle links); removes both if there is none.
+    /// symlink: synced folders and some readers mishandle links). With no transcript, removes
+    /// only files that are Plume's own (front matter): the folder may be the user's.
     /// Call with the lock held.
     private func refreshLatest() {
         let names = ["latest.md", "dernier.md"].map { root.appendingPathComponent($0) }
         guard let latest = latestUnlocked() else {
-            for url in names { try? fm.removeItem(at: url) }
+            for url in names where (try? String(contentsOf: url, encoding: .utf8))?.hasPrefix("---\nid: ") == true {
+                try? fm.removeItem(at: url)
+            }
             return
         }
         let md = Self.markdown(for: latest)

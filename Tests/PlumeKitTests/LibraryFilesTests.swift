@@ -89,11 +89,53 @@ struct LibraryFilesTests {
         let root = tempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        try "stale".write(to: root.appendingPathComponent("dernier.md"), atomically: true, encoding: .utf8)
+        let ours = "---\nid: 2026-10-02_09-15-00\n---\n"
+        for name in ["latest.md", "dernier.md"] {
+            try ours.write(to: root.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        }
         TranscriptStore(root: root).prepare()
         #expect(!exists(root, "latest.md"))
         #expect(!exists(root, "dernier.md"))
         #expect(read(root, "README.md") == TranscriptStore.readme)
+    }
+
+    @Test func anEmptyLibraryLeavesAUsersOwnLatestFiles() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        for name in ["latest.md", "dernier.md"] {
+            try "my own \(name)".write(to: root.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        }
+        TranscriptStore(root: root).prepare()
+        #expect(read(root, "latest.md") == "my own latest.md")
+        #expect(read(root, "dernier.md") == "my own dernier.md")
+    }
+
+    @Test func prepareRefreshesAStaleLatestMd() throws {
+        let (root, transcripts) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        // An older version sharing the folder only updates `dernier.md`.
+        try "stale".write(to: root.appendingPathComponent("latest.md"), atomically: true, encoding: .utf8)
+        TranscriptStore(root: root).prepare()
+        let expected = TranscriptStore.markdown(for: transcripts.last!)
+        #expect(read(root, "latest.md") == expected)
+        #expect(read(root, "dernier.md") == expected)
+    }
+
+    @Test func aRealOneZeroOneLibraryIsUpgradedByPrepare() throws {
+        let (root, transcripts) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        // What 1.0.1 left: no latest.md, no README.md, the French guide, an outdated dernier.md.
+        try FileManager.default.removeItem(at: root.appendingPathComponent("latest.md"))
+        try FileManager.default.removeItem(at: root.appendingPathComponent("README.md"))
+        try TranscriptStore.legacyReadme.write(to: root.appendingPathComponent("LISEZMOI.md"), atomically: true, encoding: .utf8)
+        try "outdated".write(to: root.appendingPathComponent("dernier.md"), atomically: true, encoding: .utf8)
+        TranscriptStore(root: root).prepare()
+        let expected = TranscriptStore.markdown(for: transcripts.last!)
+        #expect(read(root, "latest.md") == expected)
+        #expect(read(root, "dernier.md") == expected)
+        #expect(read(root, "README.md") == TranscriptStore.readme)
+        #expect(!exists(root, "LISEZMOI.md"))
     }
 
     @Test func prepareCreatesLatestMdForAnUpgradedLibrary() throws {
