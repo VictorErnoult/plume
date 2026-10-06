@@ -10,8 +10,8 @@ enum CaptureError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noInput: return "Aucun micro disponible."
-        case .coreAudio(let step, let status): return "Capture du son système impossible (\(step), code \(status))."
+        case .noInput: return tr("No microphone available.")
+        case .coreAudio(let step, let status): return String(format: tr("System audio capture failed (%@, code %d)."), step, status)
         }
     }
 }
@@ -186,7 +186,7 @@ final class MicCapture {
     /// Le micro a disparu et aucun autre n'a pu prendre le relais.
     var onFailure: (() -> Void)?
     /// Nom du micro effectivement utilisé (pour le journal et le diagnostic).
-    private(set) var deviceName = "aucun"
+    private(set) var deviceName = tr("none")
 
     private static var aliveAddress = AudioObjectPropertyAddress(
         mSelector: kAudioDevicePropertyDeviceIsAlive, mScope: kAudioObjectPropertyScopeGlobal,
@@ -209,7 +209,7 @@ final class MicCapture {
                 mSelector: kAudioHardwarePropertyDefaultInputDevice, mScope: kAudioObjectPropertyScopeGlobal,
                 mElement: kAudioObjectPropertyElementMain)
             AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device)
-            deviceName = "entrée par défaut du système"
+            deviceName = tr("system default input")
         }
         guard device != kAudioObjectUnknown else { throw CaptureError.noInput }
 
@@ -219,8 +219,8 @@ final class MicCapture {
             mSelector: kAudioDevicePropertyStreamFormat, mScope: kAudioDevicePropertyScopeInput,
             mElement: kAudioObjectPropertyElementMain)
         var status = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &format)
-        guard status == noErr, format.mSampleRate > 0 else { throw CaptureError.coreAudio("format du micro", status) }
-        TestHooks.log("micro : \(deviceName), \(Int(format.mSampleRate)) Hz, \(format.mChannelsPerFrame) canal(aux)")
+        guard status == noErr, format.mSampleRate > 0 else { throw CaptureError.coreAudio(tr("microphone format"), status) }
+        TestHooks.log("microphone: \(deviceName), \(Int(format.mSampleRate)) Hz, \(format.mChannelsPerFrame) channel(s)")
 
         let streamFormat = format
         var described = false
@@ -230,18 +230,18 @@ final class MicCapture {
                 described = true
                 let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
                 TestHooks.log(
-                    "micro : premier tampon [\(list.map { "\($0.mNumberChannels) canal(aux) × \($0.mDataByteSize) octets" }.joined(separator: ", "))], "
-                        + "drapeaux \(streamFormat.mFormatFlags), \(streamFormat.mBitsPerChannel) bits")
+                    "microphone: first buffer [\(list.map { "\($0.mNumberChannels) channel(s) × \($0.mDataByteSize) bytes" }.joined(separator: ", "))], "
+                        + "flags \(streamFormat.mFormatFlags), \(streamFormat.mBitsPerChannel) bits")
             }
             let samples = self.resampler.convert(microphone: input, format: streamFormat)
             if !samples.isEmpty { self.onSamples?(samples) }
         }
-        guard status == noErr, let procID else { throw CaptureError.coreAudio("lecture du micro", status) }
+        guard status == noErr, let procID else { throw CaptureError.coreAudio(tr("reading the microphone"), status) }
         status = AudioDeviceStart(device, procID)
         guard status == noErr else {
             AudioDeviceDestroyIOProcID(device, procID)
             self.procID = nil
-            throw CaptureError.coreAudio("démarrage du micro", status)
+            throw CaptureError.coreAudio(tr("starting the microphone"), status)
         }
         deviceID = device
 
@@ -268,12 +268,12 @@ final class MicCapture {
     private func deviceVanished() {
         DispatchQueue.main.async { [self] in
             guard running else { return }
-            Log.write("micro : « \(deviceName) » a disparu, bascule sur un autre micro")
+            Log.write("microphone: “\(deviceName)” disappeared, switching to another microphone")
             close()
             do {
                 try open()
             } catch {
-                Log.write("micro : aucun micro de remplacement (\(error.localizedDescription))")
+                Log.write("microphone: no replacement microphone (\(error.localizedDescription))")
                 onFailure?()
             }
         }
@@ -318,7 +318,7 @@ final class SystemAudioCapture {
             do {
                 try startTap()
             } catch {
-                Log.write("son système : \(error.localizedDescription)")
+                Log.write("system audio: \(error.localizedDescription)")
                 return
             }
             // Casque branché ou débranché en pleine réunion : on recrée le tap sur la nouvelle sortie.
@@ -346,7 +346,7 @@ final class SystemAudioCapture {
                     current.mSampleRate != self.format.mSampleRate
                         || current.mChannelsPerFrame != self.format.mChannelsPerFrame
                 else { return }
-                Log.write("son système : format modifié, tap recréé")
+                Log.write("system audio: format changed, tap recreated")
                 self.stopTap()
                 try? self.startTap()
             }
@@ -378,19 +378,19 @@ final class SystemAudioCapture {
         description.muteBehavior = .unmuted
 
         var tap = AudioObjectID(kAudioObjectUnknown)
-        try check(AudioHardwareCreateProcessTap(description, &tap), "création du tap")
+        try check(AudioHardwareCreateProcessTap(description, &tap), tr("creating the tap"))
         tapID = tap
 
         var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioTapPropertyFormat, mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain)
-        try check(AudioObjectGetPropertyData(tapID, &address, 0, nil, &size, &format), "format du tap")
+        try check(AudioObjectGetPropertyData(tapID, &address, 0, nil, &size, &format), tr("tap format"))
 
         // Le tap se lit à travers un périphérique agrégé privé, calé sur la sortie réelle.
         let outputUID = try Self.defaultOutputDeviceUID()
         let aggregate: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "Plume (son système)",
+            kAudioAggregateDeviceNameKey: "Plume (system audio)",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
             kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,
@@ -402,13 +402,13 @@ final class SystemAudioCapture {
             ],
         ]
         var device = AudioObjectID(kAudioObjectUnknown)
-        try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device), "périphérique agrégé")
+        try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device), tr("aggregate device"))
         aggregateID = device
 
         let tapFormat = format
         Log.write(
-            "son système : tap créé (\(Int(tapFormat.mSampleRate)) Hz, \(tapFormat.mChannelsPerFrame) canaux, "
-                + "\(tapFormat.mBitsPerChannel) bits, drapeaux \(tapFormat.mFormatFlags))")
+            "system audio: tap created (\(Int(tapFormat.mSampleRate)) Hz, \(tapFormat.mChannelsPerFrame) channels, "
+                + "\(tapFormat.mBitsPerChannel) bits, flags \(tapFormat.mFormatFlags))")
         var described = false
         try check(
             AudioDeviceCreateIOProcIDWithBlock(&procID, aggregateID, queue) { [weak self] _, input, _, _, _ in
@@ -416,13 +416,13 @@ final class SystemAudioCapture {
                 if !described {
                     described = true
                     let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
-                    let layout = list.map { "\($0.mNumberChannels) canal(aux) × \($0.mDataByteSize) octets" }
-                    Log.write("son système : premier tampon reçu [\(layout.joined(separator: ", "))]")
+                    let layout = list.map { "\($0.mNumberChannels) channel(s) × \($0.mDataByteSize) bytes" }
+                    Log.write("system audio: first buffer received [\(layout.joined(separator: ", "))]")
                 }
                 let samples = self.resampler.convert(bufferList: input, format: tapFormat)
                 if !samples.isEmpty { self.onSamples?(samples) }
-            }, "lecture du tap")
-        try check(AudioDeviceStart(aggregateID, procID), "démarrage")
+            }, tr("reading the tap"))
+        try check(AudioDeviceStart(aggregateID, procID), tr("starting"))
     }
 
     private func stopTap() {
@@ -456,7 +456,7 @@ final class SystemAudioCapture {
             mElement: kAudioObjectPropertyElementMain)
         var status = AudioObjectGetPropertyData(
             AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device)
-        guard status == noErr else { throw CaptureError.coreAudio("sortie par défaut", status) }
+        guard status == noErr else { throw CaptureError.coreAudio(tr("default output"), status) }
 
         var uid: CFString = "" as CFString
         size = UInt32(MemoryLayout<CFString>.size)
@@ -464,7 +464,7 @@ final class SystemAudioCapture {
         status = withUnsafeMutablePointer(to: &uid) {
             AudioObjectGetPropertyData(device, &address, 0, nil, &size, $0)
         }
-        guard status == noErr else { throw CaptureError.coreAudio("identifiant de la sortie", status) }
+        guard status == noErr else { throw CaptureError.coreAudio(tr("output identifier"), status) }
         return uid as String
     }
 

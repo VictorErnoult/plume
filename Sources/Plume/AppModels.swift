@@ -275,7 +275,7 @@ final class LibraryModel: ObservableObject {
                 updated.engine = await engine.modelName
                 try store.save(updated)
             } catch {
-                Log.write("nouvelle transcription impossible : \(error.localizedDescription)")
+                Log.write("new transcription failed: \(error.localizedDescription)")
             }
             working.remove(transcript.id)
             reload()
@@ -295,7 +295,7 @@ final class LibraryModel: ObservableObject {
                     try store.save(updated)
                 }
             } catch {
-                Log.write("résumé impossible : \(error.localizedDescription)")
+                Log.write("summary failed: \(error.localizedDescription)")
             }
             working.remove(transcript.id)
             reload()
@@ -322,7 +322,7 @@ final class LibraryModel: ObservableObject {
             do {
                 _ = try await Pipeline.reprocess(transcript, speakerCount: speakers)
             } catch {
-                Log.write("nouvelle séparation des voix impossible : \(error.localizedDescription)")
+                Log.write("new voice separation failed: \(error.localizedDescription)")
             }
             reprocessing = nil
             reload()
@@ -611,7 +611,7 @@ final class SettingsModel: ObservableObject {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let missing = SpeechEngine.missingCustomFiles(in: url)
         guard missing.isEmpty else {
-            modelMessage = "Il manque \(missing.joined(separator: ", ")) dans ce dossier."
+            modelMessage = String(format: tr("Missing from this folder: %@."), missing.joined(separator: ", "))
             return
         }
         modelMessage = nil
@@ -657,7 +657,7 @@ final class SettingsModel: ObservableObject {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
-            Log.write("ouverture à la connexion impossible : \(error.localizedDescription)")
+            Log.write("launch at login failed: \(error.localizedDescription)")
         }
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
@@ -736,7 +736,7 @@ final class SettingsModel: ObservableObject {
             try SettingsBackup.export(to: url)
             integrationMessage = nil
         } catch {
-            integrationMessage = "Les réglages n'ont pas pu être enregistrés : \(error.localizedDescription)"
+            integrationMessage = tr("The settings could not be saved:") + " \(error.localizedDescription)"
         }
     }
 
@@ -751,7 +751,7 @@ final class SettingsModel: ObservableObject {
             onShortcutsChanged()
             onRulesChanged()
         } catch {
-            integrationMessage = "Ce fichier n'a pas pu être lu : \(error.localizedDescription)"
+            integrationMessage = tr("This file could not be read:") + " \(error.localizedDescription)"
         }
     }
 
@@ -807,7 +807,7 @@ final class SettingsModel: ObservableObject {
             try Integrations.installCommand()
             integrationMessage = nil
         } catch {
-            integrationMessage = "La commande n'a pas pu être installée : \(error.localizedDescription)"
+            integrationMessage = tr("The command could not be installed:") + " \(error.localizedDescription)"
         }
         refreshIntegrations()
     }

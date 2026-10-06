@@ -173,7 +173,7 @@ enum SelfTest {
     /// Rien n'est enregistré.
     static func microphone() {
         guard mic == nil, Permissions.microphoneGranted else {
-            Log.write("essai micro : autorisation manquante ou essai déjà en cours")
+            Log.write("mic test: permission missing or test already running")
             return
         }
         let capture = MicCapture()
@@ -190,7 +190,7 @@ enum SelfTest {
         do {
             try capture.start()
         } catch {
-            Log.write("essai micro : échec — \(error.localizedDescription)")
+            Log.write("mic test: failed — \(error.localizedDescription)")
             return
         }
         mic = capture
@@ -201,7 +201,7 @@ enum SelfTest {
             let seconds = Double(count) / Double(SpeechEngine.sampleRate)
             let level = peak
             lock.unlock()
-            Log.write(String(format: "essai micro : « %@ », %.2f s reçues en 1 s, niveau maximal %.4f", capture.deviceName, seconds, level))
+            Log.write(String(format: "mic test: “%@”, %.2f s received in 1 s, peak level %.4f", capture.deviceName, seconds, level))
         }
     }
 
@@ -220,7 +220,7 @@ enum SelfTest {
         }
         try? tap.start()
         capture = tap
-        Log.write("essai son système : démarrage demandé")
+        Log.write("system audio test: start requested")
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             tap.stop()
             capture = nil
@@ -228,7 +228,7 @@ enum SelfTest {
             let seconds = Double(count) / Double(SpeechEngine.sampleRate)
             let level = peak
             lock.unlock()
-            Log.write(String(format: "essai son système : %.2f s reçues en 3 s, niveau maximal %.4f", seconds, level))
+            Log.write(String(format: "system audio test: %.2f s received in 3 s, peak level %.4f", seconds, level))
         }
     }
 }

@@ -266,7 +266,7 @@ final class SessionController: ObservableObject {
         }
         mic = capture
         micChannel = micRecorder
-        if let microphone = capture as? MicCapture { Log.write("micro : « \(microphone.deviceName) »") }
+        if let microphone = capture as? MicCapture { Log.write("microphone: “\(microphone.deviceName)”") }
 
         self.mode = mode
         self.intent = intent
@@ -369,7 +369,7 @@ final class SessionController: ObservableObject {
     private func keepAwake(_ on: Bool) {
         if on, awake == nil {
             awake = ProcessInfo.processInfo.beginActivity(
-                options: [.idleSystemSleepDisabled, .userInitiated], reason: "Enregistrement d'une réunion")
+                options: [.idleSystemSleepDisabled, .userInitiated], reason: "Recording a meeting")
         } else if !on, let token = awake {
             ProcessInfo.processInfo.endActivity(token)
             awake = nil
@@ -420,7 +420,7 @@ final class SessionController: ObservableObject {
         }
         mode = newMode
         Sounds.play(newMode == .meeting ? .meetingOn : .meetingOff)
-        TestHooks.log("mode : \(newMode)")
+        TestHooks.log("mode: \(newMode)")
         onModeChanged?(newMode)
     }
 
@@ -446,7 +446,7 @@ final class SessionController: ObservableObject {
             levels = [Float](repeating: 0, count: Self.levelCount)
             Sounds.play(.meetingOff)
         }
-        TestHooks.log(paused ? "pause" : "reprise")
+        TestHooks.log(paused ? "pause" : "resume")
     }
 
     private func startLive() {
@@ -476,7 +476,7 @@ final class SessionController: ObservableObject {
 
     private func showLive(_ state: LiveTranscriber.State) {
         guard phase == .recording else { return }
-        TestHooks.log("direct : …\(state.committed.suffix(40)) ▸ \(state.volatile)")
+        TestHooks.log("live: …\(state.committed.suffix(40)) ▸ \(state.volatile)")
         liveCommitted = state.committed
         // Le modèle clôt toujours la fenêtre par un point : on ne l'affiche pas tant que ça bouge.
         var volatile = state.volatile
@@ -510,7 +510,7 @@ final class SessionController: ObservableObject {
         let common = typed.commonPrefix(with: target).count
         let erase = typed.count - common
         let add = String(target.dropFirst(common))
-        TestHooks.log("flux : -\(erase) +« \(add) »")
+        TestHooks.log("stream: -\(erase) +“\(add)”")
         if !TestHooks.noPaste {
             Paster.erase(erase)
             Paster.type(add)
@@ -590,10 +590,10 @@ final class SessionController: ObservableObject {
             if kept { self.removeTemporaryAudio(mic, system) }
             self.activeSessions.remove(recording.id)
             guard kept else {
-                Log.write("annulation : audio non conservé (\(recording.id))")
+                Log.write("cancel: audio not kept (\(recording.id))")
                 return
             }
-            Log.write("annulation : enregistrement gardé de côté (\(recording.id))")
+            Log.write("cancel: recording set aside (\(recording.id))")
             // Une dictée est transcrite tout de suite : on voit ce qu'elle contenait, et la
             // récupérer est instantané. Une réunion attend qu'on la demande.
             if recording.mode == .dictation {
@@ -620,7 +620,7 @@ final class SessionController: ObservableObject {
         let cutoff = hours > 0 ? Date().addingTimeInterval(-Double(hours) * 3600) : .distantFuture
         Task.detached(priority: .utility) {
             let count = store.purge(cancelledBefore: cutoff)
-            if count > 0 { Log.write("annulés : \(count) enregistrement(s) expiré(s) supprimé(s)") }
+            if count > 0 { Log.write("cancelled: \(count) expired recording(s) deleted") }
         }
     }
 
@@ -656,7 +656,7 @@ final class SessionController: ObservableObject {
             let save = recording.mode != .dictation || settings.keepHistory
             do {
                 let transcript = try await store.restore(recording, save: save, settings: settings, engine: engine)
-                Log.write("annulation : enregistrement récupéré (\(transcript.id))")
+                Log.write("cancel: recording restored (\(transcript.id))")
                 lastTranscript = transcript
                 onLibraryChanged?()
                 completion?(transcript)
@@ -675,7 +675,7 @@ final class SessionController: ObservableObject {
                 finish(.failed(tr("Nothing heard")), hideAfter: 1.8)
                 completion?(nil)
             } catch {
-                Log.write("récupération impossible (\(recording.id)) : \(error.localizedDescription)")
+                Log.write("restore failed (\(recording.id)): \(error.localizedDescription)")
                 finish(.failed(tr("Couldn't restore")), hideAfter: 3)
                 completion?(nil)
             }
@@ -766,12 +766,12 @@ final class SessionController: ObservableObject {
             for item in pending {
                 do {
                     if let transcript = try await Recovery.recover(item) {
-                        Log.write("enregistrement repris : \(transcript.id)")
+                        Log.write("recording resumed: \(transcript.id)")
                         lastTranscript = transcript
                         onLibraryChanged?()
                     }
                 } catch {
-                    Log.write("reprise impossible (\(item.id)) : \(error.localizedDescription)")
+                    Log.write("resume failed (\(item.id)): \(error.localizedDescription)")
                 }
             }
         }
@@ -808,7 +808,7 @@ final class SessionController: ObservableObject {
                 if live == nil { finish(.failed(tr("Nothing heard")), hideAfter: 1.5) }
                 return
             }
-            TestHooks.log("dictée : \(result.text)")
+            TestHooks.log("dictation: \(result.text)")
             var text = result.text
             var raw = result.raw
 
@@ -822,13 +822,13 @@ final class SessionController: ObservableObject {
                 report(.processing(selection.isEmpty ? tr("Writing") : tr("Rewriting")))
                 raw = selection.isEmpty ? "Consigne : \(text)" : "Consigne : \(text)\n\nTexte d'origine :\n\(selection)"
                 text = try await LocalAI.transform(selection, instruction: text)
-                TestHooks.log("transformation : \(text)")
+                TestHooks.log("transform: \(text)")
             } else if live == nil, intent == .dictation, rule?.polish ?? settings.polish, LocalAI.availability.isAvailable {
                 report(.processing(tr("Cleaning up")))
                 let instructions = (rule?.instructions).flatMap { $0.isEmpty ? nil : $0 } ?? settings.polishInstructions
                 if let polished = try? await LocalAI.polish(text, instructions: instructions) {
                     text = TextStyle.apply(options.style, to: TextCleanup.capitalizeFirst(polished))
-                    TestHooks.log("mise au propre : \(text)")
+                    TestHooks.log("polish: \(text)")
                 }
             }
 
@@ -911,7 +911,7 @@ final class SessionController: ObservableObject {
             }
             let reason = (error as? LocalAI.Failure)?.errorDescription
             finish(.failed(reason ?? tr("Transcription failed · audio kept")), hideAfter: 3.5)
-            Log.write("erreur : \(error.localizedDescription)")
+            Log.write("error: \(error.localizedDescription)")
         }
     }
 
@@ -983,7 +983,7 @@ final class SessionController: ObservableObject {
         } catch {
             // Les fichiers audio de la réunion restent en place pour une reprise ultérieure.
             finish(.failed(tr("Transcription failed · audio kept")), hideAfter: 3.5)
-            Log.write("erreur : \(error.localizedDescription)")
+            Log.write("error: \(error.localizedDescription)")
         }
     }
 
@@ -1008,7 +1008,7 @@ final class SessionController: ObservableObject {
                 }
                 onLibraryChanged?()
             } catch {
-                Log.write("résumé impossible (\(transcript.id)) : \(error.localizedDescription)")
+                Log.write("summary failed (\(transcript.id)): \(error.localizedDescription)")
             }
             summarizing.remove(transcript.id)
         }
@@ -1034,7 +1034,7 @@ final class SessionController: ObservableObject {
     /// Une app de visio vient d'ouvrir le micro : l'île propose d'enregistrer.
     func suggestMeeting(app: String) {
         guard phase == .idle, settings.meetingDetection else { return }
-        TestHooks.log("appel détecté : \(app)")
+        TestHooks.log("call detected: \(app)")
         finish(.suggestion(app), hideAfter: 20)
     }
 
@@ -1048,7 +1048,7 @@ final class SessionController: ObservableObject {
     // MARK: - États
 
     private func setPhase(_ phase: Phase) {
-        TestHooks.log("état : \(phase)")
+        TestHooks.log("state: \(phase)")
         self.phase = phase
         if phase != .idle { displayPhase = phase }
         if phase == .idle { scheduleUnload() } else { unloadTask?.cancel() }
@@ -1063,7 +1063,7 @@ final class SessionController: ObservableObject {
             try? await Task.sleep(nanoseconds: UInt64(Self.idleUnloadDelay * 1_000_000_000))
             guard !Task.isCancelled, let self, self.phase == .idle, !self.importing else { return }
             await engine.unload()
-            TestHooks.log("modèles déchargés")
+            TestHooks.log("models unloaded")
         }
     }
 
@@ -1076,7 +1076,7 @@ final class SessionController: ObservableObject {
     /// Affiche un état final puis revient au repos. Une dictée déjà recommencée garde l'écran.
     private func finish(_ phase: Phase, hideAfter delay: TimeInterval = 2.2) {
         guard self.phase != .recording else {
-            TestHooks.log("état (en arrière-plan) : \(phase)")
+            TestHooks.log("state (background): \(phase)")
             return
         }
         setPhase(phase)

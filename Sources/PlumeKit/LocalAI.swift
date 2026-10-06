@@ -52,17 +52,17 @@ public enum LocalAI {
                     return .available
                 case .unavailable(let reason):
                     switch reason {
-                    case .deviceNotEligible: return .unavailable("Ce Mac ne prend pas en charge Apple Intelligence.")
+                    case .deviceNotEligible: return .unavailable(tr("This Mac does not support Apple Intelligence."))
                     case .appleIntelligenceNotEnabled:
-                        return .unavailable("Apple Intelligence n'est pas activée (Réglages Système › Apple Intelligence et Siri).")
-                    case .modelNotReady: return .unavailable("Le modèle d'Apple Intelligence se télécharge encore.")
-                    @unknown default: return .unavailable("Apple Intelligence n'est pas disponible.")
+                        return .unavailable(tr("Apple Intelligence is not turned on (System Settings › Apple Intelligence & Siri)."))
+                    case .modelNotReady: return .unavailable(tr("The Apple Intelligence model is still downloading."))
+                    @unknown default: return .unavailable(tr("Apple Intelligence is not available."))
                     }
                 }
             }
-            return .unavailable("L'IA locale demande macOS 26 ou plus récent.")
+            return .unavailable(tr("Local AI needs macOS 26 or later."))
         #else
-            return .unavailable("L'IA locale demande macOS 26 ou plus récent.")
+            return .unavailable(tr("Local AI needs macOS 26 or later."))
         #endif
     }
 

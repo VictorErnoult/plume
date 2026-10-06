@@ -50,26 +50,26 @@ final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate, 
     // MARK: Journal
 
     nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
-        Log.write("mise à jour : version \(item.displayVersionString) trouvée")
+        Log.write("update: version \(item.displayVersionString) found")
     }
 
     nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
-        Log.write("mise à jour : rien de nouveau")
+        Log.write("update: nothing new")
     }
 
     nonisolated func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
-        Log.write("mise à jour : version \(item.displayVersionString) téléchargée")
+        Log.write("update: version \(item.displayVersionString) downloaded")
     }
 
     nonisolated func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
-        Log.write("mise à jour : installation de la version \(item.displayVersionString)")
+        Log.write("update: installing version \(item.displayVersionString)")
     }
 
     nonisolated func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         let error = error as NSError
         // 1001 : « déjà à jour », ce n'est pas un incident.
         if error.domain == SUSparkleErrorDomain, error.code == 1001 { return }
-        Log.write("mise à jour : échec — \(error.localizedDescription)")
+        Log.write("update: failed — \(error.localizedDescription)")
     }
 
     nonisolated func updater(

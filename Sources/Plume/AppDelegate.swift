@@ -16,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Sans cela, macOS met en sommeil les apps sans fenêtre (App Nap) et ralentit la
     /// détection des raccourcis.
     private let activity = ProcessInfo.processInfo.beginActivity(
-        options: .userInitiatedAllowingIdleSystemSleep, reason: "Raccourcis globaux de dictée")
+        options: .userInitiatedAllowingIdleSystemSleep, reason: "Global dictation shortcuts")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -46,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         session.onLibraryChanged = { [weak self] in self?.app.refresh() }
 
         hotkeys.onPress = { [weak self] action in
-            TestHooks.log("raccourci : appui \(action)")
+            TestHooks.log("shortcut: press \(action)")
             if action == .open {
                 self?.showWindow()
             } else if action == .restore {
@@ -57,11 +57,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         app.settings.onRulesChanged = { [weak self] in self?.app.refresh() }
         hotkeys.onRelease = { [weak self] in
-            TestHooks.log("raccourci : relâchement \($0) après \(String(format: "%.2f", $1)) s")
+            TestHooks.log("shortcut: release \($0) after \(String(format: "%.2f", $1)) s")
             self?.session.handleRelease($0, held: $1)
         }
         hotkeys.onCancel = { [weak self] in
-            TestHooks.log("raccourci : annulation \($0)")
+            TestHooks.log("shortcut: cancel \($0)")
             self?.session.handleCancel($0)
         }
         hotkeys.onCancelShortcut = { [weak self] in self?.session.cancel() }
@@ -117,7 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
         Task.detached(priority: .utility) {
             let count = store.dropAudio(olderThan: cutoff)
-            if count > 0 { Log.write("audio supprimé sur \(count) transcription(s) de plus de \(days) jours") }
+            if count > 0 { Log.write("audio deleted from \(count) transcript(s) older than \(days) days") }
         }
     }
 
@@ -151,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "plume" {
             let command = (url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))).lowercased()
-            Log.write("lien : plume://\(command)")
+            Log.write("link: plume://\(command)")
             switch command {
             case "dictee", "dictée", "dictation": session.toggle(.dictation)
             case "reunion", "réunion", "meeting": session.toggle(.meeting)

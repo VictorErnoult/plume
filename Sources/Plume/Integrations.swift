@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import PlumeKit
 
 /// Ce qui relie Plume au terminal et aux assistants : la commande `plume`, et la déclaration
 /// du serveur MCP auprès de Claude Code et de Claude Desktop.
@@ -68,10 +69,10 @@ enum Integrations {
     /// d'erreur lisible si ce n'est pas possible.
     static func connectClaudeCode() async -> String? {
         let found = await shell("command -v claude")
-        guard found.status == 0 else { return "Claude Code n'a pas été trouvé sur ce Mac." }
+        guard found.status == 0 else { return tr("Claude Code was not found on this Mac.") }
         _ = await shell("claude mcp remove --scope user plume")
         let result = await shell(claudeCodeCommand)
-        return result.status == 0 ? nil : "Claude Code a refusé la commande."
+        return result.status == 0 ? nil : tr("Claude Code refused the command.")
     }
 
     static let claudeDesktopConfig = home.appendingPathComponent(

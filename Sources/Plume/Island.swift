@@ -784,9 +784,9 @@ final class IslandController {
         try? rep.representation(using: .png, properties: [:])?.write(to: url)
         let screenFrame = screen?.frame ?? .zero
         Log.write(
-            "île : fenêtre \(panel.frame), écran \(screenFrame), vue \(view.frame), île \(model.size), "
-                + "encoche \(model.geometry.notchWidth)×\(model.geometry.topHeight), "
-                + "zones hautes gauche \(screen?.auxiliaryTopLeftArea ?? .zero) droite \(screen?.auxiliaryTopRightArea ?? .zero)")
+            "island: window \(panel.frame), screen \(screenFrame), view \(view.frame), island \(model.size), "
+                + "notch \(model.geometry.notchWidth)×\(model.geometry.topHeight), "
+                + "top areas left \(screen?.auxiliaryTopLeftArea ?? .zero) right \(screen?.auxiliaryTopRightArea ?? .zero)")
     }
 
     // MARK: Survol

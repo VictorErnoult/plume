@@ -30,7 +30,7 @@ enum Sounds {
     @MainActor
     static func play(_ kind: Kind) {
         let settings = PlumeSettings.shared
-        TestHooks.log("son : \(kind)")
+        TestHooks.log("sound: \(kind)")
         // Les essais avec micro simulé restent silencieux.
         guard live, settings.sounds, settings.soundVolume > 0.01, TestHooks.fakeMic == nil else { return }
         // Le réglage par défaut (0,7) donne le niveau du portfolio.
@@ -338,7 +338,7 @@ enum Sounds {
             let buffer = AVAudioPCMBuffer(pcmFormat: source, frameCapacity: AVAudioFrameCount(file.length)),
             (try? file.read(into: buffer)) != nil, let channels = buffer.floatChannelData
         else {
-            Log.write("sons : \(name).mp3 illisible, son synthétisé à la place")
+            Log.write("sounds: \(name).mp3 unreadable, synthesized sound used instead")
             return nil
         }
         let count = Int(buffer.frameLength)
@@ -379,7 +379,7 @@ enum Sounds {
             do {
                 try engine.start()
             } catch {
-                Log.write("sons : sortie audio indisponible — \(error.localizedDescription)")
+                Log.write("sounds: audio output unavailable — \(error.localizedDescription)")
                 return
             }
         }
@@ -463,11 +463,11 @@ enum SoundPack: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .pluck: return "Pluck"
-        case .bips: return "Bips"
-        case .clics: return "Clics"
-        case .melodie: return "Mélodie"
-        case .glisse: return "Glisse"
-        case .bois: return "Bois (synthétisé)"
+        case .bips: return tr("Beeps")
+        case .clics: return tr("Clicks")
+        case .melodie: return tr("Melody")
+        case .glisse: return tr("Glide")
+        case .bois: return tr("Wood (synthesized)")
         }
     }
 

@@ -1288,7 +1288,7 @@ struct SettingsPage: View {
             SettingRow(
                 tr("plume command"),
                 detail: !settings.commandInstalled
-                    ? "plume last, plume search… dans un terminal."
+                    ? tr("plume last, plume search… in a terminal.")
                     : (settings.commandOnPath
                         ? tr("Installed in ~/.local/bin.")
                         : tr("Installed in ~/.local/bin — add that folder to your PATH to call it by name."))

@@ -119,7 +119,7 @@ public enum EngineError: LocalizedError {
         switch self {
         case .notReady: return tr("The transcription model is not loaded yet.")
         case .noCustomModel: return tr("No custom model folder is chosen (Settings › Model).")
-        case .incompleteCustomModel(let name): return "Le dossier du modèle ne contient pas \(name)."
+        case .incompleteCustomModel(let name): return tr("The model folder does not contain") + " \(name)."
         }
     }
 }
