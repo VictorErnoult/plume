@@ -82,6 +82,10 @@ Ce qu'on teste :
   scripts et des IA les lisent. Ajouter une clé ou un outil, oui ; en renommer ou en retirer un
   les casse : à noter dans `CHANGELOG.md` et `docs/GUIDE.md`, et à refléter dans les tests
   (`CommandLineTests`, `MCPServerTests` ; le binaire ne se lance que par `PlumeBinary.run`).
+- Texte des dictées (nettoyage, commandes vocales, vocabulaire, styles) : chaque correction ou
+  nouvelle commande ajoute des lignes au tableau `DictationCorpusTests`, le cas traité et la
+  phrase ordinaire la plus proche, qui ne doit pas bouger. Un défaut connu s'y note avec
+  `withKnownIssue`, autour de la seule attente qui échoue.
 
 Pour que les tests restent sûrs et fiables :
 - Jamais les vraies données. Dans un test : des dossiers temporaires ; pas de
