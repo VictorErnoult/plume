@@ -1,22 +1,22 @@
-# Choisit le SDK macOS quand on compile sans Xcode. À sourcer depuis un script zsh.
+# Pick the macOS SDK when building without Xcode. Source it from a zsh script.
 #
-# Pourquoi : depuis le SDK macOS 27, `@State` de SwiftUI est une macro dont l'extension
-# (SwiftUIMacros) n'est livrée qu'avec Xcode. Avec les seuls Command Line Tools, la compilation
-# échoue (« plugin for module 'SwiftUIMacros' not found »). On compile donc une vue minimale ;
-# si l'erreur est celle-là, on se rabat sur le SDK macOS 26 le plus récent. Toute autre erreur
-# est laissée à `swift build`, qui l'affichera. Un SDKROOT déjà réglé est respecté.
+# Why: since the macOS 27 SDK, SwiftUI's `@State` is a macro whose extension
+# (SwiftUIMacros) ships only with Xcode. With the Command Line Tools alone, the build
+# fails ("plugin for module 'SwiftUIMacros' not found"). So we compile a minimal view;
+# if that is the error, we fall back to the newest macOS 26 SDK. Any other error is left
+# to `swift build`, which will show it. An already-set SDKROOT is respected.
 
 if [[ -z "${SDKROOT:-}" ]] && [[ "$(print -r -- 'import SwiftUI
 struct V: View { @State var a = 0; var body: some View { EmptyView() } }' \
     | swiftc -typecheck - 2>&1)" == *SwiftUIMacros* ]]; then
   sdk=("$(xcode-select -p)"/SDKs/MacOSX26.*.sdk(N/nOn))
   if (( ! $#sdk )); then
-    echo "Ce SDK macOS demande Xcode pour compiler SwiftUI, et aucun SDK macOS 26 n'est installé." >&2
-    echo "Installe Xcode (ou sélectionne-le : sudo xcode-select -s /Applications/Xcode.app)," >&2
-    echo "ou règle SDKROOT vers un SDK macOS 26." >&2
+    echo "This macOS SDK needs Xcode to build SwiftUI, and no macOS 26 SDK is installed." >&2
+    echo "Install Xcode (or select it: sudo xcode-select -s /Applications/Xcode.app)," >&2
+    echo "or point SDKROOT at a macOS 26 SDK." >&2
     exit 1
   fi
   export SDKROOT="${sdk[1]}"
-  echo "SDK macOS : ${SDKROOT:t} (le SDK par défaut demande Xcode pour SwiftUI)"
+  echo "macOS SDK: ${SDKROOT:t} (the default SDK needs Xcode for SwiftUI)"
   unset sdk
 fi

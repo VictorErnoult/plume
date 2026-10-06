@@ -1,14 +1,14 @@
 #!/bin/zsh
-# Compile Plume et assemble l'app, sans la signer.
+# Build Plume and assemble the app, unsigned.
 #   ./scripts/assemble.sh build/Plume.app
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP="${1:?chemin de l'app à assembler}"
+APP="${1:?path of the app to assemble}"
 source scripts/sdk.sh
 
-# Dossier de compilation. SwiftPM inscrit son chemin dans le binaire : une version publiée se
-# compile donc hors du dossier personnel (PLUME_SCRATCH, réglé par release.sh).
+# Build folder. SwiftPM writes its path into the binary, so a released version is built
+# outside the home folder (PLUME_SCRATCH, set by release.sh).
 SCRATCH="${PLUME_SCRATCH:-.build}"
 swift build -c release --scratch-path "$SCRATCH"
 BIN="$(swift build -c release --scratch-path "$SCRATCH" --show-bin-path)"
@@ -23,5 +23,5 @@ cp Resources/LICENCES.md "$APP/Contents/Resources/LICENCES.md"
 cp CHANGELOG.md "$APP/Contents/Resources/CHANGELOG.md"
 cp -R Resources/Fonts "$APP/Contents/Resources/Fonts"
 cp -R Resources/Sounds "$APP/Contents/Resources/Sounds"
-# Sparkle (mises à jour) : la bibliothèque et ses outils d'installation.
+# Sparkle (updates): the library and its installer tools.
 ditto "$BIN/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"

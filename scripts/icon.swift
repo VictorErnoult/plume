@@ -1,12 +1,12 @@
-// Fabrique les tailles de l'icône de l'app à partir de Resources/Icone.jpg (image carrée,
-// pleine page). L'image est logée dans le gabarit des icônes macOS : un carré aux coins
-// continus de 824 sur une grille de 1024, avec une ombre légère.
-//   swift scripts/icon.swift <dossier.iconset>
+// Make the app icon sizes from Resources/Icone.jpg (square, full-bleed image). The image
+// is fitted into the macOS icon template: a continuous-corner square of 824 on a 1024
+// grid, with a light shadow.
+//   swift scripts/icon.swift <folder.iconset>
 import AppKit
 import SwiftUI
 
 let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
-guard let source = NSImage(contentsOfFile: "Resources/Icone.jpg") else { fatalError("Resources/Icone.jpg introuvable") }
+guard let source = NSImage(contentsOfFile: "Resources/Icone.jpg") else { fatalError("Resources/Icone.jpg not found") }
 try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 
 func render(_ pixels: Int) -> Data {
@@ -22,7 +22,7 @@ func render(_ pixels: Int) -> Data {
     let body = CGRect(x: 100 * unit, y: 100 * unit, width: 824 * unit, height: 824 * unit)
     let shape = RoundedRectangle(cornerRadius: 185.4 * unit, style: .continuous).path(in: body).cgPath
     let cg = context.cgContext
-    // Ombre portée discrète, comme les icônes du système.
+    // Subtle drop shadow, like system icons.
     cg.saveGState()
     cg.setShadow(offset: CGSize(width: 0, height: -10 * unit), blur: 22 * unit, color: NSColor.black.withAlphaComponent(0.3).cgColor)
     cg.addPath(shape)

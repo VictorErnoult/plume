@@ -37,7 +37,7 @@
     <array>
         <dict>
             <key>CFBundleURLName</key>
-            <string>Commandes Plume</string>
+            <string>Plume commands</string>
             <key>CFBundleURLSchemes</key>
             <array>
                 <string>plume</string>

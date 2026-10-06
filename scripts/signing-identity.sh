@@ -1,10 +1,10 @@
 #!/bin/zsh
-# Crée (une seule fois) une identité de signature locale et stable pour Plume.
+# Create (once) a stable local signing identity for Plume.
 #
-# Pourquoi : macOS rattache les autorisations (Micro, Accessibilité, capture audio)
-# à la signature de l'app. Avec une signature « ad hoc », chaque recompilation
-# les ferait perdre. Un certificat auto-signé, rangé dans un trousseau dédié,
-# donne une signature identique d'une compilation à l'autre.
+# Why: macOS ties permissions (Microphone, Accessibility, audio capture) to the app's
+# signature. With an "ad hoc" signature, every rebuild would lose them. A self-signed
+# certificate, kept in a dedicated keychain, gives the same signature from one build
+# to the next.
 set -euo pipefail
 
 NAME="Plume Local Signing"
@@ -33,9 +33,9 @@ security unlock-keychain -p "$PASS" "$KEYCHAIN"
 security import "$TMP/identity.p12" -k "$KEYCHAIN" -P "$PASS" -T /usr/bin/codesign >/dev/null
 security set-key-partition-list -S apple-tool:,apple: -s -k "$PASS" "$KEYCHAIN" >/dev/null
 
-# Ajoute le trousseau à la liste de recherche de l'utilisateur, sans retirer les autres.
+# Add the keychain to the user's search list, without removing the others.
 EXISTING=("${(@f)$(security list-keychains -d user | sed -e 's/^ *"//' -e 's/"$//')}")
 if ! printf '%s\n' "${EXISTING[@]}" | grep -qx "$KEYCHAIN"; then
   security list-keychains -d user -s "${EXISTING[@]}" "$KEYCHAIN"
 fi
-echo "Identité de signature créée : $NAME"
+echo "Signing identity created: $NAME"
