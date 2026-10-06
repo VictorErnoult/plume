@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import PlumeKit
 
-/// The files the library keeps up to date for AIs (`LISEZMOI.md`): `index.jsonl`,
-/// one line per transcript, and `dernier.md`, the most recent.
+/// The files the library keeps up to date for AIs (`README.md`): `index.jsonl`,
+/// one line per transcript, and `latest.md` (plus `dernier.md`, its deprecated copy), the most recent.
 @Suite("Library files for AIs")
 struct LibraryFilesTests {
     static let indexKeys: Set<String> = ["id", "date", "mode", "appareil", "duree_s", "interlocuteurs", "fichier", "apercu"]
@@ -11,7 +11,7 @@ struct LibraryFilesTests {
     private func date(_ iso: String) -> Date { ISO8601DateFormatter().date(from: iso)! }
 
     /// Three invented transcripts, oldest to newest, saved in reverse order: the index and
-    /// `dernier.md` follow the date, not the save order (renaming a speaker re-saves an old
+    /// `latest.md` follow the date, not the save order (renaming a speaker re-saves an old
     /// transcript).
     private func makeLibrary() throws -> (root: URL, transcripts: [Transcript]) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)", isDirectory: true)
@@ -52,10 +52,98 @@ struct LibraryFilesTests {
         }
     }
 
-    @Test func dernierMdIsTheMostRecentTranscript() throws {
+    private func read(_ root: URL, _ name: String) -> String? {
+        try? String(contentsOf: root.appendingPathComponent(name), encoding: .utf8)
+    }
+
+    private func exists(_ root: URL, _ name: String) -> Bool {
+        FileManager.default.fileExists(atPath: root.appendingPathComponent(name).path)
+    }
+
+    private func tempRoot() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)", isDirectory: true)
+    }
+
+    @Test func latestMdIsTheMostRecentTranscriptAndDernierMdIsItsCopy() throws {
         let (root, transcripts) = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
-        let latest = try String(contentsOf: root.appendingPathComponent("dernier.md"), encoding: .utf8)
-        #expect(latest == TranscriptStore.markdown(for: transcripts.last!))
+        let expected = TranscriptStore.markdown(for: transcripts.last!)
+        #expect(read(root, "latest.md") == expected)
+        #expect(read(root, "dernier.md") == expected)
+    }
+
+    @Test func aStaleDernierMdIsReplaced() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try "an older copy".write(to: root.appendingPathComponent("dernier.md"), atomically: true, encoding: .utf8)
+        let transcript = Transcript(
+            id: "2026-10-02_09-15-00", createdAt: date("2026-10-02T07:15:00Z"), mode: .dictation, duration: 4.2,
+            engine: "parakeet-ultra", text: "Le rapport est prêt.", rawText: "le rapport est prêt")
+        try TranscriptStore(root: root).save(transcript)
+        #expect(read(root, "dernier.md") == TranscriptStore.markdown(for: transcript))
+        #expect(read(root, "latest.md") == read(root, "dernier.md"))
+    }
+
+    @Test func aLibraryWithoutTranscriptHasNeitherLatestFile() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try "stale".write(to: root.appendingPathComponent("dernier.md"), atomically: true, encoding: .utf8)
+        TranscriptStore(root: root).prepare()
+        #expect(!exists(root, "latest.md"))
+        #expect(!exists(root, "dernier.md"))
+        #expect(read(root, "README.md") == TranscriptStore.readme)
+    }
+
+    @Test func prepareCreatesLatestMdForAnUpgradedLibrary() throws {
+        let (root, transcripts) = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        // What 1.0.1 left: no latest.md, no README.md.
+        try FileManager.default.removeItem(at: root.appendingPathComponent("latest.md"))
+        try FileManager.default.removeItem(at: root.appendingPathComponent("README.md"))
+        TranscriptStore(root: root).prepare()
+        #expect(read(root, "latest.md") == TranscriptStore.markdown(for: transcripts.last!))
+        #expect(read(root, "README.md") == TranscriptStore.readme)
+    }
+
+    @Test func stockLisezmoiIsRemovedOnceReadmeIsWritten() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try TranscriptStore.legacyReadme.write(to: root.appendingPathComponent("LISEZMOI.md"), atomically: true, encoding: .utf8)
+        TranscriptStore(root: root).prepare()
+        #expect(read(root, "README.md") == TranscriptStore.readme)
+        #expect(!exists(root, "LISEZMOI.md"))
+    }
+
+    @Test func anEditedLisezmoiStays() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let edited = TranscriptStore.legacyReadme + "\nMy own note.\n"
+        try edited.write(to: root.appendingPathComponent("LISEZMOI.md"), atomically: true, encoding: .utf8)
+        TranscriptStore(root: root).prepare()
+        #expect(read(root, "LISEZMOI.md") == edited)
+        #expect(read(root, "README.md") == TranscriptStore.readme)
+    }
+
+    @Test func aUsersOwnReadmeIsLeftAloneAndLisezmoiStays() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try "# My project".write(to: root.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
+        try TranscriptStore.legacyReadme.write(to: root.appendingPathComponent("LISEZMOI.md"), atomically: true, encoding: .utf8)
+        TranscriptStore(root: root).prepare()
+        #expect(read(root, "README.md") == "# My project")
+        #expect(read(root, "LISEZMOI.md") == TranscriptStore.legacyReadme)
+    }
+
+    /// The guide names every file and index key an outside reader relies on.
+    @Test func theGuideNamesTheFilesAndKeys() {
+        let guide = TranscriptStore.readme
+        for name in ["latest.md", "dernier.md", "deprecated", "index.jsonl", "Moi", "Me"] + Array(Self.indexKeys) + ["titre"] {
+            #expect(guide.contains(name), "\(name) is missing from the guide")
+        }
     }
 }

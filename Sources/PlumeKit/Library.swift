@@ -3,8 +3,9 @@ import Foundation
 /// On-disk transcript library: a folder readable by a human as well as by an AI.
 ///
 ///     ~/Plume/
-///       LISEZMOI.md                  how to use the folder (for AIs)
-///       dernier.md                   copy of the most recent transcript
+///       README.md                    how to use the folder (for AIs)
+///       latest.md                    the most recent transcript
+///       dernier.md                   deprecated plain copy of latest.md, for older scripts
 ///       index.jsonl                  one JSON line per transcript, oldest to newest
 ///       2026-10/
 ///         2026-10-02_14-31-05_dictee.md      readable text, with header
@@ -119,9 +120,7 @@ public final class TranscriptStore: @unchecked Sendable {
         let md = Self.markdown(for: t)
         try md.write(to: markdownURL(for: t), atomically: true, encoding: .utf8)
 
-        if latestUnlocked()?.id == t.id {
-            try? md.write(to: root.appendingPathComponent("dernier.md"), atomically: true, encoding: .utf8)
-        }
+        if latestUnlocked()?.id == t.id { refreshLatest() }
         try? rebuildIndexUnlocked()
     }
 
@@ -148,12 +147,7 @@ public final class TranscriptStore: @unchecked Sendable {
         for url in urls where fm.fileExists(atPath: url.path) {
             try fm.trashItem(at: url, resultingItemURL: nil)
         }
-        if let latest = latestUnlocked() {
-            try? Self.markdown(for: latest)
-                .write(to: root.appendingPathComponent("dernier.md"), atomically: true, encoding: .utf8)
-        } else {
-            try? fm.removeItem(at: root.appendingPathComponent("dernier.md"))
-        }
+        refreshLatest()
         try? rebuildIndexUnlocked()
     }
 
@@ -166,10 +160,37 @@ public final class TranscriptStore: @unchecked Sendable {
 
     private func ensureRoot() throws {
         try fm.createDirectory(at: root, withIntermediateDirectories: true)
-        let readme = root.appendingPathComponent("LISEZMOI.md")
+        let readme = root.appendingPathComponent("README.md")
         if !fm.fileExists(atPath: readme.path) {
             try Self.readme.write(to: readme, atomically: true, encoding: .utf8)
         }
+        retireLegacyGuide()
+        // Right after an upgrade `latest.md` doesn't exist yet: don't wait for the next save.
+        if !fm.fileExists(atPath: root.appendingPathComponent("latest.md").path) { refreshLatest() }
+    }
+
+    /// Removes the French `LISEZMOI.md` only if it is exactly what an earlier version wrote and
+    /// `README.md` is Plume's own: an edited guide, or a README the user wrote, stays untouched.
+    private func retireLegacyGuide() {
+        let old = root.appendingPathComponent("LISEZMOI.md")
+        let new = root.appendingPathComponent("README.md")
+        guard let oldText = try? String(contentsOf: old, encoding: .utf8), oldText == Self.legacyReadme,
+            let newText = try? String(contentsOf: new, encoding: .utf8), newText == Self.readme
+        else { return }
+        try? fm.removeItem(at: old)
+    }
+
+    /// Writes the newest transcript to `latest.md`, and to `dernier.md` as a plain copy (no
+    /// symlink: synced folders and some readers mishandle links); removes both if there is none.
+    /// Call with the lock held.
+    private func refreshLatest() {
+        let names = ["latest.md", "dernier.md"].map { root.appendingPathComponent($0) }
+        guard let latest = latestUnlocked() else {
+            for url in names { try? fm.removeItem(at: url) }
+            return
+        }
+        let md = Self.markdown(for: latest)
+        for url in names { try? md.write(to: url, atomically: true, encoding: .utf8) }
     }
 
     // MARK: - Reading
@@ -368,7 +389,37 @@ public final class TranscriptStore: @unchecked Sendable {
             .joined(separator: "\n\n")
     }
 
+    /// The guide written to `README.md` for AIs and humans. Every file and key name below is
+    /// the real one: `index.jsonl` keys and the mode names stay French because scripts read them.
     static let readme = """
+        # Plume — transcript library
+
+        This folder holds every voice transcript Plume produced (dictations, meetings,
+        imports). Everything is plain text, meant to be read directly by an AI or a human.
+
+        - `latest.md`: the most recent transcript. `dernier.md` is a deprecated copy of it,
+          kept for older scripts; use `latest.md`.
+        - `index.jsonl`: one JSON line per transcript, oldest to newest. Keys: `id`,
+          `date` (ISO 8601), `mode`, `appareil` (device), `duree_s` (duration in seconds),
+          `interlocuteurs` (speakers), `fichier` (path of the `.md` file, relative to this
+          folder), `titre` (title, only if set), `apercu` (preview).
+        - `YYYY-MM/<id>_<mode>.md`: the text, with a header (date, mode, duration, speakers).
+          Modes: `dictee` (dictation), `reunion` (meeting), `import` (imported audio).
+        - `YYYY-MM/<id>_<mode>.json`: the full data (segments timestamped per speaker, raw
+          text before cleanup).
+        - `YYYY-MM/<id>_*.m4a`: the original audio (`mic` = microphone, `sys` = the
+          computer's sound).
+
+        For a meeting, each speaker turn is written like this:
+        `**Speaker** [mm:ss] : text`. "Me" (written `Moi` in French) is the owner of the device.
+
+        From the command line: `plume last`, `plume list`, `plume search <words>`,
+        `plume show <id>`.
+
+        """
+
+    /// The French guide written by 1.0.1 and earlier as `LISEZMOI.md`: recognised, to retire it only if untouched.
+    static let legacyReadme = """
         # Plume — bibliothèque de transcriptions
 
         Ce dossier contient toutes les transcriptions vocales produites par Plume
