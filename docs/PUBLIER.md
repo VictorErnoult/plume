@@ -53,7 +53,7 @@ Sans `PLUME_REPO`, `release.sh` fabrique une version sans mises à jour, rangée
 ```sh
 # facultatif : notes de version, affichées dans la fenêtre de mise à jour
 $EDITOR notes/1.0.1.md
-./scripts/release.sh 1.0.1   # compile, signe, notarise, fabrique le .dmg et le flux
+./scripts/release.sh 1.0.1   # teste, compile, signe, notarise, fabrique le .dmg et le flux
 ./scripts/publish.sh 1.0.1   # met en ligne sur GitHub
 ```
 

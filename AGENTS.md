@@ -10,9 +10,9 @@ réunions, entièrement locale. Swift 6 (mode de langage 5), SwiftPM seul : **pa
 Xcode**, tout se compile avec les Command Line Tools. Mac Apple Silicon, macOS 15+.
 
 - `Sources/PlumeKit/` : cœur sans interface (moteur FluidAudio/CoreML, pipeline, bibliothèque,
-  réglages). Testé.
+  réglages). Testé dans `Tests/PlumeKitTests`.
 - `Sources/Plume/` : l'app (interface SwiftUI/AppKit, raccourcis, capture audio, sons, CLI,
-  serveur MCP, mises à jour Sparkle).
+  serveur MCP, mises à jour Sparkle). Ce qui s'en isole se teste dans `Tests/PlumeTests`.
 - Carte fichier par fichier : `docs/DEVELOPPEMENT.md` ; choix techniques : `docs/PLAN.md` ;
   fonctionnalités : `docs/GUIDE.md` ; publication : `docs/PUBLIER.md`.
 
@@ -51,6 +51,38 @@ change, regarder un rendu `plume render … --demo`.
   pas. La ligne va dans la version du haut tant qu'elle n'est pas publiée (pas de tag
   `v<version>`) ; sinon, dans une nouvelle section `## <version suivante>`. On publie la
   version du haut, et son titre prend alors la date de publication : `## <version> — <date>`.
+
+## Tests
+
+Toujours `./scripts/test.sh`, jamais `swift test` seul (la CI lance `swift test` avec les mêmes
+variables) : le script met à part réglages, bibliothèque, dossier de support et canal de
+commande. Tout passe en quelques secondes, sans modèle ni micro ; la CI fait de même à chaque
+push et à chaque PR, et `scripts/release.sh` s'arrête si un test échoue. Un changement de
+comportement ajoute ou adapte un test ; une correction de bug commence par un test qui échoue.
+
+Ce qu'on teste :
+- Ce dont dépendent l'utilisateur et les scripts (fichiers enregistrés, sorties de la ligne de
+  commande et du serveur MCP, texte d'une dictée, presse-papiers), pas la mise en page.
+- La logique se teste seule : dans PlumeKit, ou dans une fonction qui reçoit ses dépendances ;
+  les vues restent minces. Le code de l'app se teste dans `Tests/PlumeTests`
+  (`@testable import Plume`). Quand un changement de comportement touche une logique de l'app
+  qui s'isole en une fonction sans déplacer le reste, on l'isole avec son test ; sinon, on ne
+  force pas.
+
+Pour que les tests restent sûrs et fiables :
+- Jamais les vraies données. Dans un test : des dossiers temporaires ; pas de
+  `PlumeSettings.shared`, ni directement, ni par un paramètre `settings:` laissé à sa valeur
+  par défaut, ni par `SettingsModel` ; pas de `load`/`save` de `ReplacementStore`,
+  `AppRuleStore` ou `VoiceprintStore` (leurs fonctions pures restent permises) ;
+  `replacements:` toujours explicite avec `Pipeline.format` ; pas de `TranscriptStore.delete`
+  (vraie corbeille).
+- Pas le presse-papiers général (un presse-papiers nommé, libéré à la fin), pas d'événement
+  clavier, pas de `Remote.send`. Le binaire ne se lance qu'avec une commande de lecture
+  (`path`, `last`, `list`, `show`, `search`, `export` sans `-o`, `mcp` sans ses outils `listen` et
+  `summarize_transcript`) : sans argument ou avec une commande inconnue, il lance l'app.
+- Rien d'implicite : ni l'heure, ni le fuseau, ni la disposition du clavier, ni la langue de
+  l'interface. On passe les dates ; pour la langue, `L10n.$override.withValue(.english) { … }`,
+  jamais `L10n.current = …` (les tests tournent en parallèle).
 
 ## À ne jamais faire
 

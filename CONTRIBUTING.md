@@ -28,7 +28,7 @@ Open an [issue](https://github.com/soyAkil/plume/issues/new/choose): a form guid
 
 ## Finding your way
 
-- `Sources/PlumeKit/` is the core with no interface — engine, pipeline, formatting, library — and is what the tests cover.
+- `Sources/PlumeKit/` is the core with no interface — engine, pipeline, formatting, library — and is what most tests cover.
 - `Sources/Plume/` is the Mac app: the island in the notch, the window, hotkeys, sounds, the CLI, the MCP server.
 - The file-by-file map is in [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) (French), with a section on testing without a microphone.
 

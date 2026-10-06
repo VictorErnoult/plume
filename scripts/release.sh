@@ -9,6 +9,8 @@ cd "$(dirname "$0")/.."
 source scripts/release.env
 
 VERSION="${1:?numéro de version, par exemple 1.0.1}"
+# Pas de version avec un test qui échoue : Sparkle la proposerait à toutes les installations.
+./scripts/test.sh
 # Numéro de construction : la date, toujours croissante — c'est lui que Sparkle compare.
 BUILD="${PLUME_BUILD:-$(date +%Y%m%d%H%M)}"
 REPO="${PLUME_REPO:-proprietaire/plume}"

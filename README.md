@@ -96,7 +96,7 @@ A build you make yourself is not notarized, so the first launch needs an allow i
 
 ### How it's put together
 
-- **Two targets.** `PlumeKit` is the core with no interface — engine, pipeline, formatting, library, settings — and is what the tests cover; it is kept separate so an iOS app can reuse it. `Plume` is the Mac app: the island, the window, hotkeys, audio capture, sounds, the CLI, the MCP server, updates.
+- **Two targets.** `PlumeKit` is the core with no interface — engine, pipeline, formatting, library, settings — and is what most tests cover; it is kept separate so an iOS app can reuse it. `Plume` is the Mac app: the island, the window, hotkeys, audio capture, sounds, the CLI, the MCP server, updates.
 - **The engine** (`Engine.swift`) is FluidAudio on Core ML: Parakeet Ultra for words, pyannote community-1 for voices, both on the Neural Engine. The original Parakeet TDT v3 is there too, selectable in Settings.
 - **Live text** (`LiveTranscriber.swift`) re-transcribes a sliding window about twice a second with the same model as the final pass, for 6–7 % of real time. Validated text freezes at sentence ends.
 - **Voices** are separated offline, at the end, per channel: the microphone and the system audio are diarized separately and merged by timestamp, which is more reliable than streaming diarization. Speaker changes are snapped to the nearest pause or sentence end, and voices that merely sound alike are never merged. "Me" is a voiceprint learned on dictations, which by definition contain only your voice.
