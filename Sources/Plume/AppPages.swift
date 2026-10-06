@@ -1190,7 +1190,7 @@ struct SettingsPage: View {
                         .controlSize(.small)
                         .tint(UI.text)
                         .frame(width: 150)
-                        // A notch sounds at every fourteenth of the travel, higher and higher.
+                        // A tick sounds at every fourteenth of the travel, higher and higher.
                         .onChange(of: Int((settings.soundVolume - 0.1) / 0.9 * 14)) { _, notch in
                             Sounds.play(.sliderStep(notch * 8 / 14))
                         }

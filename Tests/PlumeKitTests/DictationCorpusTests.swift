@@ -171,7 +171,7 @@ struct DictationCorpusTests {
         Case(raw: "Génial !", expected: "génial !", options: DictationOptions(style: .casual)),
         Case(raw: "I think the URL is fine.", expected: "I think the URL is fine", options: DictationOptions(style: .casual)),
         Case(raw: "URL à vérifier.", expected: "URL à vérifier", options: DictationOptions(style: .casual)),
-        // A chunk written as dictation goes keeps its period: it is not the end.
+        // A chunk written mid-dictation keeps its period: it is not the end.
         Case(raw: "Bonjour à tous. Merci pour votre message.", expected: "Bonjour à tous. Merci pour votre message.", options: DictationOptions(style: .message), final: false),
         Case(raw: "Bonjour à tous. Merci pour votre message.", expected: "bonjour à tous. merci pour votre message.", options: DictationOptions(style: .casual), final: false),
     ]

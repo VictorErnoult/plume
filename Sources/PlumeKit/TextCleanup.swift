@@ -1,7 +1,7 @@
 import Foundation
 
 /// Light, deterministic cleanup of a dictation: removes hesitations and stuttered
-/// words, never rewording. The raw text stays kept in the transcript.
+/// words, never rewording. The raw text is still kept in the transcript.
 public enum TextCleanup {
     /// Hesitations removed when they form a word on their own.
     private static let fillers: Set<String> = ["euh", "heu", "euhm", "hum", "hmm", "mmh", "um", "uh", "uhm", "erm"]

@@ -3,7 +3,7 @@ import AppKit
 import PlumeKit
 
 /// Conductor of a recording: capture, live transcription,
-/// final processing, pasting and filing in the library.
+/// final processing, pasting and storing in the library.
 @MainActor
 final class SessionController: ObservableObject {
     enum Phase: Equatable {

@@ -1,7 +1,7 @@
 import Foundation
 
-/// Look of the dictated text, depending on where it is pasted: an email doesn't have the same bearing
-/// as a Slack message or a command in the terminal.
+/// Look of the dictated text, depending on where it is pasted: an email calls for a different register
+/// than a Slack message or a command in the terminal.
 public enum DictationStyle: String, Codable, Sendable, CaseIterable {
     /// As the model writes it: full capitals and punctuation.
     case standard

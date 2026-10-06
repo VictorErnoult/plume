@@ -38,7 +38,7 @@ public enum EngineModel: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    /// Languages, size, accuracy: enough to choose with full knowledge.
+    /// Languages, size, accuracy: enough to make an informed choice.
     public var detail: String {
         switch self {
         case .parakeetUltra:
@@ -389,7 +389,7 @@ public actor SpeechEngine {
         ProcessInfo.processInfo.environment["PLUME_SAME_VOICE"].flatMap(Float.init) ?? 0.72
 
     /// Removes ghost voices: a "speaker" who talks only a few seconds in a whole
-    /// meeting is almost always noise or a misclassified burst of voice. Their words
+    /// meeting is almost always noise or a misclassified stray burst of speech. Their words
     /// go back to the neighbouring speaker.
     static func removingPhantomVoices(_ output: DiarizationOutput) -> DiarizationOutput {
         var talk: [String: Double] = [:]
