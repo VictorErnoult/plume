@@ -92,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         remote = Remote.listen(session: session) { [weak self] in self?.showWindow() }
         Remote.onSnapshot = { [weak self] in
-            self?.island.debugSnapshot(to: FileManager.default.temporaryDirectory.appendingPathComponent("plume-ile.png"))
+            self?.island.debugSnapshot(to: FileManager.default.temporaryDirectory.appendingPathComponent("plume-island.png"))
         }
         Remote.onDrawer = { [weak self] open in self?.island.debugPin(open) }
         if !TestHooks.headless { setupStatusItem() }

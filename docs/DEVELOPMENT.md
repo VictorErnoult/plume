@@ -116,4 +116,8 @@ d.wav`. The app log is in `~/Library/Logs/Plume/plume.log`.
 
 `plume render <folder> --demo` draws the interface off-screen with an invented library and a
 fictional first name: nothing personal appears. The README images are in `docs/assets/`.
-Without `--demo`, the render shows your real library: don't publish it.
+Without `--demo`, the render shows your real library: don't publish it. `home.png` and
+`history.png` are `app-home-dark.png` and `app-history-dark.png` as rendered; `notch.png` is a
+900×210 crop of `island-4-meeting-hover-notch.png` at x 170, y 0:
+`sips --cropToHeightWidth 210 900 --cropOffset 0 170 <render>/island-4-meeting-hover-notch.png
+--out docs/assets/notch.png`. `dictation.png` is a composited mockup, not a render.
