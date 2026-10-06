@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import PlumeKit
 
-/// Ligne de commande : le même binaire que l'app, lancé avec des arguments.
+/// Command line: the same binary as the app, launched with arguments.
 enum CLI {
     static let commands: Set<String> = [
         "transcribe", "last", "list", "show", "search", "path", "mcp", "live", "render", "toggle", "stop", "cancel",
@@ -12,7 +12,7 @@ enum CLI {
         "help", "--help", "-h",
     ]
 
-    /// Descripteur de la vraie sortie standard, après redirection des traces vers stderr.
+    /// Descriptor of the real standard output, after traces are redirected to stderr.
     nonisolated(unsafe) private static var out = FileHandle.standardOutput
 
     static func isolateStandardOutput() {
@@ -23,7 +23,7 @@ enum CLI {
         out = FileHandle(fileDescriptor: saved, closeOnDealloc: false)
     }
 
-    /// Écrit une ligne sur la vraie sortie standard.
+    /// Writes a line to the real standard output.
     static func emit(_ text: String) {
         out.write((text + "\n").data(using: .utf8)!)
     }
@@ -132,7 +132,7 @@ enum CLI {
         case "transcribe":
             let save = take(flag: "--save", from: &rest)
             if let systemPath = take(option: "--system", from: &rest), let micPath = rest.first {
-                // Réunion à deux canaux à partir de deux fichiers : le micro, et le son de l'ordinateur.
+                // Two-channel meeting from two files: the microphone, and the computer's sound.
                 let keepEcho = take(flag: "--no-echo-cancel", from: &rest)
                 do {
                     let engine = SpeechEngine.shared
@@ -185,8 +185,8 @@ enum CLI {
 
 
         case "listen":
-            // Dictée sans collage : l'app enregistre, le texte revient ici. Pour un script ou
-            // un agent qui veut « entendre » l'utilisateur.
+            // Dictation without pasting: the app records, the text comes back here. For a script or
+            // an agent that wants to "hear" the user.
             let timeout = take(option: "--timeout", from: &rest).flatMap(Double.init) ?? 180
             guard let text = await Listener.listen(store: store, timeout: timeout) else {
                 printError(tr("No dictation received (is the app running?)."))
@@ -196,7 +196,7 @@ enum CLI {
             return 0
 
         case "format":
-            // Diagnostic : la mise en forme d'un texte brut (nettoyage, commandes vocales, vocabulaire, style).
+            // Diagnostic: formatting of a raw text (clean-up, voice commands, vocabulary, style).
             let style = take(option: "--style", from: &rest).flatMap(DictationStyle.init(rawValue:)) ?? .standard
             let text = rest.isEmpty ? readStandardInput() : rest.joined(separator: " ")
             let result = Pipeline.format(text, options: DictationOptions(settings: settings, style: style))
@@ -257,7 +257,7 @@ enum CLI {
             }
 
         case "transform":
-            // plume transform "traduis en anglais" < texte.txt
+            // plume transform "translate to English" < text.txt
             guard let instruction = rest.first else {
                 printError(tr("Usage: plume transform \"instruction\" < text"))
                 return 2
@@ -296,7 +296,7 @@ enum CLI {
             }
 
         case "calls":
-            // Diagnostic : les apps qui lisent le micro en ce moment, et celles que Plume reconnaît.
+            // Diagnostic: the apps currently reading the microphone, and the ones Plume recognizes.
             let processes = MeetingDetector.processesUsingInput()
             if processes.isEmpty { emit(tr("No other app is using the microphone.")) }
             for process in processes {
@@ -306,14 +306,14 @@ enum CLI {
             return 0
 
         case "simulate-chord":
-            // Essai des raccourcis : simule l'accord ⌃⇧ (ou ⌃⇧⌘ avec « reunion ») tenu N millisecondes.
+            // Shortcut test: simulates the ⌃⇧ combo (or ⌃⇧⌘ with "reunion") held for N milliseconds.
             let meeting = rest.contains("reunion")
             let hold = rest.compactMap(Int.init).first ?? 120
             simulateChord(command: meeting, holdMilliseconds: hold)
             return 0
 
         case "mictest":
-            // Diagnostic : ouvre le micro choisi deux secondes et compte ce qui arrive. Rien n'est gardé.
+            // Diagnostic: opens the chosen microphone for two seconds and counts what arrives. Nothing is kept.
             let capture = MicCapture()
             let lock = NSLock()
             var count = 0
@@ -335,7 +335,7 @@ enum CLI {
             return 0
 
         case "reprocess":
-            // Refait la séparation des voix d'une transcription à partir de son audio conservé.
+            // Redoes the diarization of a transcript from its kept audio.
             let count = take(option: "--speakers", from: &rest).flatMap(Int.init)
             guard let id = rest.first, let transcript = store.load(id: id) else {
                 printError(tr("Transcript not found."))
@@ -351,7 +351,7 @@ enum CLI {
             }
 
         case "words":
-            // Diagnostic : mots horodatés et voix attribuée, sur une plage de temps.
+            // Diagnostic: timestamped words and assigned voice, over a time range.
             let from = take(option: "--from", from: &rest).flatMap(Double.init) ?? 0
             let to = take(option: "--to", from: &rest).flatMap(Double.init) ?? 60
             guard let path = rest.first, let samples = try? AudioIO.loadSamples(URL(fileURLWithPath: path)) else { return 2 }
@@ -375,7 +375,7 @@ enum CLI {
             }
 
         case "aec":
-            // Diagnostic : annulation d'écho d'un fichier micro avec le son système en référence.
+            // Diagnostic: echo cancellation of a microphone file with system audio as the reference.
             guard rest.count >= 3,
                 let mic = try? AudioIO.loadSamples(URL(fileURLWithPath: rest[0])),
                 var reference = try? AudioIO.loadSamples(URL(fileURLWithPath: rest[1]))
@@ -393,7 +393,7 @@ enum CLI {
             return 0
 
         case "selftest":
-            // Demande à l'app ouverte de vérifier la capture du son système (résultat dans le journal).
+            // Asks the open app to check system audio capture (result in the log).
             Remote.send(rest.first == "mic" ? "selftest-mic" : "selftest-system-audio")
             return 0
 
@@ -402,7 +402,7 @@ enum CLI {
             return 0
 
         case "diarize":
-            // Diagnostic : tours de parole et ressemblance des voix détectées dans un fichier.
+            // Diagnostic: speaker turns and similarity of the voices detected in a file.
             let raw = take(flag: "--raw", from: &rest)
             let quiet = take(flag: "--summary", from: &rest)
             guard let path = rest.first, let samples = try? AudioIO.loadSamples(URL(fileURLWithPath: path)),
@@ -440,7 +440,7 @@ enum CLI {
         }
     }
 
-    /// Rejoue un fichier comme s'il arrivait du micro, pour vérifier la transcription en direct.
+    /// Replays a file as if it came from the microphone, to check live transcription.
     private static func simulateLive(path: String) async -> Int32 {
         do {
             let engine = SpeechEngine.shared
@@ -482,12 +482,12 @@ enum CLI {
             usleep(15_000)
         }
         var flags: CGEventFlags = [.maskControl]
-        post(59, down: true, flags: flags)  // contrôle gauche
+        post(59, down: true, flags: flags)  // left control
         flags.insert(.maskShift)
-        post(56, down: true, flags: flags)  // majuscule gauche
+        post(56, down: true, flags: flags)  // left shift
         if command {
             flags.insert(.maskCommand)
-            post(55, down: true, flags: flags)  // commande gauche
+            post(55, down: true, flags: flags)  // left command
         }
         usleep(UInt32(holdMilliseconds) * 1000)
         if command {
@@ -499,7 +499,7 @@ enum CLI {
         post(59, down: false, flags: [])
     }
 
-    // MARK: - Sortie
+    // MARK: - Output
 
     struct Summary: Codable {
         var id: String
@@ -563,10 +563,10 @@ enum CLI {
     }
 }
 
-/// Fait dicter l'utilisateur dans l'app ouverte et attend que le texte arrive dans la
-/// bibliothèque : le « micro » des scripts et des agents (`plume listen`, outil MCP `listen`).
+/// Makes the user dictate in the open app and waits for the text to arrive in the
+/// library: the "microphone" for scripts and agents (`plume listen`, MCP tool `listen`).
 enum Listener {
-    /// Boîte aux lettres remplie par la notification de résultat.
+    /// Mailbox filled by the result notification.
     private final class Mailbox: @unchecked Sendable {
         private let lock = NSLock()
         private var text: String?
@@ -590,7 +590,7 @@ enum Listener {
         while Date().timeIntervalSince(started) < timeout {
             try? await Task.sleep(nanoseconds: 300_000_000)
             if let text = mailbox.take() { return text }
-            // Filet : une dictée nouvelle dans la bibliothèque, commencée après notre demande.
+            // Safety net: a new dictation in the library, started after our request.
             if let latest = store.latest(mode: .dictation), latest.id != before,
                 latest.createdAt >= started.addingTimeInterval(-2)
             {

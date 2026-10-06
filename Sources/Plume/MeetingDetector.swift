@@ -1,26 +1,26 @@
 import CoreAudio
 import Foundation
 
-/// Repère le début d'un appel : une app de visio (Zoom, Teams, Meet dans le navigateur…) qui
-/// se met à utiliser le micro. Plume propose alors d'enregistrer la réunion, et remarque
-/// aussi la fin de l'appel. Rien n'est écouté ici : on ne lit que la liste des processus
-/// audio, que Core Audio tient à jour.
+/// Detects the start of a call: a video call app (Zoom, Teams, Meet in the browser…) that
+/// starts using the microphone. Plume then offers to record the meeting, and also notices
+/// the end of the call. Nothing is listened to here: it only reads the list of audio processes,
+/// which Core Audio keeps up to date.
 @MainActor
 final class MeetingDetector {
-    /// Appel détecté : nom lisible de l'app.
+    /// Call detected: readable name of the app.
     var onCallStarted: ((String) -> Void)?
-    /// L'app qui tenait le micro l'a lâché.
+    /// The app that held the microphone let it go.
     var onCallEnded: (() -> Void)?
 
     private var timer: Timer?
-    /// Depuis quand chaque processus tient le micro.
+    /// Since when each process has held the microphone.
     private var since: [pid_t: Date] = [:]
-    /// Processus pour lesquels on a déjà proposé, jusqu'à ce qu'ils lâchent le micro.
+    /// Processes we already made an offer for, until they release the microphone.
     private var announced = Set<pid_t>()
     private var fakeStart: Date?
 
-    /// Apps de visio et navigateurs (Meet, Teams web…). Un navigateur ouvre aussi le micro pour
-    /// bien d'autres choses : on lui demande plus de persévérance avant de proposer.
+    /// Video call apps and browsers (Meet, Teams web…). A browser also opens the microphone for
+    /// many other things: we ask more persistence from it before offering.
     nonisolated static let apps: [String: (name: String, delay: TimeInterval)] = [
         "us.zoom.xos": ("Zoom", 3),
         "zoom.us": ("Zoom", 3),
@@ -69,7 +69,7 @@ final class MeetingDetector {
             guard let app = Self.apps[process.bundleID] else { continue }
             active.append((process.pid, app.name, app.delay))
         }
-        // PLUME_FAKE_CALL=zoom.us : un appel imaginaire, cinq secondes après le lancement.
+        // PLUME_FAKE_CALL=zoom.us: an imaginary call, five seconds after launch.
         if let fake = ProcessInfo.processInfo.environment["PLUME_FAKE_CALL"], let app = Self.apps[fake] {
             fakeStart = fakeStart ?? now
             if now.timeIntervalSince(fakeStart!) > 5, now.timeIntervalSince(fakeStart!) < 60 {
@@ -91,7 +91,7 @@ final class MeetingDetector {
         }
     }
 
-    /// Vrai tant qu'une app de visio connue tient le micro.
+    /// True as long as a known video call app holds the microphone.
     var callInProgress: Bool { !announced.isEmpty }
 
     struct AudioProcess {
@@ -99,7 +99,7 @@ final class MeetingDetector {
         var bundleID: String
     }
 
-    /// Les processus (autres que Plume) qui lisent une entrée audio en ce moment.
+    /// The processes (other than Plume) currently reading an audio input.
     nonisolated static func processesUsingInput() -> [AudioProcess] {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyProcessObjectList, mScope: kAudioObjectPropertyScopeGlobal,

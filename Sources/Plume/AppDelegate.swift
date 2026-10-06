@@ -13,8 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
     private var window: NSWindow?
     private var remote: NSObjectProtocol?
-    /// Sans cela, macOS met en sommeil les apps sans fenêtre (App Nap) et ralentit la
-    /// détection des raccourcis.
+    /// Without this, macOS puts apps without a window to sleep (App Nap) and slows down
+    /// shortcut detection.
     private let activity = ProcessInfo.processInfo.beginActivity(
         options: .userInitiatedAllowingIdleSystemSleep, reason: "Global dictation shortcuts")
 
@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self?.session.dismiss()
             self?.showWindow(opening: transcript)
         }
-        // Un appel qui démarre dans Zoom, Meet, Teams… : l'île propose d'enregistrer.
+        // A call starting in Zoom, Meet, Teams…: the island offers to record.
         meetings.onCallStarted = { [weak self] app in self?.session.suggestMeeting(app: app) }
         if !TestHooks.headless || ProcessInfo.processInfo.environment["PLUME_FAKE_CALL"] != nil { meetings.start() }
 
@@ -84,7 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         settings.store.prepare()
-        // Mise en veille en plein enregistrement : on termine avec ce qui a été capté.
+        // Sleep in the middle of a recording: finish with what was captured.
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -101,15 +101,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         purgeOldAudio()
         session.purgeCancelled()
 
-        // Premier lancement, ou autorisation manquante : la fenêtre s'ouvre sur l'accueil.
+        // First launch, or a missing permission: the window opens on Home.
         if TestHooks.fakeMic == nil, !settings.onboarded || app.settings.permissionsMissing {
             settings.onboarded = true
             showWindow()
         }
     }
 
-    /// L'audio plus ancien que la durée de conservation choisie est supprimé au lancement ; le
-    /// texte, lui, reste.
+    /// Audio older than the chosen retention period is deleted at launch; the
+    /// text stays.
     private func purgeOldAudio() {
         let days = settings.audioRetentionDays
         guard days > 0 else { return }
@@ -121,21 +121,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    /// Bouton de l'accueil : Plume s'efface pour rendre la main à l'app d'avant (celle où le
-    /// texte sera collé), puis l'enregistrement démarre dans l'encoche. Pendant une dictée, le
-    /// même bouton la termine.
+    /// Home button: Plume steps aside to hand control back to the previous app (the one where the
+    /// text will be pasted), then recording starts in the notch. During a dictation, the
+    /// same button finishes it.
     private func startFromWindow() {
         if session.phase == .recording {
             session.stop()
             return
         }
         NSApp.hide(nil)
-        // Le temps que l'app d'avant repasse au premier plan : c'est elle que la dictée retient.
+        // Wait for the previous app to come back to the front: it is the one the dictation remembers.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.session.start(.dictation) }
     }
 
-    /// Le raccourci d'annulation n'est intercepté que pendant une dictée (pas pendant une
-    /// réunion d'une heure, qu'on annule depuis l'encoche).
+    /// The cancel shortcut is only intercepted during a dictation (not during an hour-long
+    /// meeting, which is cancelled from the notch).
     private func updateCancelShortcut() {
         guard !TestHooks.headless else { return }
         hotkeys.setCancelEnabled(session.phase == .recording && session.mode == .dictation)
@@ -146,8 +146,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return false
     }
 
-    /// Liens `plume://dictee`, `plume://reunion`, `plume://stop`, `plume://cancel`, `plume://pause`,
-    /// `plume://recoller`, `plume://recuperer`, `plume://ouvrir` : pour Raccourcis, Raycast, un Stream Deck.
+    /// Links `plume://dictee`, `plume://reunion`, `plume://stop`, `plume://cancel`, `plume://pause`,
+    /// `plume://recoller`, `plume://recuperer`, `plume://ouvrir`: for Shortcuts, Raycast, a Stream Deck.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "plume" {
             let command = (url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))).lowercased()
@@ -171,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         session.shutdown()
     }
 
-    // MARK: - Barre de menus
+    // MARK: - Menu bar
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -186,14 +186,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func updateStatusIcon() {
         guard let button = statusItem?.button else { return }
-        // La plume de l'icône de l'app, en forme pleine.
+        // The app icon's feather, filled.
         let image = Glyph.plume.image(size: 18)
         image.accessibilityDescription = "Plume"
         button.image = image
         button.contentTintColor = session.phase == .recording ? .systemRed : nil
     }
 
-    /// Clic : la fenêtre de Plume. Clic droit (ou ⌃clic) : un court menu.
+    /// Click: the Plume window. Right click (or ⌃click): a short menu.
     @objc private func statusClicked() {
         let event = NSApp.currentEvent
         let secondary = event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true
@@ -219,7 +219,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         tr("Restore the last cancelled recording"), #selector(restoreCancelled),
                         hint: HotkeyManager.describe(settings.restoreShortcut)))
             }
-            // Les dernières dictées, à recopier d'un clic.
+            // The latest dictations, to copy with one click.
             let recent = settings.store.list(limit: 6, mode: .dictation)
             if !recent.isEmpty {
                 let submenu = NSMenu()
@@ -274,7 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func checkForUpdates() { Updates.shared.check() }
     @objc private func quit() { NSApp.terminate(nil) }
 
-    // MARK: - Fenêtre
+    // MARK: - Window
 
     private func showWindow(opening transcript: Transcript? = nil) {
         if window == nil {
@@ -298,15 +298,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         app.settings.refreshPermissions()
         if window?.isVisible != true { Sounds.play(.windowOpen) }
         if let transcript { app.open(transcript) }
-        // Tant que la fenêtre est ouverte, Plume se comporte comme une app ordinaire
-        // (Dock, ⌘Tab) ; fermée, elle redevient une simple icône de barre de menus.
+        // While the window is open, Plume behaves like a regular app
+        // (Dock, ⌘Tab); when closed, it goes back to being a plain menu bar icon.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
 
-    /// Touches de la fenêtre, comme sur le portfolio : 1 à 4 pour les pages, T pour le thème,
-    /// S pour les sons. Sans effet pendant qu'on écrit dans un champ ou qu'on saisit un raccourci.
+    /// Window keys, as in the portfolio: 1 to 4 for the pages, T for the theme,
+    /// S for the sounds. No effect while typing in a field or recording a shortcut.
     private func installKeys() {
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, let window = self.window, event.window === window, !self.hotkeys.isPaused,
@@ -315,7 +315,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             else { return event }
             switch key {
             case "1", "2", "3", "4", "5", "&", "é", "\"", "'", "(":
-                // Rangée du haut d'un clavier français : & é " ' ( sans majuscule.
+                // Top row of a French keyboard: & é " ' ( without shift.
                 let index = ["1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "&": 0, "é": 1, "\"": 2, "'": 3, "(": 4][key] ?? 0
                 withAnimation(UI.spring) { self.app.page = Page.allCases[index] }
             case "t":
@@ -345,7 +345,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.setActivationPolicy(.accessory)
     }
 
-    /// Menu principal : nécessaire pour que ⌘C, ⌘V, ⌘W et ⌘Q fonctionnent dans la fenêtre.
+    /// Main menu: needed for ⌘C, ⌘V, ⌘W and ⌘Q to work in the window.
     private func buildMainMenu() {
         let main = NSMenu()
 

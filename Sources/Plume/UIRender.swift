@@ -2,9 +2,9 @@ import AppKit
 import PlumeKit
 import SwiftUI
 
-/// Rendu hors écran de l'interface en PNG (`plume render <dossier>`), pour contrôler
-/// l'apparence sans capture d'écran. Avec `--demo`, la fenêtre montre une bibliothèque
-/// inventée et un prénom fictif : de quoi faire des captures publiables.
+/// Off-screen rendering of the interface to PNG (`plume render <folder>`), to check
+/// the look without a screenshot. With `--demo`, the window shows an invented library
+/// and a fictional first name: enough to make publishable screenshots.
 @MainActor
 enum UIRender {
     static func run(directory: String, demo: Bool = false) {
@@ -25,7 +25,7 @@ enum UIRender {
         if let meeting = app.library.transcripts.first(where: { $0.speakers.count > 1 }) {
             app.library.selection = meeting.id
         }
-        // Les réglages en entier, sur une fenêtre très haute, pour voir toutes les sections.
+        // All of settings, in a very tall window, to see every section.
         app.page = .settings
         window(
             AppShell(app: app, session: session), size: NSSize(width: 1040, height: 2500),
@@ -38,7 +38,7 @@ enum UIRender {
                     name: "app-\(page.rawValue)-\(suffix)", in: output, appearance: appearance)
             }
         }
-        // L'accueil pendant une dictée : le bouton montre la voix qui arrive.
+        // Home during a dictation: the button shows the incoming voice.
         app.page = .home
         session.debugSet(
             phase: .recording, elapsed: 12,
@@ -47,11 +47,11 @@ enum UIRender {
             AppShell(app: app, session: session), size: NSSize(width: 1040, height: 680),
             name: "app-home-dictee-sombre", in: output, appearance: .darkAqua)
         session.debugSet(phase: .idle)
-        // Le journal des modifications, tel qu'il s'ouvre depuis « Nouveautés ».
+        // The changelog, as it opens from "What's new".
         window(
             ChangelogView(releases: ChangelogFile.releases), size: NSSize(width: 420, height: 460),
             name: "nouveautes-sombre", in: output, appearance: .darkAqua)
-        // Les enregistrements annulés, encore récupérables.
+        // Cancelled recordings, still recoverable.
         app.page = .history
         app.library.filter = .cancelled
         window(
@@ -65,7 +65,7 @@ enum UIRender {
             Float(0.25 + 0.75 * abs(sin(Double(i) * 0.9) * cos(Double(i) * 0.37)))
         }
         let meeting = Transcript(id: "x", createdAt: Date(), mode: .meeting, duration: 60, engine: "", text: "", rawText: "")
-        // (nom, commandes visibles, réglage de l'état)
+        // (name, visible commands, state setting)
         let states: [(String, Bool, () -> Void)] = [
             ("ile-1-debut", true, { session.debugSet(phase: .recording, elapsed: 2, levels: levels) }),
             ("ile-2-compacte", false, { session.debugSet(phase: .recording, elapsed: 21, levels: levels) }),
@@ -127,7 +127,7 @@ enum UIRender {
         }
     }
 
-    /// Quatre étapes de l'ouverture du tiroir au survol, côte à côte.
+    /// Four steps of the drawer opening on hover, side by side.
     private static func drawerSteps(_ output: URL) {
         let session = SessionController()
         let levels: [Float] = (0..<SessionController.levelCount).map { i in
@@ -155,7 +155,7 @@ enum UIRender {
         write(renderer.nsImage, to: output.appendingPathComponent("ile-tiroir-etapes.png"))
     }
 
-    /// Rend une vraie fenêtre AppKit hors écran.
+    /// Renders a real AppKit window off-screen.
     private static func window<V: View>(
         _ view: V, size: NSSize, name: String, in output: URL, appearance: NSAppearance.Name
     ) {
@@ -186,12 +186,12 @@ enum UIRender {
     }
 }
 
-/// Fenêtre de rendu que le système ne ramène pas aux dimensions de l'écran.
+/// Render window that the system doesn't resize to the screen's dimensions.
 private final class UnconstrainedWindow: NSWindow {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 
-/// Haut d'écran factice pour les maquettes : un fond, la barre de menus et l'encoche.
+/// Fake top of the screen for mockups: a background, the menu bar and the notch.
 private struct FakeScreenTop: View {
     var geometry: NotchGeometry
 
@@ -210,15 +210,15 @@ private struct FakeScreenTop: View {
     }
 }
 
-/// Bibliothèque inventée pour les captures (`plume render <dossier> --demo`) : quelques
-/// semaines de dictées et une réunion à trois, dans un dossier temporaire.
+/// Invented library for screenshots (`plume render <folder> --demo`): a few
+/// weeks of dictations and a meeting of three, in a temporary folder.
 @MainActor
 enum DemoLibrary {
     static func install() {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-demo-\(UUID().uuidString)")
         setenv("PLUME_LIBRARY", root.path, 1)
         setenv("PLUME_FIRST_NAME", "Léa", 1)
-        // Vocabulaire et règles inventés eux aussi : rien du vrai dossier Application Support.
+        // Vocabulary and rules invented too: nothing from the real Application Support folder.
         setenv("PLUME_SUPPORT", root.appendingPathComponent("support").path, 1)
         ReplacementStore.save([
             Replacement(original: "super whisper", with: "Superwhisper"),
@@ -246,7 +246,7 @@ enum DemoLibrary {
             "Rappeler le garage pour le contrôle technique.",
         ]
         var generator = SystemRandomNumberGenerator()
-        // Près d'un an d'activité, de plus en plus régulière.
+        // Nearly a year of activity, increasingly regular.
         for day in stride(from: 320, through: 1, by: -1) {
             let chance = day < 30 ? 0.9 : day < 120 ? 0.6 : 0.3
             guard Double.random(in: 0..<1, using: &generator) < chance else { continue }
@@ -257,7 +257,7 @@ enum DemoLibrary {
                 save(store, at: date, text: text)
             }
         }
-        // Aujourd'hui : les dictées visibles en tête de l'historique.
+        // Today: the dictations visible at the top of the history.
         let recent: [(Int, String, String?)] = [
             (9 * 60 + 12, "Bonjour à tous, petit point sur le lancement : la page est en ligne et les premiers retours sont très bons.", "Slack"),
             (10 * 60 + 47, "Réponds à Marc que la maquette est validée, on part sur la version deux avec le bouton plus visible.", "Mail"),
@@ -305,7 +305,7 @@ enum DemoLibrary {
         for (minutes, text, app) in recent {
             save(store, at: calendar.date(byAdding: .minute, value: minutes, to: today)!, text: text, app: app)
         }
-        // Deux enregistrements annulés par erreur, dont une réunion pas encore transcrite.
+        // Two recordings cancelled by mistake, including a meeting not yet transcribed.
         let cancelled = CancelledStore(library: root)
         let tone = (0..<48_000).map { Float(sin(Double($0) * 2 * .pi * 220 / 16_000)) * 0.2 }
         let dictationStart = calendar.date(byAdding: .minute, value: 17 * 60 + 2, to: today)!

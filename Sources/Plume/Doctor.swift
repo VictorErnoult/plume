@@ -3,7 +3,7 @@ import AppKit
 import FluidAudio
 import PlumeKit
 
-/// `plume doctor` : un état des lieux lisible, pour comprendre pourquoi quelque chose ne marche pas.
+/// `plume doctor`: a readable status report, to understand why something doesn't work.
 enum Doctor {
     @MainActor
     static func run() async {
@@ -29,8 +29,8 @@ enum Doctor {
         case .denied, .restricted: mic = tr("denied")
         default: mic = tr("not asked yet")
         }
-        // Les autorisations dépendent du programme qui lance la commande : depuis un terminal,
-        // ce sont celles du terminal, pas celles de l'app.
+        // Permissions depend on the program that runs the command: from a terminal,
+        // they are the terminal's, not the app's.
         line(tr("Microphone (this process)"), mic)
         line(tr("Accessibility (this process)"), Paster.isTrusted ? tr("enabled") : tr("not enabled"))
         let microphones = AudioDevices.inputs()

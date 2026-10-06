@@ -2,10 +2,10 @@ import CoreAudio
 import Foundation
 import PlumeKit
 
-/// Un micro disponible sur le Mac.
+/// A microphone available on the Mac.
 struct InputDevice: Identifiable, Equatable {
     var deviceID: AudioDeviceID
-    /// Identifiant stable d'un branchement à l'autre.
+    /// Identifier that stays stable from one plug-in to the next.
     var uid: String
     var name: String
     var isBuiltIn: Bool
@@ -14,11 +14,11 @@ struct InputDevice: Identifiable, Equatable {
     var id: String { uid }
 }
 
-/// Liste des micros et choix de celui que Plume utilise.
+/// List of microphones and the choice of the one Plume uses.
 ///
-/// Plume ne suit pas l'entrée par défaut du système : brancher des écouteurs Bluetooth ne doit
-/// pas déplacer la dictée sur leur micro. Sauf choix explicite dans les réglages, c'est le
-/// micro intégré du Mac qui est utilisé.
+/// Plume does not follow the system's default input: plugging in Bluetooth headphones must not
+/// move the dictation to their microphone. Unless explicitly chosen in settings, the Mac's
+/// built-in microphone is used.
 enum AudioDevices {
     static func inputs() -> [InputDevice] {
         var address = AudioObjectPropertyAddress(
@@ -35,7 +35,7 @@ enum AudioDevices {
                 let name = string(kAudioObjectPropertyName, of: id)
             else { return nil }
             let transport = transportType(of: id)
-            // Les périphériques agrégés servent à la capture du son système, pas à la voix.
+            // Aggregate devices are used to capture system audio, not voice.
             guard transport != kAudioDeviceTransportTypeAggregate else { return nil }
             return InputDevice(
                 deviceID: id, uid: uid, name: name, isBuiltIn: transport == kAudioDeviceTransportTypeBuiltIn,
@@ -44,8 +44,8 @@ enum AudioDevices {
         }
     }
 
-    /// Le micro à utiliser : celui choisi dans les réglages s'il est branché, sinon le micro
-    /// intégré, sinon `nil` (entrée par défaut du système).
+    /// The microphone to use: the one chosen in settings if it is plugged in, otherwise the built-in
+    /// microphone, otherwise `nil` (the system's default input).
     static func preferredInput(among devices: [InputDevice] = inputs()) -> InputDevice? {
         if let uid = PlumeSettings.shared.microphoneUID, let chosen = devices.first(where: { $0.uid == uid }) {
             return chosen

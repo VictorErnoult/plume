@@ -2,11 +2,11 @@ import AVFoundation
 import Foundation
 import PlumeKit
 
-/// Pilotage de l'app en cours d'exécution depuis la ligne de commande
-/// (`plume toggle dictee`, `plume stop`…), utile pour Raycast, Raccourcis ou un Stream Deck.
+/// Controls the running app from the command line
+/// (`plume toggle dictee`, `plume stop`…), useful for Raycast, Shortcuts or a Stream Deck.
 enum Remote {
-    /// Canal de commande. La variable `PLUME_CHANNEL` en ouvre un autre, pour piloter une
-    /// instance d'essai sans toucher à l'app installée.
+    /// Command channel. The `PLUME_CHANNEL` variable opens another one, to drive a
+    /// trial instance without touching the installed app.
     static let notification = Notification.Name(
         "studio.brigode.plume.command" + (ProcessInfo.processInfo.environment["PLUME_CHANNEL"].map { "." + $0 } ?? ""))
 
@@ -15,12 +15,12 @@ enum Remote {
             notification, object: command, userInfo: nil, deliverImmediately: true)
     }
 
-    /// Canal de retour : le texte d'une dictée demandée par `plume listen` ou l'outil MCP.
+    /// Return channel: the text of a dictation requested by `plume listen` or the MCP tool.
     static let resultNotification = Notification.Name(notification.rawValue + ".result")
 
-    /// Remet le texte d'une capture à qui l'attend : écrit dans un fichier temporaire (une
-    /// notification ne porte pas un long texte), dont le chemin est notifié. Le destinataire
-    /// supprime le fichier une fois lu.
+    /// Hands a capture's text to whoever is waiting: written to a temporary file (a
+    /// notification can't carry a long text), whose path is notified. The recipient
+    /// deletes the file once read.
     static func deliver(_ transcript: Transcript) {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("plume-capture-\(transcript.id).txt")
         guard (try? transcript.text.write(to: url, atomically: true, encoding: .utf8)) != nil else { return }
@@ -28,9 +28,9 @@ enum Remote {
             resultNotification, object: url.path, userInfo: nil, deliverImmediately: true)
     }
 
-    /// Diagnostic de l'île, branché par l'app.
+    /// Island diagnostic, wired up by the app.
     nonisolated(unsafe) static var onSnapshot: (() -> Void)?
-    /// Diagnostic : ouvrir (vrai) ou refermer (faux) le tiroir de l'île sans la souris.
+    /// Diagnostic: open (true) or close (false) the island's drawer without the mouse.
     nonisolated(unsafe) static var onDrawer: ((Bool) -> Void)?
 
     @MainActor
@@ -41,7 +41,7 @@ enum Remote {
                 switch command {
                 case "toggle-dictee": session.toggle(.dictation)
                 case "toggle-reunion": session.toggle(.meeting)
-                // Dictée sans collage : le texte attend dans la bibliothèque (`plume listen`, outil MCP).
+                // Dictation without pasting: the text waits in the library (`plume listen`, MCP tool).
                 case "toggle-capture": session.toggle(.dictation, intent: .capture)
                 case "toggle-transform": session.toggle(.dictation, intent: .transform)
                 case "stop": session.stop()
@@ -62,22 +62,22 @@ enum Remote {
     }
 }
 
-/// Crochets d'essai, activés par des variables d'environnement : rejouer un fichier à la
-/// place du micro ou du son système, et ne rien coller. Sans effet en usage normal.
+/// Test hooks, enabled by environment variables: replay a file in
+/// place of the microphone or system audio, and paste nothing. No effect in normal use.
 enum TestHooks {
     private static let environment = ProcessInfo.processInfo.environment
 
     static var fakeMic: URL? { environment["PLUME_FAKE_MIC"].map { URL(fileURLWithPath: $0) } }
     static var fakeSystem: URL? { environment["PLUME_FAKE_SYSTEM"].map { URL(fileURLWithPath: $0) } }
     static var noPaste: Bool { environment["PLUME_NO_PASTE"] != nil }
-    /// Instance d'essai invisible : ni île, ni icône, ni raccourcis globaux, pour ne pas
-    /// gêner l'utilisateur ni réagir à ses propres frappes pendant un essai.
+    /// Invisible trial instance: no island, no icon, no global shortcuts, so as not to
+    /// disturb the user or react to their own keystrokes during a trial run.
     static var headless: Bool { environment["PLUME_HEADLESS"] != nil }
-    /// En mode invisible, montre tout de même l'île (pour contrôler son dessin).
+    /// In invisible mode, still show the island (to check its drawing).
     static var showsIsland: Bool { !headless || environment["PLUME_SHOW_ISLAND"] != nil }
     static var verbose: Bool { environment["PLUME_VERBOSE"] != nil }
-    /// Essai du système de mise à jour par une instance invisible : vérification immédiate,
-    /// téléchargement et installation sans interface.
+    /// Trial run of the update system by an invisible instance: immediate check,
+    /// download and installation without an interface.
     static var updates: Bool { environment["PLUME_UPDATES"] != nil }
 
     static func log(_ message: @autoclosure () -> String) {
@@ -86,7 +86,7 @@ enum TestHooks {
     }
 }
 
-/// Journal de l'app : `~/Library/Logs/Plume/plume.log`.
+/// App log: `~/Library/Logs/Plume/plume.log`.
 enum Log {
     private static let queue = DispatchQueue(label: "plume.log")
     static let url: URL = {
@@ -113,7 +113,7 @@ enum Log {
     }
 }
 
-/// Source audio commune au micro, au son système et aux fichiers rejoués.
+/// Audio source shared by the microphone, system audio and replayed files.
 protocol AudioSource: AnyObject {
     var onSamples: (([Float]) -> Void)? { get set }
     func start() throws
@@ -123,7 +123,7 @@ protocol AudioSource: AnyObject {
 extension MicCapture: AudioSource {}
 extension SystemAudioCapture: AudioSource {}
 
-/// Rejoue un fichier audio au rythme du temps réel, comme s'il arrivait d'un micro.
+/// Replays an audio file at real-time pace, as if it came from a microphone.
 final class FileCapture: AudioSource {
     var onSamples: (([Float]) -> Void)?
     private let url: URL
@@ -147,7 +147,7 @@ final class FileCapture: AudioSource {
                 self.onSamples?(Array(samples[offset..<end]))
                 offset = end
             } else {
-                // Fin du fichier : silence, comme un micro resté ouvert.
+                // End of file: silence, like a microphone left open.
                 self.onSamples?([Float](repeating: 0, count: chunk))
             }
         }
@@ -161,16 +161,16 @@ final class FileCapture: AudioSource {
     }
 }
 
-/// Vérification de la capture du son système, sans rien enregistrer : on ouvre le tap trois
-/// secondes et on note dans le journal ce qui arrive.
+/// Check of system audio capture, recording nothing: opens the tap for three
+/// seconds and logs what arrives.
 @MainActor
 enum SelfTest {
     private static var capture: SystemAudioCapture?
 
     private static var mic: MicCapture?
 
-    /// Ouvre le micro une seconde et note dans le journal lequel a été utilisé et s'il capte.
-    /// Rien n'est enregistré.
+    /// Opens the microphone for a second and logs which one was used and whether it picks up sound.
+    /// Nothing is recorded.
     static func microphone() {
         guard mic == nil, Permissions.microphoneGranted else {
             Log.write("mic test: permission missing or test already running")

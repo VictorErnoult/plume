@@ -1,8 +1,8 @@
 import Foundation
 import PlumeKit
 
-/// Serveur MCP minimal (JSON-RPC 2.0 sur stdio) : donne à une IA un accès en lecture
-/// à la bibliothèque de transcriptions.
+/// Minimal MCP server (JSON-RPC 2.0 over stdio): gives an AI read access
+/// to the transcript library.
 struct MCPServer {
     let store: TranscriptStore
 
@@ -22,7 +22,7 @@ struct MCPServer {
 
     private func handle(_ message: [String: Any]) async -> [String: Any]? {
         guard let method = message["method"] as? String else { return nil }
-        // Les notifications n'ont pas d'identifiant et n'attendent pas de réponse.
+        // Notifications have no id and expect no response.
         guard let id = message["id"] else { return nil }
         let params = message["params"] as? [String: Any] ?? [:]
 
@@ -74,7 +74,7 @@ struct MCPServer {
             let limit = min(max(args["limit"] as? Int ?? 10, 1), 50)
             return summaries(store.search(args["query"] as? String ?? "", limit: limit))
         case "listen":
-            // L'app enregistre, l'utilisateur termine avec son raccourci, le texte revient ici.
+            // The app records, the user finishes with their shortcut, the text comes back here.
             let timeout = min(max(args["timeout"] as? Double ?? 180, 10), 900)
             guard let text = await Listener.listen(store: store, timeout: timeout) else {
                 return "No dictation received: Plume may not be running, or the user said nothing before the timeout."

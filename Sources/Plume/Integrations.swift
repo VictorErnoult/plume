@@ -2,17 +2,17 @@ import AppKit
 import Foundation
 import PlumeKit
 
-/// Ce qui relie Plume au terminal et aux assistants : la commande `plume`, et la déclaration
-/// du serveur MCP auprès de Claude Code et de Claude Desktop.
+/// What connects Plume to the terminal and to assistants: the `plume` command, and registering
+/// the MCP server with Claude Code and Claude Desktop.
 enum Integrations {
-    /// Le binaire de l'app : c'est lui que lancent la commande et le serveur MCP.
+    /// The app's binary: it is what the command and the MCP server launch.
     static var binary: String {
         Bundle.main.executablePath ?? "/Applications/Plume.app/Contents/MacOS/Plume"
     }
 
     private static let home = FileManager.default.homeDirectoryForCurrentUser
 
-    // MARK: Commande `plume`
+    // MARK: `plume` command
 
     static let commandLink = home.appendingPathComponent(".local/bin/plume")
 
@@ -23,23 +23,23 @@ enum Integrations {
     static func installCommand() throws {
         let fm = FileManager.default
         try fm.createDirectory(at: commandLink.deletingLastPathComponent(), withIntermediateDirectories: true)
-        // Un ancien lien (vers une autre copie de l'app) est remplacé ; un vrai fichier est laissé.
+        // An old link (to another copy of the app) is replaced; a real file is left alone.
         if (try? fm.destinationOfSymbolicLink(atPath: commandLink.path)) != nil {
             try fm.removeItem(at: commandLink)
         }
         try fm.createSymbolicLink(atPath: commandLink.path, withDestinationPath: binary)
     }
 
-    /// Le dossier de la commande figure-t-il dans le PATH du terminal ?
+    /// Is the command's folder in the terminal's PATH?
     static func commandOnPath() async -> Bool {
         let output = await shell("print -r -- $PATH")
         let directory = commandLink.deletingLastPathComponent().path
         return (output.text.split(separator: "\n").last ?? "").split(separator: ":").contains { $0 == directory }
     }
 
-    // MARK: Serveur MCP
+    // MARK: MCP server
 
-    /// Configuration à coller dans un client MCP quelconque.
+    /// Configuration to paste into any MCP client.
     static var configuration: String {
         """
         {
@@ -65,8 +65,8 @@ enum Integrations {
         servers(in: home.appendingPathComponent(".claude.json"))?["plume"] != nil
     }
 
-    /// Déclare le serveur auprès de Claude Code, avec sa propre commande. Renvoie un message
-    /// d'erreur lisible si ce n'est pas possible.
+    /// Registers the server with Claude Code, with its own command. Returns a readable error
+    /// message if that isn't possible.
     static func connectClaudeCode() async -> String? {
         let found = await shell("command -v claude")
         guard found.status == 0 else { return tr("Claude Code was not found on this Mac.") }
@@ -87,8 +87,8 @@ enum Integrations {
         return entry["command"] as? String == binary
     }
 
-    /// Ajoute Plume à la configuration de Claude Desktop, sans toucher au reste du fichier.
-    /// L'ancienne version est gardée à côté, en `.avant-plume`.
+    /// Adds Plume to Claude Desktop's configuration, without touching the rest of the file.
+    /// The previous version is kept alongside, as `.avant-plume`.
     static func connectClaudeDesktop() throws {
         let fm = FileManager.default
         var root: [String: Any] = [:]
@@ -107,14 +107,14 @@ enum Integrations {
         try data.write(to: claudeDesktopConfig, options: .atomic)
     }
 
-    // MARK: Outils
+    // MARK: Tools
 
     private static func quoted(_ text: String) -> String {
         "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    /// Lance une commande dans le shell de l'utilisateur, avec son PATH habituel (une app
-    /// lancée depuis le Finder n'en reçoit qu'un minimal).
+    /// Runs a command in the user's shell, with their usual PATH (an app
+    /// launched from the Finder only gets a minimal one).
     private static func shell(_ command: String) async -> (status: Int32, text: String) {
         await Task.detached(priority: .userInitiated) {
             let process = Process()
@@ -129,7 +129,7 @@ enum Integrations {
             } catch {
                 return (-1, "")
             }
-            // Un shell qui attendrait une saisie ne doit pas bloquer l'app.
+            // A shell waiting for input must not block the app.
             DispatchQueue.global().asyncAfter(deadline: .now() + 20) {
                 if process.isRunning { process.terminate() }
             }

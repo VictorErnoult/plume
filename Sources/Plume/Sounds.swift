@@ -2,38 +2,38 @@ import AVFoundation
 import AppKit
 import PlumeKit
 
-/// Les sons de Plume, synthétisés à la volée. C'est le kit « Bois » du portfolio soyakil.fr,
-/// porté tel quel : un marimba très sobre (partiels 1 : 3,9 : 9,2), gamme pentatonique,
-/// survols en sinusoïde pure, et des « gonflements » à attaque lente qui glissent d'une octave.
-/// Les sons d'enregistrement reprennent cette recette, plus graves et plus feutrés ; un pack de
-/// sons enregistrés (`Resources/Sounds`), choisi dans les réglages, peut les remplacer.
+/// Plume's sounds, synthesized on the fly. This is the "Bois" (wood) kit from the soyakil.fr portfolio,
+/// ported as is: a very sober marimba (partials 1 : 3.9 : 9.2), pentatonic scale,
+/// hover sounds as pure sine waves, and slow-attack "swells" that slide up an octave.
+/// The recording sounds follow this recipe, lower and more muted; a pack of
+/// recorded sounds (`Resources/Sounds`), chosen in settings, can replace them.
 enum Sounds {
     enum Kind: Hashable {
-        // Enregistrement.
+        // Recording.
         case start, stop, cancel, meetingOn, meetingOff, ready
-        // Fenêtre.
+        // Window.
         case windowOpen
         case page(Int)
         case click, confirm, refuse
         case toggleOn, toggleOff, tab
         case sliderStep(Int)
-        // Survols : à jouer avec `hover`, jamais avec `play`.
+        // Hovers: to be played with `hover`, never with `play`.
         case hoverNav, hoverRow, hoverCard, hoverButton
     }
 
-    /// Faux tant que l'app n'est pas lancée pour de bon : la ligne de commande et les rendus
-    /// hors écran restent muets.
+    /// False until the app is truly launched: the command line and off-screen
+    /// renders stay silent.
     @MainActor static var live = false
 
-    // MARK: Jouer
+    // MARK: Playing
 
     @MainActor
     static func play(_ kind: Kind) {
         let settings = PlumeSettings.shared
         TestHooks.log("sound: \(kind)")
-        // Les essais avec micro simulé restent silencieux.
+        // Trial runs with a simulated microphone stay silent.
         guard live, settings.sounds, settings.soundVolume > 0.01, TestHooks.fakeMic == nil else { return }
-        // Le réglage par défaut (0,7) donne le niveau du portfolio.
+        // The default setting (0.7) gives the portfolio's level.
         let level = min(1.45, settings.soundVolume / 0.7)
         let pack = SoundPack(rawValue: settings.soundPack) ?? .standard
         queue.async { output(kind, pack: pack, level: level) }
@@ -42,8 +42,8 @@ enum Sounds {
     private static var lastHover: CFTimeInterval = 0
     private static var lastPointer = NSPoint(x: -1, y: -1)
 
-    /// Son de survol. Il ne part que si le pointeur a réellement bougé : une liste qui défile
-    /// sous une souris immobile ne doit pas chanter. Pas plus d'un son toutes les 60 ms.
+    /// Hover sound. It only plays if the pointer really moved: a scrolling list
+    /// under a still mouse must not sing. No more than one sound every 60 ms.
     @MainActor
     static func hover(_ kind: Kind) {
         let pointer = NSEvent.mouseLocation
@@ -54,38 +54,38 @@ enum Sounds {
         play(kind)
     }
 
-    // MARK: Les voix
+    // MARK: The voices
 
     private struct Voice {
         enum Shape { case tick, swell, dyad }
-        /// Degré dans la gamme pentatonique (0 = la 440 Hz).
+        /// Degree in the pentatonic scale (0 = the 440 Hz A).
         var deg: Int
         var dur: Double
         var gain: Double
         var shape: Shape = .tick
-        /// Fondamentale seule, avec un souffle de 5 ms : le timbre des survols.
+        /// Fundamental alone, with a 5 ms breath: the timbre of hovers.
         var pure = false
-        /// Rapport de la fréquence de départ d'un gonflement (0,5 : monte d'une octave).
+        /// Ratio of a swell's starting frequency (0.5: rises an octave).
         var glide = 0.5
-        /// Intervalle, en degrés, de la seconde note d'une dyade.
+        /// Interval, in degrees, of a dyad's second note.
         var interval = 0
-        /// Coupe-haut final, en Hz : plus bas, le son est plus feutré.
+        /// Final low-pass cutoff, in Hz: lower means a more muted sound.
         var cutoff = 6200.0
-        /// Part de réflexions courtes, réparties à gauche et à droite, qui donnent de l'espace.
+        /// Share of short reflections, spread left and right, that give a sense of space.
         var space = 0.0
     }
 
     private static func recipe(for kind: Kind) -> Voice {
         switch kind {
-        // Enregistrement : la recette de l'ouverture de page, une octave plus haut pour rester
-        // audible sur les haut-parleurs du Mac, coupe-haut bas, un peu d'espace.
+        // Recording: the page-opening recipe, an octave higher to stay
+        // audible on the Mac's speakers, low cutoff, a bit of space.
         case .start: return Voice(deg: -5, dur: 0.50, gain: 0.78, shape: .swell, cutoff: 2600, space: 0.5)
         case .stop: return Voice(deg: -5, dur: 0.50, gain: 0.68, shape: .swell, glide: 2, cutoff: 2600, space: 0.5)
         case .cancel: return Voice(deg: -4, dur: 0.20, gain: 0.30, shape: .dyad, interval: -2, cutoff: 3200, space: 0.35)
         case .meetingOn: return Voice(deg: -5, dur: 0.20, gain: 0.32, shape: .dyad, interval: 3, cutoff: 3200, space: 0.35)
         case .meetingOff: return Voice(deg: -5, dur: 0.12, gain: 0.24, cutoff: 3200, space: 0.35)
         case .ready: return Voice(deg: -4, dur: 0.20, gain: 0.30, shape: .dyad, interval: 3, cutoff: 3200, space: 0.35)
-        // Fenêtre : les voix du portfolio, à l'identique.
+        // Window: the portfolio's voices, unchanged.
         case .windowOpen: return Voice(deg: -5, dur: 0.24, gain: 0.21, shape: .swell)
         case .page(let tint): return Voice(deg: -10 + tint, dur: 0.52, gain: 0.34, shape: .swell)
         case .click, .confirm: return Voice(deg: 3, dur: 0.18, gain: 0.26, shape: .dyad, interval: 3)
@@ -108,13 +108,13 @@ enum Sounds {
         return 440 * pow(2, Double(octave * 12 + scale[step]) / 12)
     }
 
-    // MARK: Synthèse
+    // MARK: Synthesis
 
     private static let sampleRate = 48_000.0
-    /// Niveau général du kit.
+    /// Overall level of the kit.
     private static let master = 0.55
 
-    /// Un son en cours de fabrication : on y dépose des sinusoïdes et des souffles.
+    /// A sound being built: sine waves and breaths are added to it.
     private struct Canvas {
         var samples: [Double]
 
@@ -122,7 +122,7 @@ enum Sounds {
             samples = [Double](repeating: 0, count: Int(seconds * Sounds.sampleRate) + 1)
         }
 
-        /// Enveloppe exponentielle : montée jusqu'à `peak` en `attack`, puis extinction.
+        /// Exponential envelope: rises to `peak` over `attack`, then decays.
         private func envelope(_ t: Double, dur: Double, peak: Double, attack: Double) -> Double {
             let floor = 1e-4
             let top = max(peak, 2e-4)
@@ -148,7 +148,7 @@ enum Sounds {
             }
         }
 
-        /// Souffle : bruit blanc passé dans un filtre passe-bande.
+        /// Breath: white noise through a band-pass filter.
         mutating func breath(at start: Double, dur: Double, peak: Double, attack: Double, band: Double) {
             let first = Int(start * Sounds.sampleRate)
             let count = Int(dur * Sounds.sampleRate)
@@ -159,7 +159,7 @@ enum Sounds {
             }
         }
 
-        /// Une note du kit : bois complet, ou fondamentale seule.
+        /// A note of the kit: full wood, or fundamental alone.
         mutating func note(at start: Double, frequency: Double, dur: Double, level: Double, voice: Voice, soft: Bool) {
             let glide: Double? = soft ? voice.glide : nil
             let attack = soft ? dur * 0.25 : 0.002
@@ -216,14 +216,14 @@ enum Sounds {
         }
     }
 
-    /// Réflexions courtes (retard en secondes, niveau, côté), pour envelopper sans réverbérer.
+    /// Short reflections (delay in seconds, level, side), to envelop without reverberating.
     private static let reflections: [(delay: Double, level: Double, left: Bool)] = [
         (0.011, 0.20, true), (0.017, 0.17, false), (0.023, 0.13, true), (0.031, 0.10, false), (0.043, 0.07, true),
         (0.059, 0.05, false),
     ]
 
-    /// Fabrique un son : deux canaux, à `sampleRate`. `exact` retire les petites variations
-    /// de hauteur et de niveau qui évitent, à l'usage, l'effet de répétition mécanique.
+    /// Builds a sound: two channels, at `sampleRate`. `exact` removes the small variations
+    /// in pitch and level that avoid, in use, a mechanical repetition effect.
     private static func render(_ kind: Kind, level: Double = 1, exact: Bool = false) -> (left: [Float], right: [Float]) {
         let voice = recipe(for: kind)
         let detune = exact ? 1 : pow(2, Double.random(in: -1...1) * 12 / 1200)
@@ -262,7 +262,7 @@ enum Sounds {
                 }
             }
         }
-        // Dernières millisecondes ramenées à zéro : pas de claquement en fin de son.
+        // Last milliseconds brought down to zero: no click at the end of a sound.
         let fade = min(left.count, Int(0.004 * sampleRate))
         for i in 0..<fade {
             let k = Double(i) / Double(fade)
@@ -272,39 +272,39 @@ enum Sounds {
         return (left.map { Float(max(-1, min(1, $0))) }, right.map { Float(max(-1, min(1, $0))) })
     }
 
-    // MARK: Sons enregistrés
+    // MARK: Recorded sounds
 
-    /// Un son enregistré qui remplace la synthèse, allégé pour rester discret.
+    /// A recorded sound that replaces synthesis, lightened to stay discreet.
     struct Sample {
-        /// Fichier de `Resources/Sounds`, sans l'extension.
+        /// File in `Resources/Sounds`, without the extension.
         var name: String
-        /// Début du passage gardé dans le fichier, en secondes.
+        /// Start of the passage kept in the file, in seconds.
         var offset = 0.0
-        /// Gain qui l'accorde au niveau du kit.
+        /// Gain that matches it to the kit's level.
         var gain: Double
-        /// Durée gardée, en secondes : la queue est coupée, avec un fondu sur la fin.
+        /// Duration kept, in seconds: the tail is cut, with a fade at the end.
         var length: Double
-        /// Coupe-bas, en Hz : retire le corps grave pour un son moins large.
+        /// Low cutoff, in Hz: removes the low body for a less wide sound.
         var lowCut: Double
-        /// Coupe-haut, en Hz : adoucit les aigus.
+        /// High cutoff, in Hz: softens the highs.
         var highCut = 16_000.0
-        /// Transposition, en demi-tons (négatif : plus grave, et un peu plus lent).
+        /// Transposition, in semitones (negative: lower, and a bit slower).
         var semitones = 0.0
     }
 
-    /// Fichiers déjà décodés, par nom (sur la file des sons ou à l'export seulement).
+    /// Files already decoded, by name (on the sound queue or at export only).
     private static var decoded: [String: (left: [Float], right: [Float])] = [:]
 
-    /// Le son enregistré de `kind`, au niveau voulu, ou nil s'il n'y en a pas : la synthèse prend
-    /// alors le relais.
+    /// The recorded sound for `kind`, at the wanted level, or nil if there is none: synthesis then
+    /// takes over.
     private static func recorded(_ kind: Kind, pack: SoundPack, level: Double = 1) -> (left: [Float], right: [Float])? {
         guard let sample = pack.sample(for: kind), let audio = decode(sample.name) else { return nil }
         let first = min(audio.left.count, Int(sample.offset * sampleRate))
-        // Transposer, c'est relire le fichier plus lentement : `rate` échantillons source par
-        // échantillon produit.
+        // Transposing means reading the file more slowly: `rate` source samples per
+        // output sample.
         let rate = pow(2, sample.semitones / 12)
         let count = min(Int(Double(audio.left.count - first - 1) / rate), Int(sample.length * sampleRate))
-        // Fondu sur les 40 % finaux de la durée gardée.
+        // Fade over the final 40% of the kept duration.
         let fadeStart = Int(Double(count) * 0.6)
         func shape(_ channel: [Float]) -> [Float] {
             var low = Biquad.highpass(frequency: sample.lowCut, resonance: 0.7)
@@ -328,7 +328,7 @@ enum Sounds {
     private static func decode(_ name: String) -> (left: [Float], right: [Float])? {
         if let cached = decoded[name] { return cached }
         let bundled = Bundle.main.resourceURL?.appendingPathComponent("Sounds", isDirectory: true)
-        // Binaire lancé hors de l'app (développement) : les sons sont dans le dépôt.
+        // Binary launched outside the app (development): the sounds are in the repo.
         let development = Bundle.repositoryResource("Sounds")
         let url = [bundled, development].compactMap { $0?.appendingPathComponent("\(name).mp3") }
             .first { FileManager.default.fileExists(atPath: $0.path) }
@@ -348,7 +348,7 @@ enum Sounds {
         return (left, right)
     }
 
-    // MARK: Sortie
+    // MARK: Output
 
     private static let queue = DispatchQueue(label: "plume.sounds", qos: .userInteractive)
     private static let engine = AVAudioEngine()
@@ -357,7 +357,7 @@ enum Sounds {
     private static var nextPlayer = 0
     private static var release: DispatchWorkItem?
 
-    /// Sur la file des sons : fabrique le son et le confie à un lecteur libre.
+    /// On the sound queue: builds the sound and hands it to a free player.
     private static func output(_ kind: Kind, pack: SoundPack, level: Double) {
         let (left, right) = recorded(kind, pack: pack, level: level) ?? render(kind, level: level)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(left.count)),
@@ -388,7 +388,7 @@ enum Sounds {
         player.scheduleBuffer(buffer, at: nil, options: .interrupts)
         if !player.isPlaying { player.play() }
 
-        // On rend la sortie audio au système quand plus rien ne sonne.
+        // Hand the audio output back to the system when nothing is sounding anymore.
         release?.cancel()
         let work = DispatchWorkItem {
             players.forEach { $0.stop() }
@@ -398,10 +398,10 @@ enum Sounds {
         queue.asyncAfter(deadline: .now() + 4, execute: work)
     }
 
-    // MARK: Contrôle
+    // MARK: Control
 
-    /// Écrit les sons dans un dossier, pour les écouter ou les contrôler (`plume sounds <dossier>`) :
-    /// le kit complet, puis un sous-dossier par pack avec ses sons d'enregistrement.
+    /// Writes the sounds to a folder, to listen to or check them (`plume sounds <folder>`):
+    /// the full kit, then a subfolder per pack with its recording sounds.
     static func export(to directory: URL) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let kinds: [(String, Kind)] = [
@@ -451,8 +451,8 @@ enum Sounds {
     }
 }
 
-/// Les packs de sons d'enregistrement, au choix dans les réglages. Un pack remplace tout ou partie
-/// des sons d'enregistrement ; les autres restent synthétisés.
+/// The recording sound packs, selectable in settings. A pack replaces all or some
+/// of the recording sounds; the others stay synthesized.
 enum SoundPack: String, CaseIterable, Identifiable {
     case pluck, bips, clics, melodie, glisse, bois
 
@@ -475,18 +475,18 @@ enum SoundPack: String, CaseIterable, Identifiable {
 
     func sample(for kind: Sounds.Kind) -> Sample? {
         switch (self, kind) {
-        // Cinq notes pincées, avec réverbération, à 0 ; 2,4 ; 4,4 ; 6,5 et 8,6 s : la plus haute
-        // ouvre, la plus basse ferme.
+        // Five plucked notes, with reverb, at 0, 2.4, 4.4, 6.5 and 8.6 s: the highest
+        // opens, the lowest closes.
         case (.pluck, .start): return Sample(name: "pluck", offset: 6.52, gain: 0.25, length: 0.5, lowCut: 120)
         case (.pluck, .stop): return Sample(name: "pluck", offset: 0.02, gain: 0.25, length: 0.5, lowCut: 120)
         case (.pluck, .cancel): return Sample(name: "pluck", offset: 8.57, gain: 0.22, length: 0.4, lowCut: 120)
         case (.pluck, .meetingOn): return Sample(name: "pluck", offset: 2.38, gain: 0.22, length: 0.4, lowCut: 120)
         case (.pluck, .ready): return Sample(name: "pluck", offset: 4.43, gain: 0.25, length: 0.5, lowCut: 120)
-        // Deux bips : l'un monte (au début), l'autre descend (vers 1,5 s).
+        // Two beeps: one rises (at the start), the other falls (around 1.5 s).
         case (.bips, .start): return Sample(name: "bip", gain: 0.35, length: 0.26, lowCut: 150, highCut: 3500, semitones: -3)
         case (.bips, .stop):
             return Sample(name: "bip", offset: 1.5, gain: 0.35, length: 0.26, lowCut: 150, highCut: 3500, semitones: -3)
-        // Deux clics : « on » au début, « off » vers 1,07 s.
+        // Two clicks: "on" at the start, "off" around 1.07 s.
         case (.clics, .start): return Sample(name: "clic", gain: 0.35, length: 0.08, lowCut: 120)
         case (.clics, .stop): return Sample(name: "clic", offset: 1.07, gain: 0.35, length: 0.08, lowCut: 120)
         case (.melodie, .start): return Sample(name: "melodie-debut", gain: 0.45, length: 0.32, lowCut: 500)

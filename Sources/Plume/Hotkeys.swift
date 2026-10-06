@@ -5,13 +5,13 @@ import PlumeKit
 enum HotkeyAction: Int {
     case dictation = 1
     case meeting = 2
-    /// Ouvre la fenêtre de Plume.
+    /// Opens the Plume window.
     case open = 3
-    /// Recolle la dernière dictée.
+    /// Pastes the last dictation again.
     case pasteLast = 4
-    /// Dicte une consigne que l'IA locale applique au texte sélectionné.
+    /// Dictates an instruction that the local AI applies to the selected text.
     case transform = 5
-    /// Récupère le dernier enregistrement annulé.
+    /// Restores the last cancelled recording.
     case restore = 6
 
     var mode: RecordingMode? {
@@ -23,21 +23,21 @@ enum HotkeyAction: Int {
     }
 }
 
-/// Raccourcis globaux.
+/// Global shortcuts.
 ///
-/// Deux mécanismes, tous deux sans autorisation système :
-/// - touche + modificateurs (⌥Espace…) : raccourci Carbon, avec appui et relâchement ;
-/// - accord de modificateurs seuls (⌃⌥…) : lecture périodique de l'état des modificateurs.
-///   L'accord ne compte que s'il est « propre » : aucune autre touche ni clic pendant qu'il
-///   est tenu, pour ne pas se déclencher sur un raccourci comme ⌃⌥→.
+/// Two mechanisms, both without a system permission:
+/// - key + modifiers (⌥Space…): Carbon shortcut, with press and release;
+/// - modifier-only combo (⌃⌥…): periodic reading of the modifier state.
+///   The combo only counts if it is "clean": no other key or click while it
+///   is held, so it doesn't fire on a shortcut like ⌃⌥→.
 final class HotkeyManager {
     var onPress: ((HotkeyAction) -> Void)?
     var onRelease: ((HotkeyAction, TimeInterval) -> Void)?
-    /// Une autre touche a été pressée pendant un maintien : ce n'était pas une dictée.
+    /// Another key was pressed during a hold: it wasn't a dictation.
     var onCancel: ((HotkeyAction) -> Void)?
-    /// Le raccourci d'annulation (Échap par défaut) a été pressé pendant un enregistrement.
+    /// The cancel shortcut (Esc by default) was pressed during a recording.
     var onCancelShortcut: (() -> Void)?
-    /// Suspendu pendant la saisie d'un nouveau raccourci dans les réglages.
+    /// Suspended while a new shortcut is being entered in settings.
     var isPaused = false {
         didSet { if oldValue, !isPaused { waitingForRelease = true } }
     }
@@ -53,7 +53,7 @@ final class HotkeyManager {
 
     private static let signature: OSType = 0x504C_554D  // 'PLUM'
     private static let cancelID: UInt32 = 99
-    /// Durée de maintien propre à partir de laquelle l'accord devient un « parler en maintenant ».
+    /// Clean hold duration from which the combo becomes "hold to talk".
     private let holdThreshold: TimeInterval = 0.4
 
     private struct Chord {
@@ -62,22 +62,22 @@ final class HotkeyManager {
         var maxMask: Int
         var keyCount: UInt32
         var clickCount: UInt32
-        /// Une touche ou un clic a eu lieu pendant l'accord : ce n'est pas un raccourci Plume.
+        /// A key or click happened during the combo: it isn't a Plume shortcut.
         var dirty = false
         var fired: HotkeyAction?
         var firedAt: Date?
-        /// Le maintien déclenché s'est terminé (relâché ou annulé) ; on attend le relâchement complet.
+        /// The triggered hold ended (released or cancelled); wait for the full release.
         var finished = false
-        /// Le maintien a été annulé parce que l'accord a grandi (⌃⌥ puis ⌘).
+        /// The hold was cancelled because the combo grew (⌃⌥ then ⌘).
         var outgrown = false
     }
 
-    /// Pendant un enregistrement, un maintien ne doit pas arrêter avant qu'on sache si
-    /// l'accord est propre : seul un relâchement propre compte.
+    /// During a recording, a hold must not stop it before we know whether
+    /// the combo is clean: only a clean release counts.
     var holdEnabled = true
-    /// Après la saisie d'un raccourci dans les réglages, on attend que tout soit relâché.
+    /// After a shortcut is entered in settings, wait until everything is released.
     private var waitingForRelease = false
-    /// Fenêtre pendant laquelle une autre touche annule un maintien tout juste déclenché.
+    /// Window during which another key cancels a hold that was just triggered.
     private let cancelWindow: TimeInterval = 1.0
 
     init() {
@@ -88,7 +88,7 @@ final class HotkeyManager {
         self.timer = timer
     }
 
-    /// Relit les raccourcis depuis les réglages.
+    /// Reloads the shortcuts from settings.
     func reload() {
         for (_, ref) in carbonKeys { UnregisterEventHotKey(ref) }
         carbonKeys.removeAll()
@@ -116,8 +116,8 @@ final class HotkeyManager {
         if status == noErr, let ref { carbonKeys[action] = ref }
     }
 
-    /// Le raccourci d'annulation n'est intercepté que pendant une dictée : le reste du temps,
-    /// la touche (Échap…) garde son rôle dans les autres apps.
+    /// The cancel shortcut is only intercepted during a dictation: the rest of the time,
+    /// the key (Esc…) keeps its role in other apps.
     func setCancelEnabled(_ enabled: Bool) {
         cancelEnabled = enabled
         if let ref = cancelKey {
@@ -125,8 +125,8 @@ final class HotkeyManager {
             cancelKey = nil
         }
         let shortcut = PlumeSettings.shared.cancelShortcut
-        // Un accord de modificateurs seuls ne peut pas servir ici : il se confondrait avec ceux
-        // qui démarrent un enregistrement.
+        // A modifier-only combo can't be used here: it would be confused with those
+        // that start a recording.
         guard enabled, let keyCode = shortcut.keyCode else { return }
         var ref: EventHotKeyRef?
         let id = EventHotKeyID(signature: Self.signature, id: Self.cancelID)
@@ -137,7 +137,7 @@ final class HotkeyManager {
         }
     }
 
-    // MARK: - Touche + modificateurs (Carbon)
+    // MARK: - Key + modifiers (Carbon)
 
     private func installCarbonHandler() {
         var types = [
@@ -175,7 +175,7 @@ final class HotkeyManager {
         }
     }
 
-    // MARK: - Accords de modificateurs seuls
+    // MARK: - Modifier-only combos
 
     private func poll() {
         guard !isPaused, !chordMasks.isEmpty else {
@@ -205,8 +205,8 @@ final class HotkeyManager {
             current.keyCount = keys
             current.clickCount = clicks
             if let firedAt = current.firedAt, !current.finished {
-                // Juste après le déclenchement, une touche signale un autre raccourci (⌃⌥→) :
-                // on annule. Plus tard, c'est une frappe accidentelle : on l'ignore.
+                // Right after the trigger, a key signals another shortcut (⌃⌥→):
+                // cancel. Later, it's an accidental keystroke: ignore it.
                 if now.timeIntervalSince(firedAt) < cancelWindow {
                     current.dirty = true
                     current.finished = true
@@ -219,7 +219,7 @@ final class HotkeyManager {
         if mask | current.maxMask != current.maxMask {
             current.maxMask |= mask
             current.lastChange = now
-            // L'accord grandit après le déclenchement (⌃⌥ puis ⌘) : ce n'était pas celui-là.
+            // The combo grows after the trigger (⌃⌥ then ⌘): it wasn't that one.
             if let fired = current.fired, !current.finished {
                 current.finished = true
                 current.outgrown = true
@@ -233,12 +233,12 @@ final class HotkeyManager {
                 if !current.finished {
                     onRelease?(fired, now.timeIntervalSince(current.firedAt ?? current.start) + holdThreshold)
                 } else if current.outgrown, !current.dirty, let action = action(for: current.maxMask), action != fired {
-                    // ⌃⌥⌘ formé lentement : c'était bien l'autre raccourci.
+                    // ⌃⌥⌘ formed slowly: it was the other shortcut after all.
                     onPress?(action)
                     onRelease?(action, 0)
                 }
             } else if !current.dirty, let action = action(for: current.maxMask) {
-                // Accord propre relâché sans maintien déclenché : bascule.
+                // Clean combo released without a triggered hold: toggle.
                 onPress?(action)
                 onRelease?(action, 0)
             }
@@ -246,7 +246,7 @@ final class HotkeyManager {
         }
 
         if let fired = current.fired {
-            // Une des touches de l'accord est relâchée : fin du maintien.
+            // One of the combo's keys is released: end of the hold.
             if !current.finished, mask != chordMasks[fired] {
                 current.finished = true
                 onRelease?(fired, now.timeIntervalSince(current.firedAt ?? current.start) + holdThreshold)
@@ -254,7 +254,7 @@ final class HotkeyManager {
         } else if holdEnabled, !current.dirty, mask == current.maxMask, chordMasks[.dictation] == mask,
             now.timeIntervalSince(current.lastChange) >= holdThreshold
         {
-            // Accord de dictée tenu : on démarre sans attendre le relâchement.
+            // Dictation combo held: start without waiting for the release.
             current.fired = .dictation
             current.firedAt = now
             onPress?(.dictation)
@@ -276,7 +276,7 @@ final class HotkeyManager {
         return mask
     }
 
-    // MARK: - Conversions et affichage
+    // MARK: - Conversions and display
 
     static func carbonModifiers(_ mask: Int) -> UInt32 {
         var result = 0
@@ -296,7 +296,7 @@ final class HotkeyManager {
         return mask
     }
 
-    /// `⌃⌥` ou `⌥Espace`.
+    /// `⌃⌥` or `⌥Space`.
     static func describe(_ shortcut: Shortcut) -> String {
         guard !shortcut.isEmpty else { return tr("None") }
         var text = ""
@@ -315,7 +315,7 @@ final class HotkeyManager {
         kVK_F7: "F7", kVK_F8: "F8", kVK_F9: "F9", kVK_F10: "F10", kVK_F11: "F11", kVK_F12: "F12",
     ]
 
-    /// Nom de la touche selon la disposition de clavier active (AZERTY compris).
+    /// Key name according to the active keyboard layout (AZERTY included).
     static func keyName(_ keyCode: Int) -> String {
         if let special = specialKeys[keyCode] { return special }
         guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),

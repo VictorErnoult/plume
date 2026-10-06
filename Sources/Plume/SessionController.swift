@@ -2,13 +2,13 @@ import AVFoundation
 import AppKit
 import PlumeKit
 
-/// Chef d'orchestre d'un enregistrement : capture, transcription en direct,
-/// traitement final, collage et rangement dans la bibliothèque.
+/// Conductor of a recording: capture, live transcription,
+/// final processing, pasting and filing in the library.
 @MainActor
 final class SessionController: ObservableObject {
     enum Phase: Equatable {
         case idle
-        /// Une app de visio vient d'ouvrir le micro : on propose d'enregistrer la réunion.
+        /// A video call app just opened the microphone: we offer to record the meeting.
         case suggestion(String)
         case recording
         case processing(String)
@@ -22,38 +22,38 @@ final class SessionController: ObservableObject {
         case failed(String)
     }
 
-    /// Ce qu'on fait de la dictée une fois transcrite.
+    /// What we do with the dictation once transcribed.
     enum Intent: Equatable {
-        /// La coller là où est le curseur.
+        /// Paste it where the cursor is.
         case dictation
-        /// Ne rien coller : le texte attend dans la bibliothèque (`plume listen`, outil MCP).
+        /// Paste nothing: the text waits in the library (`plume listen`, MCP tool).
         case capture
-        /// C'est une consigne : l'IA locale l'applique au texte sélectionné.
+        /// It's an instruction: the local AI applies it to the selected text.
         case transform
     }
 
     static let levelCount = 30
 
     @Published private(set) var phase: Phase = .idle
-    /// Dernier état non inactif : la pastille garde son contenu pendant qu'elle disparaît.
+    /// Last non-idle state: the pill keeps its content while it fades out.
     @Published private(set) var displayPhase: Phase = .idle
     @Published private(set) var mode: RecordingMode = .dictation
     @Published private(set) var intent: Intent = .dictation
     @Published private(set) var elapsed: TimeInterval = 0
     @Published private(set) var paused = false
-    /// Une consigne est dictée pour un texte sélectionné (sinon, pour rédiger à partir de rien).
+    /// An instruction is being dictated for a selected text (otherwise, to write from scratch).
     @Published private(set) var hasSelection = false
-    /// Le micro ne capte rien depuis un moment : micro coupé, mauvais périphérique ?
+    /// The microphone has captured nothing for a while: microphone muted, wrong device?
     @Published private(set) var quietMic = false
     private var lastLoudAt = Date()
-    /// Niveaux sonores récents du micro (0…1), du plus ancien au plus récent.
+    /// Recent microphone levels (0…1), from oldest to newest.
     @Published private(set) var levels = [Float](repeating: 0, count: levelCount)
-    /// Vrai quand le son de l'ordinateur porte de la parole (réunion).
+    /// True when the computer's sound carries speech (meeting).
     @Published private(set) var systemActive = false
     @Published private(set) var liveCommitted = ""
     @Published private(set) var liveVolatile = ""
     @Published private(set) var modelStatus: ModelStatus = .loading(nil)
-    /// Dernier transcript produit, ouvrable depuis la pastille.
+    /// Last transcript produced, openable from the pill.
     @Published private(set) var lastTranscript: Transcript?
 
     var onLibraryChanged: (() -> Void)?
@@ -69,20 +69,20 @@ final class SessionController: ObservableObject {
     private var sessionID: String?
     private var startedAt: Date?
     private var pausedAt: Date?
-    /// Temps passé en pause depuis le début : il ne compte ni dans la durée ni dans le chronomètre.
+    /// Time spent paused since the start: it counts neither in the duration nor in the timer.
     private var pausedTotal: TimeInterval = 0
     private var frontApp: String?
     private var frontBundleID: String?
-    /// Écriture au fil de la dictée : l'hypothèse du direct est tapée dans le champ au fur et
-    /// à mesure ; quand elle change, on efface ce qui diffère et on retape.
+    /// Writing as the dictation goes: the live hypothesis is typed into the field as it
+    /// comes; when it changes, what differs is erased and retyped.
     private var streaming = false
-    /// Ce que Plume a tapé dans le champ jusqu'ici.
+    /// What Plume has typed into the field so far.
     private var typed = ""
-    /// Ce qui entoure le curseur, lu au premier mot et gardé pour toute la dictée.
+    /// What surrounds the cursor, read at the first word and kept for the whole dictation.
     private var streamContext: InsertionContext?
     private var streamPressReturn = false
     private var streamRule: AppRule?
-    /// Texte sélectionné au moment où une consigne est dictée.
+    /// Text selected at the moment an instruction is dictated.
     private var selection = ""
     private var clock: Timer?
     private var liveTask: Task<Void, Never>?
@@ -91,24 +91,24 @@ final class SessionController: ObservableObject {
     private var hideTask: Task<Void, Never>?
     private var startedByCurrentPress = false
     private var unloadTask: Task<Void, Never>?
-    /// Délai d'inactivité après lequel les modèles sont retirés de la mémoire.
+    /// Idle delay after which the models are released from memory.
     private static let idleUnloadDelay: TimeInterval =
         ProcessInfo.processInfo.environment["PLUME_IDLE_UNLOAD"].flatMap(TimeInterval.init) ?? 600
-    /// Empêche la mise en veille automatique pendant qu'une réunion s'enregistre.
+    /// Prevents automatic sleep while a meeting is being recorded.
     private var awake: NSObjectProtocol?
     private var systemActiveUntil = Date.distantPast
-    /// Le son de l'ordinateur a été coupé pour la dictée : à rétablir.
+    /// The computer's sound was muted for the dictation: to be restored.
     private var mutedOutput = false
 
     private var askedForAccessibility = false
-    /// Annulation d'un faux déclenchement (⌃⇧ suivi d'une touche) : pas de son.
+    /// Cancellation of a false trigger (⌃⇧ followed by a key): no sound.
     private var silentCancel = false
-    /// Mise de côté du dernier enregistrement annulé (audio, puis texte) : une récupération
-    /// demandée tout de suite attend qu'elle soit finie.
+    /// Setting aside the last cancelled recording (audio, then text): a restore
+    /// requested right away waits until it's done.
     private var keepingCancelled: Task<Void, Never>?
-    /// Sessions en cours d'enregistrement ou de traitement : la reprise ne doit pas y toucher.
+    /// Sessions being recorded or processed: recovery must not touch them.
     private var activeSessions = Set<String>()
-    /// Imports de fichiers en cours (glisser-déposer, menu).
+    /// File imports in progress (drag and drop, menu).
     private var imports = 0
     private var importing: Bool { imports > 0 }
 
@@ -118,7 +118,7 @@ final class SessionController: ObservableObject {
         return phase == .recording
     }
 
-    // MARK: - Modèle
+    // MARK: - Model
 
     func loadModel() {
         modelStatus = .loading(nil)
@@ -144,7 +144,7 @@ final class SessionController: ObservableObject {
         }
     }
 
-    // MARK: - Raccourcis
+    // MARK: - Shortcuts
 
     func handlePress(_ action: HotkeyAction) {
         if action == .pasteLast {
@@ -156,20 +156,20 @@ final class SessionController: ObservableObject {
         case .recording:
             startedByCurrentPress = false
             if action == .dictation || action == .transform || mode == requested {
-                // Le raccourci principal termine toujours l'enregistrement en cours.
+                // The main shortcut always finishes the recording in progress.
                 stop()
             } else {
                 switchMode(to: requested)
             }
         case .idle, .done, .failed, .suggestion, .processing:
-            // Pendant que la dictée précédente se transcrit encore, on peut en lancer une autre :
-            // la première finira de se coller en arrière-plan.
+            // While the previous dictation is still being transcribed, another one can be started:
+            // the first will finish pasting in the background.
             startedByCurrentPress = true
             start(requested, intent: action == .transform ? .transform : .dictation)
         }
     }
 
-    /// Relâchement : si la touche a été tenue, c'était un « parler en maintenant ».
+    /// Release: if the key was held, it was a "hold to talk".
     func handleRelease(_ action: HotkeyAction, held: TimeInterval) {
         defer { startedByCurrentPress = false }
         guard startedByCurrentPress, phase == .recording, mode == .dictation, held >= 0.7,
@@ -178,7 +178,7 @@ final class SessionController: ObservableObject {
         stop()
     }
 
-    /// Le maintien s'est révélé être un autre raccourci clavier : on jette l'enregistrement.
+    /// The hold turned out to be another keyboard shortcut: discard the recording.
     func handleCancel(_ action: HotkeyAction) {
         guard startedByCurrentPress, phase == .recording, mode == action.mode else { return }
         silentCancel = true
@@ -194,7 +194,7 @@ final class SessionController: ObservableObject {
         }
     }
 
-    // MARK: - Démarrage
+    // MARK: - Start
 
     func start(_ mode: RecordingMode, intent: Intent = .dictation) {
         guard phase != .recording else { return }
@@ -207,8 +207,8 @@ final class SessionController: ObservableObject {
                         self?.finish(.failed(tr("Microphone not allowed")))
                         return
                     }
-                    // Réponse immédiate : on enchaîne. Sinon l'intention est passée, on ne
-                    // démarre pas un enregistrement dans le dos de l'utilisateur.
+                    // Immediate answer: carry on. Otherwise the intent has passed, we don't
+                    // start a recording behind the user's back.
                     if Date().timeIntervalSince(asked) < 20 {
                         self?.start(mode, intent: intent)
                     } else {
@@ -226,8 +226,8 @@ final class SessionController: ObservableObject {
         }
 
         hideTask?.cancel()
-        // Le modèle a pu être déchargé pendant l'inactivité : on le recharge dès maintenant,
-        // pendant que l'utilisateur commence à parler.
+        // The model may have been unloaded during idle time: reload it right now,
+        // while the user starts to speak.
         unloadTask?.cancel()
         let engine = self.engine
         let model = settings.model
@@ -236,9 +236,9 @@ final class SessionController: ObservableObject {
         let now = Date()
         let store = settings.store
         let id = store.makeID(for: now)
-        // L'audio est écrit sur disque au fil de l'eau : rien n'est perdu si l'app s'arrête.
-        // Une réunion dans son fichier définitif de secours, une dictée dans un fichier à part.
-        // Sans historique, une dictée ne laisse aucune trace, pas même celle-là.
+        // Audio is written to disk as it goes: nothing is lost if the app stops.
+        // A meeting in its final backup file, a dictation in a separate file.
+        // Without history, a dictation leaves no trace, not even that one.
         let directory = mode == .meeting || settings.keepHistory ? try? store.ensureDirectory(forID: id) : nil
 
         let micRecorder = ChannelRecorder(channel: .mic, sessionStart: now)
@@ -253,7 +253,7 @@ final class SessionController: ObservableObject {
         }
         let capture: AudioSource = TestHooks.fakeMic.map { FileCapture(url: $0) } ?? MicCapture()
         capture.onSamples = { micRecorder.append($0) }
-        // Micro perdu en route : on termine proprement avec ce qui a été capté.
+        // Microphone lost along the way: finish cleanly with what was captured.
         (capture as? MicCapture)?.onFailure = { [weak self] in
             Task { @MainActor in self?.stop() }
         }
@@ -289,7 +289,7 @@ final class SessionController: ObservableObject {
         streamPressReturn = false
         streamRule = streaming ? AppRuleStore.rule(for: frontBundleID, in: AppRuleStore.load()) : nil
         if intent == .transform {
-            // La sélection est lue tout de suite, pendant que l'app d'origine est encore devant.
+            // The selection is read right away, while the original app is still in front.
             Task { [weak self] in
                 let text = await Paster.selectedText()
                 await MainActor.run {
@@ -310,7 +310,7 @@ final class SessionController: ObservableObject {
         if mode == .meeting {
             keepAwake(true)
         } else if settings.muteWhileDictating, intent != .capture {
-            // Après le son de départ, pour qu'on l'entende.
+            // After the start sound, so that it can be heard.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self, self.phase == .recording, self.mode == .dictation else { return }
                 self.muteOutput(true)
@@ -323,8 +323,8 @@ final class SessionController: ObservableObject {
                 guard let self, let startedAt = self.startedAt, !self.paused else { return }
                 self.elapsed = Date().timeIntervalSince(startedAt) - self.pausedTotal
                 self.systemActive = Date() < self.systemActiveUntil
-                // Quinze secondes sans le moindre son : on le signale plutôt que de laisser
-                // croire que tout s'enregistre.
+                // Fifteen seconds without any sound: we flag it rather than let
+                // people think everything is being recorded.
                 let quiet = self.elapsed > 15 && Date().timeIntervalSince(self.lastLoudAt) > 15
                 if quiet != self.quietMic { self.quietMic = quiet }
             }
@@ -335,7 +335,7 @@ final class SessionController: ObservableObject {
     }
 
     private func pushLevel(_ rms: Float) {
-        // Échelle logarithmique : -55 dB → 0, -12 dB → 1.
+        // Logarithmic scale: -55 dB → 0, -12 dB → 1.
         let db = 20 * log10(max(rms, 0.000_01))
         let normalized = max(0, min(1, (db + 55) / 43))
         levels.removeFirst()
@@ -343,7 +343,7 @@ final class SessionController: ObservableObject {
         if normalized > 0.12 { lastLoudAt = Date() }
     }
 
-    /// Capte le son de l'ordinateur sur un second canal (mode réunion).
+    /// Captures the computer's sound on a second channel (meeting mode).
     private func startSystemCapture(id: String, directory: URL?, sessionStart: Date) {
         guard settings.systemAudioInMeeting, system == nil else { return }
         let recorder = ChannelRecorder(channel: .system, sessionStart: sessionStart)
@@ -356,8 +356,8 @@ final class SessionController: ObservableObject {
         }
         let tap: AudioSource = TestHooks.fakeSystem.map { FileCapture(url: $0) } ?? SystemAudioCapture()
         tap.onSamples = { recorder.append($0) }
-        // Si la capture échoue ou n'est pas autorisée, le canal reste vide et la réunion
-        // continue avec le micro seul.
+        // If the capture fails or isn't allowed, the channel stays empty and the meeting
+        // continues with the microphone alone.
         try? tap.start()
         system = tap
         systemChannel = recorder
@@ -376,7 +376,7 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// Coupe (ou rétablit) le son de l'ordinateur le temps d'une dictée.
+    /// Mutes (or restores) the computer's sound for the length of a dictation.
     private func muteOutput(_ on: Bool) {
         if on, !mutedOutput, SystemVolume.mute(true) {
             mutedOutput = true
@@ -386,14 +386,14 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// Passe de la dictée à la réunion (ou l'inverse) sans interrompre l'enregistrement.
+    /// Switches from dictation to meeting (or the reverse) without interrupting the recording.
     func switchMode(to newMode: RecordingMode) {
         guard phase == .recording, newMode != mode, newMode != .imported,
             let micChannel, let sessionID, let startedAt
         else { return }
         if newMode == .meeting {
-            // Le fichier de secours change de nom : c'est désormais celui d'une réunion,
-            // début compris.
+            // The backup file changes name: it is now a meeting's,
+            // start included.
             let directory = try? settings.store.ensureDirectory(forID: sessionID)
             if let old = micChannel.writer?.url, old.lastPathComponent.hasSuffix("_dictee.wav") {
                 micChannel.writer?.close()
@@ -406,7 +406,7 @@ final class SessionController: ObservableObject {
             keepAwake(true)
             muteOutput(false)
             intent = .dictation
-            // Une réunion ne se colle nulle part : ce qui a été tapé reste, le flux s'arrête là.
+            // A meeting is pasted nowhere: what was typed stays, the stream stops there.
             streaming = false
         } else {
             system?.stop()
@@ -426,8 +426,8 @@ final class SessionController: ObservableObject {
 
     // MARK: - Pause
 
-    /// Suspend la capture : le micro se ferme (le voyant orange s'éteint), le chronomètre
-    /// s'arrête. À la reprise, le silence manquant est comblé pour garder les horodatages.
+    /// Suspends the capture: the microphone closes (the orange indicator goes off), the timer
+    /// stops. On resume, the missing silence is filled in to keep the timestamps.
     func togglePause() {
         guard phase == .recording else { return }
         if paused {
@@ -458,7 +458,7 @@ final class SessionController: ObservableObject {
         liveTask = Task { [weak self] in
             try? await engine.prepare(model: model)
             while !Task.isCancelled {
-                // Relus à chaque passe : le canal système peut apparaître en cours de route.
+                // Re-read on every pass: the system channel can appear along the way.
                 guard let self, let micLive = self.micLive else { return }
                 let systemLive = self.systemLive
                 if let state = await micLive.tick(), !Task.isCancelled {
@@ -478,16 +478,16 @@ final class SessionController: ObservableObject {
         guard phase == .recording else { return }
         TestHooks.log("live: …\(state.committed.suffix(40)) ▸ \(state.volatile)")
         liveCommitted = state.committed
-        // Le modèle clôt toujours la fenêtre par un point : on ne l'affiche pas tant que ça bouge.
+        // The model always closes the window with a period: we don't show it while it's still moving.
         var volatile = state.volatile
         while let last = volatile.last, ".…".contains(last) { volatile.removeLast() }
         liveVolatile = volatile
         if streaming { stream(state, final: false) }
     }
 
-    /// Met le champ au niveau de ce que le direct entend : le texte validé, plus la fenêtre en
-    /// cours sans son dernier mot (le moins sûr). Le tout est mis en forme comme le serait une
-    /// dictée entière, puis seule la différence avec ce qui est déjà tapé est effacée et retapée.
+    /// Brings the field up to what the live transcription hears: the validated text, plus the current
+    /// window without its last word (the least certain). The whole is formatted as an entire
+    /// dictation would be, then only the difference with what is already typed is erased and retyped.
     @discardableResult
     private func stream(_ state: LiveTranscriber.State, final: Bool) -> Bool {
         guard streaming else { return false }
@@ -519,7 +519,7 @@ final class SessionController: ObservableObject {
         return true
     }
 
-    // MARK: - Arrêt
+    // MARK: - Stop
 
     private func teardownCapture() {
         mic?.stop()
@@ -549,7 +549,7 @@ final class SessionController: ObservableObject {
         guard phase == .recording else { return }
         let end = paused ? (pausedAt ?? Date()) : Date()
         let duration = startedAt.map { end.timeIntervalSince($0) - pausedTotal } ?? 0
-        // Un faux déclenchement ou un appui de moins d'une seconde n'a rien à garder.
+        // A false trigger or a press of under a second has nothing to keep.
         let keep = !silentCancel && settings.cancelledRetentionHours > 0 && duration >= 1
         let recording = sessionID.map {
             CancelledRecording(
@@ -571,8 +571,8 @@ final class SessionController: ObservableObject {
         setPhase(.idle)
     }
 
-    /// Range un enregistrement annulé parmi les récupérables. Les fichiers de secours restent
-    /// en place tant qu'il n'est pas écrit : si l'app s'arrête entre-temps, rien n'est perdu.
+    /// Files a cancelled recording among the recoverable ones. The backup files stay
+    /// in place until it is written: if the app stops in the meantime, nothing is lost.
     private func keepCancelled(_ recording: CancelledRecording, mic: ChannelRecorder, system: ChannelRecorder?) {
         let settings = self.settings
         let engine = self.engine
@@ -580,7 +580,7 @@ final class SessionController: ObservableObject {
         keepingCancelled = Task { [weak self] in
             await previous?.value
             let store = settings.cancelled
-            // Une heure de réunion pèse quelques centaines de Mo : copiée et encodée hors du fil principal.
+            // An hour of meeting weighs a few hundred MB: copied and encoded off the main thread.
             let (kept, samples) = await Task.detached(priority: .utility) { () -> (Bool, [Float]) in
                 let samples = mic.buffer.all()
                 let systemAudio = system.map { (samples: $0.buffer.all(), offset: $0.offset) }
@@ -594,8 +594,8 @@ final class SessionController: ObservableObject {
                 return
             }
             Log.write("cancel: recording set aside (\(recording.id))")
-            // Une dictée est transcrite tout de suite : on voit ce qu'elle contenait, et la
-            // récupérer est instantané. Une réunion attend qu'on la demande.
+            // A dictation is transcribed right away: you see what it contained, and
+            // restoring it is instant. A meeting waits until you ask for it.
             if recording.mode == .dictation {
                 try? await engine.prepare(model: settings.model)
                 if let result = try? await Pipeline.dictation(
@@ -613,7 +613,7 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// Jette les enregistrements annulés plus vieux que le délai choisi.
+    /// Discards cancelled recordings older than the chosen delay.
     func purgeCancelled() {
         let hours = settings.cancelledRetentionHours
         let store = settings.cancelled
@@ -624,11 +624,11 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// Récupère un enregistrement annulé (le dernier, par défaut) : transcrit s'il ne l'est pas
-    /// déjà, rangé dans l'historique, et pour une dictée collée là où est le curseur.
+    /// Restores a cancelled recording (the last one, by default): transcribed if it isn't
+    /// already, stored in history, and for a dictation pasted where the cursor is.
     /// - Parameters:
-    ///   - paste: faux depuis la fenêtre de Plume, où le texte est seulement copié.
-    ///   - completion: la transcription obtenue, ou `nil` en cas d'échec.
+    ///   - paste: false from the Plume window, where the text is only copied.
+    ///   - completion: the transcript obtained, or `nil` on failure.
     func restoreCancelled(id: String? = nil, paste: Bool = true, completion: ((Transcript?) -> Void)? = nil) {
         guard phase != .recording else { return }
         hideTask?.cancel()
@@ -649,10 +649,10 @@ final class SessionController: ObservableObject {
                 completion?(nil)
                 return
             }
-            // Le mode sert à l'encoche (bouton « Ouvrir » d'une réunion) ; une dictée lancée
-            // entre-temps garde le sien.
+            // The mode serves the notch ("Open" button of a meeting); a dictation started
+            // in the meantime keeps its own.
             if phase != .recording { mode = recording.mode }
-            // Sans historique, une dictée récupérée est rendue sans être rangée.
+            // Without history, a restored dictation is returned without being stored.
             let save = recording.mode != .dictation || settings.keepHistory
             do {
                 let transcript = try await store.restore(recording, save: save, settings: settings, engine: engine)
@@ -684,10 +684,10 @@ final class SessionController: ObservableObject {
 
     func stop() {
         guard phase == .recording, let micChannel, let sessionID, let startedAt else { return }
-        // Le temps de parole : l'horloge s'arrête pendant les pauses.
+        // Speaking time: the clock stops during pauses.
         let end = paused ? (pausedAt ?? Date()) : Date()
         let duration = end.timeIntervalSince(startedAt) - pausedTotal
-        // Appui accidentel : rien à transcrire.
+        // Accidental press: nothing to transcribe.
         guard duration >= 0.4 else {
             teardownCapture()
             removeTemporaryAudio(self.micChannel, systemChannel)
@@ -704,11 +704,11 @@ final class SessionController: ObservableObject {
         let app = frontApp
         let bundleID = frontBundleID
         let stoppedAt = Date()
-        // Le direct survit au démontage : il lui reste la fin de la dictée à écrire.
+        // The live transcription survives the teardown: it still has the end of the dictation to write.
         let live = streaming ? micLive : nil
-        // Les propriétés sont libérées tout de suite : une nouvelle dictée peut démarrer pendant
-        // que celle-ci se transcrit. La capture, elle, reste ouverte un court instant : la
-        // dernière syllabe est souvent encore en route quand on relâche le raccourci.
+        // Properties are released right away: a new dictation can start while
+        // this one is being transcribed. The capture, though, stays open a short moment: the
+        // last syllable is often still on its way when the shortcut is released.
         let captures: (mic: AudioSource?, system: AudioSource?, clock: Timer?, live: Task<Void, Never>?) = (mic, system, clock, liveTask)
         mic = nil
         system = nil
@@ -743,14 +743,14 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// Fermeture de l'app en plein enregistrement : les fichiers audio de secours restent en
-    /// place et seront transcrits au prochain lancement.
+    /// App closing in the middle of a recording: the backup audio files stay in
+    /// place and will be transcribed at the next launch.
     func shutdown() {
         guard phase == .recording else { return }
         teardownCapture()
     }
 
-    /// Termine les enregistrements restés sans transcript (arrêt brutal, modèle indisponible).
+    /// Finishes recordings left without a transcript (hard stop, model unavailable).
     func recoverInterruptedSessions() {
         let settings = self.settings
         let active = activeSessions
@@ -777,7 +777,7 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// La mise au propre par l'IA s'applique selon la règle de l'app, sinon le réglage général.
+    /// AI clean-up applies according to the app's rule, otherwise the general setting.
     private func polishWanted(for bundleID: String?) -> Bool {
         let rule = AppRuleStore.rule(for: bundleID, in: AppRuleStore.load())
         return rule?.polish ?? settings.polish
@@ -793,8 +793,8 @@ final class SessionController: ObservableObject {
             try await engine.prepare(model: settings.model)
             modelStatus = .ready
             if let live {
-                // Écrit au fil de la dictée : la fin est tapée tout de suite, puis l'historique
-                // reçoit la version complète, retranscrite d'un bloc.
+                // Written as the dictation goes: the end is typed right away, then the history
+                // receives the full version, transcribed again in one go.
                 let last = await live.finish()
                 stream(last, final: true)
                 if !TestHooks.noPaste, !typed.isEmpty, streamPressReturn || rule?.pressReturn == true { Paster.pressReturn() }
@@ -813,7 +813,7 @@ final class SessionController: ObservableObject {
             var raw = result.raw
 
             if intent == .transform {
-                // La dictée était une consigne : l'IA locale l'applique à la sélection.
+                // The dictation was an instruction: the local AI applies it to the selection.
                 guard LocalAI.availability.isAvailable else {
                     finish(.failed(LocalAI.availability.reason ?? tr("Local AI unavailable")), hideAfter: 4)
                     if let safety { try? FileManager.default.removeItem(at: safety) }
@@ -834,14 +834,14 @@ final class SessionController: ObservableObject {
 
             let pressReturn = intent == .dictation && (result.pressReturn || rule?.pressReturn == true)
             if live != nil {
-                // Déjà écrit au fil de l'eau : rien à coller.
+                // Already written as it went: nothing to paste.
             } else if intent == .capture {
                 finish(.done(tr("Transcribed")), hideAfter: 1.0)
             } else if TestHooks.noPaste {
                 finish(.done(tr("Pasted")), hideAfter: 1.0)
             } else if Date().timeIntervalSince(stoppedAt) > 8 {
-                // Après une longue attente (modèle en cours de téléchargement), le curseur n'est
-                // sans doute plus au même endroit : on copie sans coller.
+                // After a long wait (model being downloaded), the cursor is probably
+                // no longer in the same place: copy without pasting.
                 Paster.copy(text)
                 finish(.done(tr("Copied · ⌘V to paste")), hideAfter: 3)
             } else if settings.pasteAfterDictation {
@@ -853,7 +853,7 @@ final class SessionController: ObservableObject {
                 if pasted, pressReturn { Paster.pressReturn() }
                 finish(.done(pasted ? tr("Pasted") : tr("Copied · ⌘V to paste")), hideAfter: pasted ? 1.0 : 2.5)
                 if !pasted, !askedForAccessibility {
-                    // Sans l'autorisation Accessibilité, impossible de coller : on la demande une fois.
+                    // Without the Accessibility permission, pasting is impossible: ask for it once.
                     askedForAccessibility = true
                     Paster.requestTrust()
                 }
@@ -865,12 +865,12 @@ final class SessionController: ObservableObject {
             let draft = Transcript(
                 id: id, createdAt: date, mode: .dictation, duration: duration, engine: await engine.modelName,
                 text: text, rawText: raw, app: app)
-            // Le texte attendu par `plume listen` ou l'outil MCP part tout de suite.
+            // The text awaited by `plume listen` or the MCP tool goes out right away.
             if intent == .capture { Remote.deliver(draft) }
             let settings = self.settings
             let engine = self.engine
             if !settings.keepHistory {
-                // Rien n'est rangé : le texte vit le temps d'être collé (et recollé au besoin).
+                // Nothing is stored: the text lives long enough to be pasted (and pasted again if needed).
                 lastTranscript = draft
                 if let safety { try? FileManager.default.removeItem(at: safety) }
                 if TestHooks.fakeMic == nil {
@@ -878,7 +878,7 @@ final class SessionController: ObservableObject {
                 }
                 return
             }
-            // Le rangement ne doit pas retarder le collage.
+            // Storing must not delay the paste.
             let saved: Transcript? = await Task.detached(priority: .utility) {
                 var transcript = draft
                 let store = settings.store
@@ -889,7 +889,7 @@ final class SessionController: ObservableObject {
                     }
                 }
                 guard (try? store.save(transcript)) != nil else { return nil }
-                // Le transcript est écrit : le fichier de secours n'a plus de raison d'être.
+                // The transcript is written: the backup file no longer has a reason to exist.
                 if let safety { try? FileManager.default.removeItem(at: safety) }
                 if TestHooks.fakeMic == nil {
                     await VoiceprintStore.learn(from: samples, engine: engine)
@@ -901,8 +901,8 @@ final class SessionController: ObservableObject {
                 onLibraryChanged?()
             }
         } catch {
-            // L'audio reste de côté dans son fichier de secours : il sera transcrit dès que le
-            // modèle sera disponible.
+            // The audio stays aside in its backup file: it will be transcribed as soon as the
+            // model is available.
             if safety == nil {
                 let store = settings.store
                 await Task.detached {
@@ -958,14 +958,14 @@ final class SessionController: ObservableObject {
                 if settings.keepAudio, let directory = try? store.ensureDirectory(forID: id) {
                     for audio in recorded where !AudioLevel.isSilent(audio.samples) {
                         let name = "\(id)_\(audio.channel == .mic ? "mic" : "sys").m4a"
-                        // Silence initial égal au décalage du canal : l'audio reste calé sur les horodatages.
+                        // Initial silence equal to the channel's offset: the audio stays aligned with the timestamps.
                         let lead = [Float](repeating: 0, count: Int(audio.offset * Double(SpeechEngine.sampleRate)))
                         if (try? AudioIO.writeM4A(lead + audio.samples, to: directory.appendingPathComponent(name))) != nil {
                             transcript.audioFiles.append(name)
                         }
                     }
                 }
-                // Les WAV n'étaient qu'un filet de sécurité pendant l'enregistrement.
+                // The WAVs were only a safety net during the recording.
                 temporary.forEach { try? FileManager.default.removeItem(at: $0) }
                 return (try? store.save(transcript)) != nil ? transcript : nil
             }.value
@@ -981,18 +981,18 @@ final class SessionController: ObservableObject {
                 summarize(saved)
             }
         } catch {
-            // Les fichiers audio de la réunion restent en place pour une reprise ultérieure.
+            // The meeting's audio files stay in place for a later recovery.
             finish(.failed(tr("Transcription failed · audio kept")), hideAfter: 3.5)
             Log.write("error: \(error.localizedDescription)")
         }
     }
 
-    // MARK: - IA locale
+    // MARK: - Local AI
 
-    /// Transcriptions dont le résumé est en cours d'écriture.
+    /// Transcriptions whose summary is being written.
     @Published private(set) var summarizing = Set<String>()
 
-    /// Résume une réunion avec l'IA locale, puis range le résumé et le titre dans la bibliothèque.
+    /// Summarizes a meeting with the local AI, then stores the summary and title in the library.
     func summarize(_ transcript: Transcript) {
         guard !summarizing.contains(transcript.id) else { return }
         summarizing.insert(transcript.id)
@@ -1014,10 +1014,10 @@ final class SessionController: ObservableObject {
         }
     }
 
-    // MARK: - Recoller
+    // MARK: - Paste again
 
-    /// Recolle la dernière dictée là où est le curseur : utile quand le collage a raté ou que
-    /// le champ a changé entre-temps.
+    /// Pastes the last dictation again where the cursor is: useful when the paste failed or
+    /// the field changed in the meantime.
     func pasteLast() {
         guard phase != .recording else { return }
         let last = lastTranscript?.mode == .dictation ? lastTranscript : settings.store.latest(mode: .dictation)
@@ -1029,9 +1029,9 @@ final class SessionController: ObservableObject {
         finish(.done(pasted ? tr("Pasted again") : tr("Copied · ⌘V to paste")), hideAfter: pasted ? 1.2 : 2.5)
     }
 
-    // MARK: - Réunion détectée
+    // MARK: - Meeting detected
 
-    /// Une app de visio vient d'ouvrir le micro : l'île propose d'enregistrer.
+    /// A video call app just opened the microphone: the island offers to record.
     func suggestMeeting(app: String) {
         guard phase == .idle, settings.meetingDetection else { return }
         TestHooks.log("call detected: \(app)")
@@ -1045,7 +1045,7 @@ final class SessionController: ObservableObject {
         start(.meeting)
     }
 
-    // MARK: - États
+    // MARK: - States
 
     private func setPhase(_ phase: Phase) {
         TestHooks.log("state: \(phase)")
@@ -1055,7 +1055,7 @@ final class SessionController: ObservableObject {
         onPhaseChanged?(phase)
     }
 
-    /// Après dix minutes sans enregistrement, on rend la mémoire des modèles.
+    /// After ten minutes without a recording, the models' memory is released.
     func scheduleUnload() {
         unloadTask?.cancel()
         let engine = self.engine
@@ -1067,13 +1067,13 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// Un état intermédiaire (« Mise au propre »…), sauf si une nouvelle dictée a déjà commencé.
+    /// An intermediate state ("Cleaning up"…), unless a new dictation has already started.
     private func report(_ phase: Phase) {
         guard self.phase != .recording else { return }
         setPhase(phase)
     }
 
-    /// Affiche un état final puis revient au repos. Une dictée déjà recommencée garde l'écran.
+    /// Shows a final state then returns to rest. A dictation already restarted keeps the screen.
     private func finish(_ phase: Phase, hideAfter delay: TimeInterval = 2.2) {
         guard self.phase != .recording else {
             TestHooks.log("state (background): \(phase)")
@@ -1098,7 +1098,7 @@ final class SessionController: ObservableObject {
         }
     }
 
-    /// États factices pour le rendu hors écran des maquettes de l'interface.
+    /// Fake states for off-screen rendering of the interface mockups.
     func debugSet(
         phase: Phase, mode: RecordingMode = .dictation, intent: Intent = .dictation, elapsed: TimeInterval = 0,
         paused: Bool = false, quietMic: Bool = false, levels: [Float]? = nil, committed: String = "", volatile: String = "",
@@ -1120,7 +1120,7 @@ final class SessionController: ObservableObject {
         modelStatus = .ready
     }
 
-    /// Transcrit un fichier audio choisi par l'utilisateur ou déposé dans le dossier iCloud.
+    /// Transcribes an audio file chosen by the user or dropped into the iCloud folder.
     func importFile(
         _ url: URL, mode: RecordingMode = .imported, device: String = "mac", date: Date = Date()
     ) async -> Transcript? {
