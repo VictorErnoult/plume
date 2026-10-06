@@ -1,6 +1,12 @@
 # Journal des modifications
 
-Une ligne par PR, regroupées par date, les plus récentes en haut. Une version prend la date de sa publication. Le détail est dans la PR.
+Une ligne par PR ou par pile de PR, regroupées par date, les plus récentes en haut. Une version prend la date de sa publication. Le détail est dans la PR.
+
+## 1.0.2
+
+### 2026-10-06
+
+- Tests : release.sh s'arrête si un test échoue ; les tests restent à l'écart des réglages et de la bibliothèque de l'app installée, n'échouent plus au hasard, et vérifient le presse-papiers, la relecture des fichiers des versions publiées, la ligne de commande, le serveur MCP et le texte des dictées (#9)
 
 ## 1.0.1 — 2026-10-05
 
