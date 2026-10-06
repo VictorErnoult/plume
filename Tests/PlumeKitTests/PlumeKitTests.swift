@@ -817,4 +817,31 @@ struct LocalizationTests {
         #expect(L10n.missing.isEmpty)
         #expect(Language.english.locale.identifier == "en_US")
     }
+
+    /// Every single-line `tr("…")` literal in Sources must be a key of the French table.
+    /// Multi-line `tr("""…""")` literals and calls with interpolation are skipped.
+    @Test func everyTrLiteralHasAFrenchEntry() throws {
+        let sources = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources")
+        let call = try NSRegularExpression(pattern: #"(?<![A-Za-z0-9_.])tr\("((?:[^"\\]|\\.)*)"\)"#)
+        let files = try #require(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+        var checked = 0
+        var missing: [String] = []
+        for case let file as URL in files where file.pathExtension == "swift" {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            for match in call.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+                let raw = String(text[Range(match.range(at: 1), in: text)!])
+                guard !raw.contains("\\("), raw.contains(where: \.isLetter), raw != "Plume" else { continue }
+                let key = raw
+                    .replacingOccurrences(of: "\\n", with: "\n")
+                    .replacingOccurrences(of: "\\\"", with: "\"")
+                    .replacingOccurrences(of: "\\\\", with: "\\")
+                checked += 1
+                if L10nTable.french[key] == nil { missing.append("\(file.lastPathComponent): \(raw.prefix(60))") }
+            }
+        }
+        #expect(checked > 100)
+        #expect(missing.isEmpty, "Keys missing from L10nTable.french: \(missing)")
+    }
 }

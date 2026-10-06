@@ -43,7 +43,7 @@ enum CLI {
           plume transcribe <file> [--mode …] [--save]          transcribe an audio file
           plume export <id> --format md|txt|srt|vtt|json [-o f]  export a transcription
           plume summarize <id>                                 summarize a meeting with the local AI
-          plume reprocess <id> [--speakers N]                  redo the voice separation
+          plume reprocess <id> [--speakers N]                  redo speaker separation
           plume toggle dictee|reunion                          start / stop in the running app
           plume stop | plume cancel | plume pause              finish / cancel / pause
           plume listen [--timeout 180]                         dictate in the app, and get the text here

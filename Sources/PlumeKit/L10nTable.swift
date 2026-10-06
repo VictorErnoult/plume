@@ -102,7 +102,6 @@ enum L10nTable {
         "Cleaning up": "Mise au propre",
         "Clicks": "Clics",
         "Close": "Fermer",
-        "Complete folder": "Dossier complet",
         "Connect": "Connecter",
         "Copied": "Copié",
         "Copied · ⌘V to paste": "Copié · ⌘V pour coller",
@@ -149,6 +148,7 @@ enum L10nTable {
         "Finish the dictation": "Terminer la dictée",
         "Fit the text to what surrounds the cursor": "Adapter l'insertion à ce qui entoure le curseur",
         "Folder": "Dossier",
+        "Folder complete": "Dossier complet",
         "For apps that refuse ⌘V (remote desktop, some terminals).": "Pour les apps qui refusent ⌘V (bureau à distance, certains terminaux).",
         "For the window, the notch and the transcripts.": "Celle de la fenêtre, de l'encoche et des transcriptions.",
         "Formats: md, txt, srt, vtt, json.": "Formats : md, txt, srt, vtt, json.",
@@ -223,7 +223,6 @@ enum L10nTable {
         "Minimize": "Réduire",
         "Missing from this folder: %@.": "Il manque %@ dans ce dossier.",
         "Model": "Modèle",
-        "Model chosen": "Modèle choisi",
         "Model downloaded": "Modèle téléchargé",
         "Model folder": "Dossier du modèle",
         "Model unavailable": "Modèle indisponible",
@@ -293,7 +292,7 @@ enum L10nTable {
             "Plume garde ce micro quoi qu'il arrive : connecter des écouteurs ou un casque Bluetooth n'y change rien.",
         "Plume sounds": "Sons de Plume",
         "Plume — click: open · right-click: menu": "Plume — clic : ouvrir · clic droit : menu",
-        "Plume — local dictation and transcription\n\n  plume last [--mode dictee|reunion|import] [--json]   latest transcription\n  plume list [-n 20] [--mode …] [--json]               recent transcriptions\n  plume show <id> [--json]                             one transcription\n  plume search <words…> [--json]                       full-text search\n  plume transcribe <file> [--mode …] [--save]          transcribe an audio file\n  plume export <id> --format md|txt|srt|vtt|json [-o f]  export a transcription\n  plume summarize <id>                                 summarize a meeting with the local AI\n  plume reprocess <id> [--speakers N]                  redo the voice separation\n  plume toggle dictee|reunion                          start / stop in the running app\n  plume stop | plume cancel | plume pause              finish / cancel / pause\n  plume listen [--timeout 180]                         dictate in the app, and get the text here\n  plume paste                                          paste the last dictation again\n  plume cancelled                                      cancelled recordings you can still restore\n  plume restore                                        restore the last cancelled recording\n  plume open                                           open Plume's window\n  plume path                                           library folder\n  plume settings export|import <file.json>             back up / restore all settings\n  plume format \"plain text\" [--style message]          see how a dictation gets formatted\n  plume polish \"text\" | plume transform \"instruction\"  try the local AI (text on standard input)\n  plume doctor                                         permissions and model status\n  plume mcp                                            MCP server (stdio) for AIs\n\nRun with no argument to start the app in the menu bar.":
+        "Plume — local dictation and transcription\n\n  plume last [--mode dictee|reunion|import] [--json]   latest transcription\n  plume list [-n 20] [--mode …] [--json]               recent transcriptions\n  plume show <id> [--json]                             one transcription\n  plume search <words…> [--json]                       full-text search\n  plume transcribe <file> [--mode …] [--save]          transcribe an audio file\n  plume export <id> --format md|txt|srt|vtt|json [-o f]  export a transcription\n  plume summarize <id>                                 summarize a meeting with the local AI\n  plume reprocess <id> [--speakers N]                  redo speaker separation\n  plume toggle dictee|reunion                          start / stop in the running app\n  plume stop | plume cancel | plume pause              finish / cancel / pause\n  plume listen [--timeout 180]                         dictate in the app, and get the text here\n  plume paste                                          paste the last dictation again\n  plume cancelled                                      cancelled recordings you can still restore\n  plume restore                                        restore the last cancelled recording\n  plume open                                           open Plume's window\n  plume path                                           library folder\n  plume settings export|import <file.json>             back up / restore all settings\n  plume format \"plain text\" [--style message]          see how a dictation gets formatted\n  plume polish \"text\" | plume transform \"instruction\"  try the local AI (text on standard input)\n  plume doctor                                         permissions and model status\n  plume mcp                                            MCP server (stdio) for AIs\n\nRun with no argument to start the app in the menu bar.":
             "Plume — dictée et transcription locales\n\n  plume last [--mode dictee|reunion|import] [--json]   dernière transcription\n  plume list [-n 20] [--mode …] [--json]               transcriptions récentes\n  plume show <id> [--json]                             une transcription\n  plume search <mots…> [--json]                        recherche plein texte\n  plume transcribe <fichier> [--mode …] [--save]       transcrire un fichier audio\n  plume export <id> --format md|txt|srt|vtt|json [-o f]  exporter une transcription\n  plume summarize <id>                                 résumer une réunion avec l'IA locale\n  plume reprocess <id> [--speakers N]                  refaire la séparation des voix\n  plume toggle dictee|reunion                          démarrer / arrêter dans l'app ouverte\n  plume stop | plume cancel | plume pause              terminer / annuler / mettre en pause\n  plume listen [--timeout 180]                         dicter dans l'app, et recevoir le texte ici\n  plume paste                                          recoller la dernière dictée\n  plume cancelled                                      enregistrements annulés encore récupérables\n  plume restore                                        récupérer le dernier enregistrement annulé\n  plume open                                           ouvrir la fenêtre de Plume\n  plume path                                           dossier de la bibliothèque\n  plume settings export|import <fichier.json>          sauvegarder / restaurer tous les réglages\n  plume format \"texte brut\" [--style message]          voir la mise en forme d'une dictée\n  plume polish \"texte\" | plume transform \"consigne\"    essayer l'IA locale (texte sur l'entrée standard)\n  plume doctor                                         état des autorisations et du modèle\n  plume mcp                                            serveur MCP (stdio) pour les IA\n\nSans argument, lance l'application dans la barre de menus.",
         "Press": "Appuie sur",
         "Press the shortcut…": "Tape le raccourci…",
@@ -334,6 +333,8 @@ enum L10nTable {
         "Select All": "Tout sélectionner",
         "Select text, say an instruction (“translate to French”, “shorter”), and the local AI rewrites it. With nothing selected, it writes.":
             "Sélectionne un texte, dicte une consigne (« traduis en anglais », « plus court »), l'IA locale le réécrit. Sans sélection, elle rédige.",
+        "Selected model": "Modèle choisi",
+        "Send with Return": "Valider avec Entrée",
         "Separating speakers": "Séparation des voix",
         "Settings": "Réglages",
         "Settings restored. Restart Plume so they all take effect.": "Réglages restaurés. Relance Plume pour qu'ils soient tous pris en compte.",
@@ -373,7 +374,7 @@ enum L10nTable {
         "The local AI returned nothing.": "L'IA locale n'a rien répondu.",
         "The message is sent as soon as the text is pasted.": "Le message part dès que le texte est collé.",
         "The model folder does not contain": "Le dossier du modèle ne contient pas",
-        "The new name replaces": "Le nouveau nom remplace",
+        "The new name replaces “%@” throughout the transcript.": "Le nouveau nom remplace « %@ » dans toute la transcription.",
         "The other participants (Meet, Zoom, Teams…) are transcribed even with headphones, and each speaker is separated. Without headphones, the speakers' echo is removed from the microphone.":
             "Les autres participants (Meet, Zoom, Teams…) sont transcrits même au casque, et chaque interlocuteur est séparé. Sans casque, l'écho des haut-parleurs est retiré du micro.",
         "The settings could not be saved:": "Les réglages n'ont pas pu être enregistrés :",
@@ -490,7 +491,6 @@ enum L10nTable {
         "tap format": "format du tap",
         "text and audio": "texte et audio",
         "text only": "texte seulement",
-        "throughout the transcript.": "dans toute la transcription.",
         "to dictate; the text is pasted where your cursor is.": "pour dicter, le texte se colle là où est ton curseur.",
         "typing: 40": "au clavier : 40",
         "unavailable": "indisponible",

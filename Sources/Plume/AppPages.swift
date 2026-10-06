@@ -575,7 +575,7 @@ private struct TranscriptDetail: View {
             }
             Button(tr("Cancel"), role: .cancel) { renaming = nil }
         } message: {
-            Text(tr("The new name replaces") + " « \(renaming ?? "") » " + tr("throughout the transcript."))
+            Text(String(format: tr("The new name replaces “%@” throughout the transcript."), renaming ?? ""))
         }
         .alert(tr("Transcript title"), isPresented: $editingTitle) {
             TextField(tr("Title"), text: $newTitle)

@@ -322,7 +322,7 @@ final class LibraryModel: ObservableObject {
             do {
                 _ = try await Pipeline.reprocess(transcript, speakerCount: speakers)
             } catch {
-                Log.write("new voice separation failed: \(error.localizedDescription)")
+                Log.write("new speaker separation failed: \(error.localizedDescription)")
             }
             reprocessing = nil
             reload()
