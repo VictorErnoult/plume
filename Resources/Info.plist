@@ -3,7 +3,12 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>fr</string>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>fr</string>
+    </array>
     <key>CFBundleExecutable</key>
     <string>Plume</string>
     <key>CFBundleIconFile</key>
@@ -42,10 +47,10 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Plume écoute le micro pour transcrire ce que tu dictes. Tout reste sur ce Mac.</string>
+    <string>Plume listens to the microphone to transcribe what you dictate. Everything stays on this Mac.</string>
     <key>NSAudioCaptureUsageDescription</key>
-    <string>Plume capte le son de l'ordinateur pendant une réunion pour transcrire les autres participants. Tout reste sur ce Mac.</string>
+    <string>Plume captures the computer's audio during a meeting to transcribe the other participants. Everything stays on this Mac.</string>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>Plume reçoit les enregistrements envoyés par ton iPhone sur le réseau local.</string>
+    <string>Plume receives recordings sent by your iPhone over the local network.</string>
 </dict>
 </plist>
