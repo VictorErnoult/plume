@@ -786,11 +786,12 @@ struct SettingsValueTests {
         defer { defaults.removePersistentDomain(forName: name) }
         func strings() -> [String: String] { SettingsBackup.snapshot(defaults: defaults, replacements: [], rules: []).strings }
 
-        #expect(strings()["appearance"] == nil)
-        defaults.set("sombre", forKey: "appearance")
-        defaults.set("bips", forKey: "soundPack")
-        #expect(strings()["appearance"] == "dark")
-        #expect(strings()["soundPack"] == "beeps")
+        let appearance = PlumeSettings.Key.appearance, soundPack = PlumeSettings.Key.soundPack
+        #expect(strings()[appearance] == nil)
+        defaults.set("sombre", forKey: appearance)
+        defaults.set("bips", forKey: soundPack)
+        #expect(strings()[appearance] == "dark")
+        #expect(strings()[soundPack] == "beeps")
     }
 }
 

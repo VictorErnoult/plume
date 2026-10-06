@@ -123,6 +123,7 @@ struct MigrationTests {
         try write("junk", to: old.appendingPathComponent(".DS_Store"))
         Migration.merge(folder: old, into: new)
         #expect(!fm.fileExists(atPath: old.path))
+        #expect(!fm.fileExists(atPath: new.appendingPathComponent(".DS_Store").path))
     }
 
     @Test func mergeKeepsANonEmptyOldFolder() throws {

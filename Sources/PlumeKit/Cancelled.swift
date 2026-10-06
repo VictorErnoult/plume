@@ -42,7 +42,7 @@ public struct CancelledRecording: Codable, Sendable, Identifiable, Equatable {
 
 /// Cancelled recordings, stored apart in a hidden folder of the library
 /// (`~/Plume/.cancelled/`, `.annules` up to 1.0.1): they appear neither in the index, nor in
-/// `dernier.md`, nor in `plume last`, and they disappear on their own after the delay chosen
+/// `latest.md`, nor in `plume last`, and they disappear on their own after the delay chosen
 /// in the settings.
 ///
 ///     ~/Plume/.cancelled/

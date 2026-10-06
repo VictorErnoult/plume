@@ -297,7 +297,7 @@ public final class PlumeSettings: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.appearance) }
     }
 
-    /// Reads a stored appearance, French values from before 1.1 included. No default is
+    /// Reads a stored appearance, French values up to 1.0.1 included. No default is
     /// registered for `appearance`: it would end up in every settings export.
     public static func normalizedAppearance(_ raw: String?) -> String {
         switch raw {
@@ -309,7 +309,7 @@ public final class PlumeSettings: @unchecked Sendable {
         }
     }
 
-    /// Reads a stored sound pack, French values from before 1.1 included. Unknown values
+    /// Reads a stored sound pack, French values up to 1.0.1 included. Unknown values
     /// are kept: the app falls back to the standard pack itself.
     public static func normalizedSoundPack(_ raw: String?) -> String {
         switch raw {

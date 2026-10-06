@@ -14,6 +14,7 @@ public enum Recovery {
         public var system: URL?
     }
 
+    /// Suffix of a dictation backup file.
     public static let dictationSuffix = "_dictation.wav"
     /// Name used up to 1.0.1: a backup left by a crash before the upgrade is still recovered.
     static let legacyDictationSuffix = "_dictee.wav"

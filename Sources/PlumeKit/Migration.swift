@@ -18,10 +18,10 @@ public enum Migration {
     /// Moves what an older version left in `old` into `new` (both folders); skips names already in `new`; removes `old` if empty.
     public static func merge(folder old: URL, into new: URL, fileManager: FileManager = .default) {
         guard let names = try? fileManager.contentsOfDirectory(atPath: old.path) else { return }
-        for name in names where !fileManager.fileExists(atPath: new.appendingPathComponent(name).path) {
+        for name in names where name != ".DS_Store" && !fileManager.fileExists(atPath: new.appendingPathComponent(name).path) {
             try? fileManager.moveItem(at: old.appendingPathComponent(name), to: new.appendingPathComponent(name))
         }
-        // Finder's .DS_Store alone must not keep the old folder (and this merge) alive.
+        // Finder's .DS_Store is junk: not moved, and alone it must not keep the old folder (and this merge) alive.
         try? fileManager.removeItem(at: old.appendingPathComponent(".DS_Store"))
         if (try? fileManager.contentsOfDirectory(atPath: old.path))?.isEmpty == true {
             try? fileManager.removeItem(at: old)
