@@ -274,7 +274,11 @@ extension Pipeline {
 
 /// Storage of the owner's voiceprint.
 public enum VoiceprintStore {
-    public static var url: URL { PlumeSettings.supportDirectory.appendingPathComponent("empreinte-vocale.json") }
+    public static var url: URL {
+        let folder = PlumeSettings.supportDirectory
+        return Migration.resolve(
+            old: folder.appendingPathComponent("empreinte-vocale.json"), new: folder.appendingPathComponent("voiceprint.json"))
+    }
 
     public static func load() -> Voiceprint? {
         read(from: url)

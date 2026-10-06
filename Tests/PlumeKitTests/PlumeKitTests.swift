@@ -364,6 +364,27 @@ struct RecoveryTests {
         #expect(Recovery.pending(in: store, excluding: ["2026-10-02_10-00-00"]).count == 1)
         #expect(TranscriptStore.date(fromID: "2026-10-02_10-00-00b") != nil)
     }
+
+    /// 1.0.1 named a dictation's backup `_dictee.wav`: one left by a crash before the
+    /// upgrade is still recovered.
+    @Test func findsDictationBackupsUnderBothNames() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
+        let store = TranscriptStore(root: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let directory = try store.ensureDirectory(forID: "2026-10-02_10-00-00")
+        let silence = [Float](repeating: 0, count: 1600)
+        Recovery.stash(silence, at: directory.appendingPathComponent("2026-10-02_10-00-00_dictee.wav"))
+        Recovery.stash(silence, at: directory.appendingPathComponent("2026-10-02_11-00-00_dictation.wav"))
+
+        let pending = Recovery.pending(in: store)
+        #expect(pending.map(\.id) == ["2026-10-02_10-00-00", "2026-10-02_11-00-00"])
+        #expect(pending.allSatisfy { $0.mode == .dictation })
+        #expect(Recovery.isDictationBackup("2026-10-02_10-00-00_dictee.wav"))
+        #expect(Recovery.isDictationBackup("2026-10-02_11-00-00_dictation.wav"))
+        #expect(!Recovery.isDictationBackup("2026-10-02_11-00-00_mic.wav"))
+        #expect(try Recovery.dictationURL(id: "2026-10-02_12-00-00", store: store).lastPathComponent
+            == "2026-10-02_12-00-00_dictation.wav")
+    }
 }
 
 @Suite("Cancelled recordings")

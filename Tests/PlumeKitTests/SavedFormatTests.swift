@@ -81,7 +81,8 @@ struct SavedFormatTests {
             let library = temporaryFolder()
             try FileManager.default.copyItem(at: version.appendingPathComponent("library"), to: library)
             defer { try? FileManager.default.removeItem(at: library) }
-            let files = Fixtures.jsonFiles(in: library).filter { !$0.path.contains("/.annules/") }
+            // Cancelled recordings, under their 1.0.1 or current folder name, are not transcripts.
+            let files = Fixtures.jsonFiles(in: library).filter { !$0.path.contains("/.annules/") && !$0.path.contains("/.cancelled/") }
             let store = TranscriptStore(root: library)
             let listed = store.list()
             #expect(listed.count == files.count, "\(version.lastPathComponent): \(listed.count) read back out of \(files.count)")
@@ -115,8 +116,12 @@ struct SavedFormatTests {
             let library = temporaryFolder()
             try FileManager.default.copyItem(at: version.appendingPathComponent("library"), to: library)
             defer { try? FileManager.default.removeItem(at: library) }
-            let files = Fixtures.jsonFiles(in: library.appendingPathComponent(".annules"))
+            let frozen = Fixtures.jsonFiles(in: library.appendingPathComponent(Fixtures.cancelledFolder(version: version)))
+            #expect(!frozen.isEmpty, "\(version.lastPathComponent): no cancelled recording")
+            // The store moves a 1.0.1 folder to its new name: read the files where it put them.
             let cancelled = CancelledStore(library: library)
+            let files = Fixtures.jsonFiles(in: cancelled.root)
+            #expect(files.map(\.lastPathComponent) == frozen.map(\.lastPathComponent))
             let listed = cancelled.list()
             #expect(listed.count == files.count, "\(version.lastPathComponent): \(listed.count) read back out of \(files.count)")
             for recording in listed {
@@ -138,20 +143,22 @@ struct SavedFormatTests {
             let name = version.lastPathComponent
             let support = version.appendingPathComponent("support")
 
-            let vocabulary = support.appendingPathComponent("remplacements.json")
+            let vocabularyName = Fixtures.supportFile(.replacements, version: version)
+            let vocabulary = support.appendingPathComponent(vocabularyName)
             let replacements = try #require(ReplacementStore.read(from: vocabulary), "\(name): vocabulary unreadable")
-            try ReplacementStore.write(replacements, to: output.appendingPathComponent("\(name)-remplacements.json"))
-            try expectNothingLost(try Fixtures.object(at: vocabulary), rewritten: output.appendingPathComponent("\(name)-remplacements.json"), "\(name)/remplacements.json")
+            try ReplacementStore.write(replacements, to: output.appendingPathComponent("\(name)-replacements.json"))
+            try expectNothingLost(try Fixtures.object(at: vocabulary), rewritten: output.appendingPathComponent("\(name)-replacements.json"), "\(name)/\(vocabularyName)")
 
             let applications = support.appendingPathComponent("applications.json")
             let rules = try #require(AppRuleStore.read(from: applications), "\(name): rules unreadable")
             try AppRuleStore.write(rules, to: output.appendingPathComponent("\(name)-applications.json"))
             try expectNothingLost(try Fixtures.object(at: applications), rewritten: output.appendingPathComponent("\(name)-applications.json"), "\(name)/applications.json")
 
-            let print = support.appendingPathComponent("empreinte-vocale.json")
+            let printName = Fixtures.supportFile(.voiceprint, version: version)
+            let print = support.appendingPathComponent(printName)
             let voiceprint = try #require(VoiceprintStore.read(from: print), "\(name): voiceprint unreadable")
-            try VoiceprintStore.write(voiceprint, to: output.appendingPathComponent("\(name)-empreinte.json"))
-            try expectNothingLost(try Fixtures.object(at: print), rewritten: output.appendingPathComponent("\(name)-empreinte.json"), "\(name)/empreinte-vocale.json")
+            try VoiceprintStore.write(voiceprint, to: output.appendingPathComponent("\(name)-voiceprint.json"))
+            try expectNothingLost(try Fixtures.object(at: print), rewritten: output.appendingPathComponent("\(name)-voiceprint.json"), "\(name)/\(printName)")
 
             let backupURL = version.appendingPathComponent("reglages.json")
             let backup = try SettingsBackup.read(from: backupURL)

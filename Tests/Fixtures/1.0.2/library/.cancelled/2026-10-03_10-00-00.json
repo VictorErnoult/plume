@@ -1,0 +1,13 @@
+{
+  "app" : "Mail",
+  "audioFiles" : [
+    "2026-10-03_10-00-00_mic.m4a"
+  ],
+  "cancelledAt" : "2026-10-03T08:01:30Z",
+  "createdAt" : "2026-10-03T08:00:00Z",
+  "duration" : 12.5,
+  "id" : "2026-10-03_10-00-00",
+  "mode" : "dictation",
+  "rawText" : "petite précision sur l'ordre du jour",
+  "text" : "Petite précision sur l'ordre du jour."
+}

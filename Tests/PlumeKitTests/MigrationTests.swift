@@ -148,4 +148,30 @@ struct MigrationTests {
         #expect(!fm.fileExists(atPath: old.path))
         #expect(try fm.contentsOfDirectory(atPath: new.path).isEmpty)
     }
+
+    /// A 1.0.1 library keeps its cancelled recordings in `.annules`; an older version run
+    /// after the upgrade may recreate it. Either way they stay listed (and purged).
+    @Test func cancelledStoreMovesTheOldFolderThenMergesALateOne() throws {
+        let root = try temporaryFolder()
+        defer { try? fm.removeItem(at: root) }
+        let library = root.appendingPathComponent("library", isDirectory: true)
+        try fm.copyItem(at: Fixtures.root.appendingPathComponent("1.0.1/library"), to: library)
+        let old = library.appendingPathComponent(".annules", isDirectory: true)
+
+        let store = CancelledStore(library: library)
+        #expect(store.root.lastPathComponent == ".cancelled")
+        #expect(store.list().map(\.id) == ["2026-10-03_10-00-00"])
+        #expect(!fm.fileExists(atPath: old.path))
+
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        let late = CancelledRecording(
+            id: "2026-10-04_09-00-00", createdAt: FixtureSamples.date("2026-10-04T07:00:00Z"),
+            cancelledAt: FixtureSamples.date("2026-10-04T07:01:00Z"), mode: .dictation, duration: 2)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(late).write(to: old.appendingPathComponent(late.id + ".json"))
+
+        #expect(Set(CancelledStore(library: library).list().map(\.id)) == ["2026-10-03_10-00-00", late.id])
+        #expect(!fm.fileExists(atPath: old.path))
+    }
 }

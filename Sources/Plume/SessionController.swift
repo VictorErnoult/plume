@@ -245,7 +245,7 @@ final class SessionController: ObservableObject {
         if let directory {
             let url = mode == .meeting
                 ? directory.appendingPathComponent("\(id)_mic.wav")
-                : (try? Recovery.dictationURL(id: id, store: store)) ?? directory.appendingPathComponent("\(id)_dictee.wav")
+                : (try? Recovery.dictationURL(id: id, store: store)) ?? directory.appendingPathComponent(id + Recovery.dictationSuffix)
             if let writer = try? WavWriter(url: url) { micRecorder.attach(writer) }
         }
         micRecorder.onLevel = { [weak self] level in
@@ -395,7 +395,7 @@ final class SessionController: ObservableObject {
             // The backup file changes name: it is now a meeting's,
             // start included.
             let directory = try? settings.store.ensureDirectory(forID: sessionID)
-            if let old = micChannel.writer?.url, old.lastPathComponent.hasSuffix("_dictee.wav") {
+            if let old = micChannel.writer?.url, Recovery.isDictationBackup(old.lastPathComponent) {
                 micChannel.writer?.close()
                 try? FileManager.default.removeItem(at: old)
             }
