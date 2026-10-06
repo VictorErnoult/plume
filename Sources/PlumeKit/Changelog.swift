@@ -61,9 +61,14 @@ public enum Changelog {
             rest.removeSubrange(match)
         }
         var domain: String?
-        if let colon = rest.range(of: " : ") {
-            domain = String(rest[..<colon.lowerBound])
-            rest = String(rest[colon.upperBound...])
+        /// The area is what comes before the first ": ", if it is short: "History: …" or the
+        /// older "Historique : …". A longer prefix is part of the sentence.
+        if let colon = rest.range(of: ": ") {
+            let area = rest[..<colon.lowerBound].trimmingCharacters(in: .whitespaces)
+            if area.split(separator: " ").count <= 4 {
+                domain = area
+                rest = String(rest[colon.upperBound...])
+            }
         }
         let text = rest.prefix(1).uppercased() + rest.dropFirst()
         return Entry(date: date, domain: domain, text: text, pullRequest: pullRequest)

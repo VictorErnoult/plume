@@ -468,6 +468,24 @@ struct ChangelogTests {
         #expect(releases[0].entries[1].text == "README en anglais")
         #expect(Changelog.signature(of: releases) == "1.0.0|Les enregistrements annulés restent récupérables")
     }
+
+    @Test func splitsTheAreaInBothFormats() {
+        let releases = Changelog.parse("""
+            ## 1.0.3
+            ### 2026-10-06
+            - Repo: code in English (#15)
+            - Historique : les annulés restent récupérables (#7)
+            - No area here, just text
+            - Première version publique : Plume 1.0
+            - Fixed a crash when the text says: hello world again
+            """)
+        #expect(releases[0].entries[0] == Changelog.Entry(date: "2026-10-06", domain: "Repo", text: "Code in English", pullRequest: 15))
+        #expect(releases[0].entries[1].domain == "Historique")
+        #expect(releases[0].entries[1].text == "Les annulés restent récupérables")
+        #expect(releases[0].entries[2].domain == nil)
+        #expect(releases[0].entries[3].domain == "Première version publique")
+        #expect(releases[0].entries[4].domain == nil)
+    }
 }
 
 @Suite("Statistiques")
