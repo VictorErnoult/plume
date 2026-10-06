@@ -160,10 +160,11 @@ struct SavedFormatTests {
             try VoiceprintStore.write(voiceprint, to: output.appendingPathComponent("\(name)-voiceprint.json"))
             try expectNothingLost(try Fixtures.object(at: print), rewritten: output.appendingPathComponent("\(name)-voiceprint.json"), "\(name)/\(printName)")
 
-            let backupURL = version.appendingPathComponent("reglages.json")
+            let backupName = Fixtures.settingsFile(version: version)
+            let backupURL = version.appendingPathComponent(backupName)
             let backup = try SettingsBackup.read(from: backupURL)
-            try SettingsBackup.write(backup, to: output.appendingPathComponent("\(name)-reglages.json"))
-            try expectNothingLost(try Fixtures.object(at: backupURL), rewritten: output.appendingPathComponent("\(name)-reglages.json"), "\(name)/reglages.json")
+            try SettingsBackup.write(backup, to: output.appendingPathComponent("\(name)-settings.json"))
+            try expectNothingLost(try Fixtures.object(at: backupURL), rewritten: output.appendingPathComponent("\(name)-settings.json"), "\(name)/\(backupName)")
         }
     }
 
@@ -171,7 +172,7 @@ struct SavedFormatTests {
     /// (`keepHistory`, the privacy switch, defaults to `true`).
     @Test func everySavedSettingIsStillRecognized() throws {
         for version in Fixtures.versions {
-            let backup = try SettingsBackup.read(from: version.appendingPathComponent("reglages.json"))
+            let backup = try SettingsBackup.read(from: version.appendingPathComponent(Fixtures.settingsFile(version: version)))
             let name = version.lastPathComponent
             let unknown = Set(backup.booleans.keys.filter { !SettingsBackup.booleanKeys.contains($0) }.map { ".booleans.\($0)" })
                 .union(backup.numbers.keys.filter { !SettingsBackup.numberKeys.contains($0) }.map { ".numbers.\($0)" })

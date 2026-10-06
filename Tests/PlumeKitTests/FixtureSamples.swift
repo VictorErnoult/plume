@@ -103,7 +103,7 @@ enum FixtureSamples {
         try ReplacementStore.write(replacements, to: support.appendingPathComponent(Fixtures.SupportFile.replacements.rawValue))
         try AppRuleStore.write(rules, to: support.appendingPathComponent("applications.json"))
         try VoiceprintStore.write(voiceprint, to: support.appendingPathComponent(Fixtures.SupportFile.voiceprint.rawValue))
-        try SettingsBackup.write(backup, to: folder.appendingPathComponent("reglages.json"))
+        try SettingsBackup.write(backup, to: folder.appendingPathComponent(Fixtures.settingsFile))
 
         let fm = FileManager.default
         let everything = (fm.enumerator(at: folder, includingPropertiesForKeys: nil)?.allObjects as? [URL]) ?? []
@@ -175,6 +175,13 @@ enum Fixtures {
 
     static func supportFile(_ kind: SupportFile, version: URL) -> String {
         wroteFrenchNames(version) ? kind.legacyName : kind.rawValue
+    }
+
+    /// The settings backup the generator writes; up to 1.0.1 it was `reglages.json`.
+    static let settingsFile = "settings.json"
+
+    static func settingsFile(version: URL) -> String {
+        wroteFrenchNames(version) ? "reglages.json" : settingsFile
     }
 
     /// The cancelled recordings' folder in a version's library.

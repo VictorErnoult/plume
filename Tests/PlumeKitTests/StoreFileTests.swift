@@ -38,7 +38,7 @@ struct StoreFileTests {
     }
 
     @Test func settingsBackupReadsBackAsWritten() throws {
-        let url = temporaryFile("reglages.json")
+        let url = temporaryFile("settings.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         // Like `export`, `write` writes into a folder that exists.
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
