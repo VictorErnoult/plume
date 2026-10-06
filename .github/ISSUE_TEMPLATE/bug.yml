@@ -1,32 +1,32 @@
-name: Signaler un bug
-description: Quelque chose ne marche pas comme prévu.
+name: Report a bug
+description: Something doesn't work as expected.
 labels: [bug]
 body:
   - type: textarea
-    id: probleme
+    id: problem
     attributes:
-      label: Ce qui se passe
-      description: Ce que tu as fait, ce que tu attendais, ce qui s'est passé à la place.
+      label: What happens
+      description: What you did, what you expected, what happened instead.
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Version de Plume
-      description: Visible en bas des Réglages.
+      label: Plume version
+      description: Shown at the bottom of Settings.
       placeholder: "0.9.0"
     validations:
       required: true
   - type: input
     id: mac
     attributes:
-      label: Mac et macOS
+      label: Mac and macOS
       placeholder: "MacBook Air M2, macOS 15.4"
     validations:
       required: true
   - type: textarea
-    id: journal
+    id: log
     attributes:
-      label: Journal (facultatif)
-      description: Les dernières lignes de `~/Library/Logs/Plume/plume.log` et la sortie de `plume doctor`. Relis-les avant d'envoyer, elles peuvent contenir des extraits de tes dictées.
+      label: Log (optional)
+      description: The last lines of `~/Library/Logs/Plume/plume.log` and the output of `plume doctor`. Read them before sending, they can contain excerpts of your dictations.
       render: text

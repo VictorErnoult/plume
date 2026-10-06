@@ -75,7 +75,7 @@ Audio is written to disk as it is recorded, for dictations and meetings alike. D
 
 Shortcuts are changed in Settings. A shortcut can be a chord of modifiers alone (`⌃⇧`) or a key with modifiers (`⌥Space`). A chord only fires when it is "clean": `⌃⇧Tab` or `⌃⇧` + click do nothing.
 
-The full tour of settings — microphone, sounds, applications, local AI, model, library — is in the [guide](docs/GUIDE.md) (French).
+The full tour of settings — microphone, sounds, applications, local AI, model, library — is in the [guide](docs/GUIDE.md).
 
 ---
 
@@ -92,7 +92,7 @@ So anyone can read exactly what an app that hears everything you say does with i
 - `./scripts/build.sh` — assembles a double-clickable `build/Plume.app`, signed with a local certificate kept in its own keychain so macOS permissions survive rebuilds. `./scripts/build.sh --install` puts it in `/Applications`, links `plume` into `~/.local/bin` and relaunches it.
 - `./scripts/test.sh` — the tests (Swift Testing; the script finds the framework without Xcode). The same compile-and-test runs on every pull request.
 
-A build you make yourself is not notarized, so the first launch needs an allow in System Settings › Privacy & Security. Published releases aren't notarized yet either — that needs an Apple Developer account and is on the list — so they get the same one-time "Open Anyway". `./scripts/release.sh <version>` makes the signed `.dmg` and the update feed; `publish.sh` uploads them. Those only matter for the project's own releases; see [docs/PUBLIER.md](docs/PUBLIER.md) (French).
+A build you make yourself is not notarized, so the first launch needs an allow in System Settings › Privacy & Security. Published releases aren't notarized yet either — that needs an Apple Developer account and is on the list — so they get the same one-time "Open Anyway". `./scripts/release.sh <version>` makes the signed `.dmg` and the update feed; `publish.sh` uploads them. Those only matter for the project's own releases; see [docs/RELEASING.md](docs/RELEASING.md).
 
 ### How it's put together
 
@@ -108,7 +108,7 @@ A build you make yourself is not notarized, so the first launch needs an allow i
 - **Pasting** (`Paster.swift`) reads the active field through accessibility (`AXSelectedTextRange`, `AXStringForRange`) when the app exposes it; web and Electron apps often don't, and then the text is pasted as is.
 - **The library** (`Library.swift`) is a folder of Markdown and JSON, not a database. `Recovery.swift` transcribes whatever was being recorded when the app last stopped.
 - **The look** is in `Design.swift` — colours as light/dark pairs, Geist and Geist Mono — and `Icons.swift` (Lucide, drawn from SVG paths). Sounds are synthesised in `Sounds.swift` or come from the recorded packs in `Resources/Sounds`.
-- `Sources/Plume/` is one file per concern: `Island.swift` is the notch, `Hotkeys.swift` the shortcuts, `MeetingDetector.swift` the call detection, `MCPServer.swift` and `CLI.swift` the agent side, `Updates.swift` the update. The full map is in [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) (French).
+- `Sources/Plume/` is one file per concern: `Island.swift` is the notch, `Hotkeys.swift` the shortcuts, `MeetingDetector.swift` the call detection, `MCPServer.swift` and `CLI.swift` the agent side, `Updates.swift` the update. The full map is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ### Testing it without a microphone
 
@@ -131,7 +131,7 @@ Always set `PLUME_DEFAULTS` for a trial: without it, a development binary shares
 
 ### Contributing
 
-Issues and pull requests are welcome — bugs, ideas, code, translations. [CONTRIBUTING.md](CONTRIBUTING.md) says how things are reviewed; the short version: small changes, no new dependency without an issue first, nothing that phones home, and a screenshot or a short video when the interface changes. Code, comments and the interface are in French; match the file you are in.
+Issues and pull requests are welcome — bugs, ideas, code, translations. [CONTRIBUTING.md](CONTRIBUTING.md) says how things are reviewed; the short version: small changes, no new dependency without an issue first, nothing that phones home, and a screenshot or a short video when the interface changes. Code, comments, commit messages and docs are in English; interface text is written in English, with its French translation in `L10nTable.swift`.
 
 What's next is in [docs/PLAN.md](docs/PLAN.md): an iOS app on the same engine, acoustic vocabulary for proper nouns, vocabulary learned from your corrections, an offer to end the meeting when the call ends, notarization, translations.
 

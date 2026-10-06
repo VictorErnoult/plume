@@ -1,9 +1,9 @@
-## Quoi et pourquoi
+## What and why
 
-<!-- Ce que change cette pull request, et le problème qu'elle résout. -->
+<!-- What this pull request changes, and the problem it solves. -->
 
-## Vérifié
+## Checked
 
-- [ ] `./scripts/test.sh` passe
-- [ ] essayé dans l'app (`./scripts/build.sh --install`)
-- [ ] capture ou courte vidéo jointe si l'interface change
+- [ ] `./scripts/test.sh` passes
+- [ ] tried in the app (`./scripts/build.sh --install`)
+- [ ] screenshot or short video attached if the interface changes

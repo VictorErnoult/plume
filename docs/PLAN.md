@@ -1,56 +1,55 @@
-# Plume — choix techniques et feuille de route
+# Plume — technical choices and roadmap
 
-## L'idée
+## The idea
 
-Une alternative libre à Superwhisper, pensée de zéro : dictée par raccourci, modèle local à
-la pointe, séparation des interlocuteurs, transcription en direct, double source (micro + son
-de l'ordinateur), bibliothèque centralisée lisible par une IA, texte collé dans le champ
-actif, interface minimale.
+A free alternative to Superwhisper, designed from scratch: dictation by shortcut, a
+state-of-the-art local model, speaker separation, live transcription, two sources (microphone +
+system audio), a central library an AI can read, text pasted into the active field, a minimal
+interface.
 
-## Choix techniques
+## Technical choices
 
-| Sujet | Choix | Pourquoi |
+| Topic | Choice | Why |
 |---|---|---|
-| Forme | App macOS native (Swift, barre de menus) | Légère, intégrée, pas de runtime à installer. |
-| Outillage | SwiftPM seul | Tout se compile avec les Command Line Tools, sans Xcode. |
-| Moteur | FluidAudio 0.17.5 (CoreML, Neural Engine) | Seule pile Swift qui réunit transcription, direct et diarisation, et qui se compile sans Xcode (MLX exige Xcode). |
-| Modèle | Parakeet Ultra (septembre 2026) | Meilleur compromis précision / vitesse en français exécutable en local : FLEURS fr ≈ 4,3 % d'erreur, ~150× le temps réel. Cohere Transcribe est un peu plus précis mais 70× plus lent en CoreML ; Whisper large-v3-turbo est en retrait. |
-| Direct | Fenêtre glissante re-transcrite ~2 fois par seconde | Même modèle que le résultat final, pour 6 à 7 % du temps réel. Le texte validé se fige aux fins de phrase. |
-| Interlocuteurs | Diarisation hors ligne (pyannote community-1) en fin d'enregistrement, par canal | Plus fiable que la diarisation en flux. Le micro et le son système sont traités séparément puis fusionnés par horodatage. |
-| « Moi » | Empreinte vocale apprise sur les dictées | Une dictée ne contient que la voix de l'utilisateur : c'est un échantillon d'entraînement gratuit. |
-| Son système | Process tap Core Audio | Ne demande que l'autorisation « audio du système », pas l'enregistrement d'écran. |
-| Raccourcis | Accord de modificateurs `⌃⇧` (le même que Superwhisper), lu par interrogation de l'état du clavier | Sans autorisation spéciale ; ne se déclenche pas sur `⌃⇧`+touche. Quitter Superwhisper pour éviter un double déclenchement. |
-| Interface | Une île qui sort de l'encoche + une seule fenêtre (accueil, historique, vocabulaire, réglages) | Discret pendant la dictée, tout au même endroit ensuite. |
-| Écho en réunion | Annulation d'écho neuronale (LocalVQE) sur le micro, avec le son de l'ordinateur comme référence, seulement si l'écho est détecté | Sans casque, les voix distantes apparaissaient en double et masquaient la voix locale. |
-| Tours de parole | Changements de voix recalés sur la pause ou la fin de phrase la plus proche ; pas de fusion de voix « ressemblantes » | Une fusion trop zélée confond deux personnes à la voix proche, et les frontières tombaient un ou deux mots à côté. |
-| Mode réunion | Bascule dans l'île, en cours d'enregistrement | On ne sait pas toujours à l'avance qu'on est en réunion ; le canal « son de l'ordinateur » démarre à la bascule. |
-| Bibliothèque | Dossier `~/Plume` : Markdown + JSON + audio | Lisible par un humain, par `grep`, par n'importe quelle IA ; pas de base de données. |
-| Accès IA | Dossier, commande `plume`, serveur MCP | Du plus universel au plus intégré. |
-| Signature | Certificat auto-signé dans un trousseau dédié (en attendant un certificat Developer ID) | Les autorisations macOS survivent aux recompilations. |
-| Distribution | Image disque sur les releases GitHub, mises à jour Sparkle | Un lien unique, et les mises à jour arrivent toutes seules (voir `docs/PUBLIER.md`). |
-| Mise en forme | Chaîne déterministe (nettoyage → commandes vocales → vocabulaire → style → insertion), l'IA après et en option | Le reproche n° 1 fait aux concurrents : une IA qui change les mots ou les chiffres. Le brut reste toujours dans l'historique. |
-| IA locale | Modèle de langage d'Apple Intelligence (FoundationModels), sur l'appareil | Aucune dépendance, aucun compte, rien n'est envoyé. Fenêtre de 4 096 jetons : les longues réunions sont résumées par morceaux puis fusionnées. |
-| Profils | Une règle par application (style, Entrée, IA, frappe), reconnue au premier plan | Les « modes » à configurer sont le reproche n° 2 fait à Superwhisper ; ici une liste, et rien à choisir avant de parler. |
-| Réunion détectée | Liste des processus Core Audio qui lisent une entrée (`kAudioHardwarePropertyProcessObjectList`) | Sans écouter : on ne lit que « qui tient le micro ». Une visio connue déclenche une proposition dans l'île. |
-| Pause | Le micro se ferme vraiment (voyant orange éteint), le silence manquant est comblé à la reprise | Demandée depuis deux ans chez Superwhisper (196 votes) sans être livrée. |
-| Son coupé en dictée | Réglage « muet » de la sortie par défaut (Core Audio), pas MediaRemote | MediaRemote est privé et cassé depuis macOS 15.4 ; le muet se rétablit sans rien mémoriser. |
-| Insertion | Lecture du champ actif par l'accessibilité (`AXSelectedTextRange`, `AXStringForRange`) | Les apps natives l'exposent ; les apps web ou Electron souvent pas, alors Plume colle tel quel. |
+| Form | Native macOS app (Swift, menu bar) | Light, integrated, no runtime to install. |
+| Tooling | SwiftPM only | Everything builds with the Command Line Tools, without Xcode. |
+| Engine | FluidAudio 0.17.5 (CoreML, Neural Engine) | The only Swift stack that combines transcription, live text and diarization, and builds without Xcode (MLX requires Xcode). |
+| Model | Parakeet Ultra (September 2026) | Best accuracy / speed trade-off for French that runs locally: FLEURS fr ≈ 4.3% error, ~150× real time. Cohere Transcribe is slightly more accurate but 70× slower on CoreML; Whisper large-v3-turbo trails behind. |
+| Live text | Sliding window re-transcribed ~2 times a second | Same model as the final result, for 6 to 7% of real time. Validated text freezes at sentence ends. |
+| Speakers | Offline diarization (pyannote community-1) at the end of the recording, per channel | More reliable than streaming diarization. The microphone and the system audio are processed separately, then merged by timestamp. |
+| "Me" | Voiceprint learned from dictations | A dictation only contains the user's voice: free training data. |
+| System audio | Core Audio process tap | Only asks for the "system audio" permission, not screen recording. |
+| Shortcuts | `⌃⇧` modifier chord (the same as Superwhisper), read by polling the keyboard state | No special permission; doesn't fire on `⌃⇧`+key. Quit Superwhisper to avoid a double trigger. |
+| Interface | An island that comes out of the notch + a single window (home, history, vocabulary, settings) | Discreet while dictating, everything in one place afterwards. |
+| Echo in meetings | Neural echo cancellation (LocalVQE) on the microphone, with the system audio as reference, only when echo is detected | Without headphones, remote voices came out doubled and drowned out the local voice. |
+| Speaker turns | Voice changes snapped to the nearest pause or sentence end; no merging of "similar" voices | Over-eager merging mixes up two people with close voices, and boundaries landed a word or two off. |
+| Meeting mode | Switch on the island, mid-recording | You don't always know in advance that you're in a meeting; the system audio channel starts at the switch. |
+| Library | `~/Plume` folder: Markdown + JSON + audio | Readable by a human, by `grep`, by any AI; no database. |
+| AI access | Folder, `plume` command, MCP server | From the most universal to the most integrated. |
+| Signing | Self-signed certificate in a dedicated keychain (until a Developer ID certificate) | macOS permissions survive rebuilds. |
+| Distribution | Disk image on GitHub releases, Sparkle updates | A single link, and updates arrive on their own (see `docs/RELEASING.md`). |
+| Formatting | Deterministic chain (clean-up → voice commands → vocabulary → style → insertion), AI after and optional | Competitors' number 1 complaint: an AI that changes words or numbers. The raw text always stays in the history. |
+| Local AI | Apple Intelligence language model (FoundationModels), on device | No dependency, no account, nothing is sent. 4,096-token window: long meetings are summarized in chunks, then merged. |
+| Profiles | One rule per application (style, Return, AI, typing), recognized in the foreground | Having to configure "modes" is the number 2 complaint about Superwhisper; here it is a list, and nothing to pick before talking. |
+| Detected meeting | List of Core Audio processes reading an input (`kAudioHardwarePropertyProcessObjectList`) | Without listening: only "who holds the microphone" is read. A known video call triggers an offer on the island. |
+| Pause | The microphone really closes (orange light off), the missing silence is filled in on resume | Requested for two years at Superwhisper (196 votes) without being delivered. |
+| Sound muted while dictating | Mute setting of the default output (Core Audio), not MediaRemote | MediaRemote is private and broken since macOS 15.4; the mute is restored without remembering anything. |
+| Insertion | Reading the active field through accessibility (`AXSelectedTextRange`, `AXStringForRange`) | Native apps expose it; web or Electron apps often don't, so Plume pastes as is. |
 
-## Feuille de route
+## Roadmap
 
-1. **App iOS native** avec le même moteur embarqué (PlumeKit est déjà séparé de l'interface,
-   et FluidAudio tourne sur iOS 17+). Demande Xcode et un compte développeur Apple. Contenu :
-   enregistrement, transcription sur le téléphone, historique, action « Dicter » pour le
-   bouton Action.
-2. **Vocabulaire acoustique** (noms propres, jargon) par le « CTC boosting » de FluidAudio, en
-   plus des remplacements de mots. Le modèle CTC est entraîné sur l'anglais : à évaluer sur
-   des noms français avant de l'exposer.
-3. **Vocabulaire appris des corrections** : relire le champ quelques secondes après le collage
-   et proposer un remplacement quand un mot a été corrigé à la main.
-4. **Fin d'appel** : quand l'app de visio lâche le micro, proposer de terminer la réunion.
-5. **Pré-roll** du micro pour ne pas perdre la première syllabe en « parler en maintenant ».
-6. **Synchronisation** de la bibliothèque (la placer dans iCloud Drive suffit déjà, via
-   Réglages › Bibliothèque).
-7. **Notarisation** Apple, pour supprimer le blocage à la première ouverture.
-8. **Autres traductions** de l'interface : l'anglais (par défaut) et le français sont dans
-   `PlumeKit/L10nTable.swift` ; une langue de plus est une table de plus.
+1. **Native iOS app** with the same engine embedded (PlumeKit is already separate from the
+   interface, and FluidAudio runs on iOS 17+). Needs Xcode and an Apple developer account.
+   Content: recording, on-phone transcription, history, a "Dictate" action for the Action
+   button.
+2. **Acoustic vocabulary** (proper nouns, jargon) through FluidAudio's "CTC boosting", on top
+   of word replacements. The CTC model is trained on English: evaluate it on French names
+   before exposing it.
+3. **Vocabulary learned from corrections**: re-read the field a few seconds after pasting and
+   offer a replacement when a word was corrected by hand.
+4. **End of call**: when the video-call app releases the microphone, offer to end the meeting.
+5. **Pre-roll** on the microphone so the first syllable isn't lost in "hold to talk".
+6. **Library sync** (putting it in iCloud Drive already works, through Settings › Library).
+7. **Apple notarization**, to remove the block on first open.
+8. **More interface translations**: English (default) is written in the
+   code, French is in `PlumeKit/L10nTable.swift`; one more language is one more table.
