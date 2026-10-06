@@ -2,11 +2,11 @@ import Foundation
 import Testing
 @testable import PlumeKit
 
-/// Ce que devient une dictée, de la sortie brute du modèle au texte collé, une ligne par cas.
-/// Chaque correction ou nouvelle commande ajoute ses lignes : le cas traité, et la phrase
-/// ordinaire la plus proche, qui ne doit pas bouger. Un défaut connu s'écrit avec le résultat
-/// attendu et la raison : quand il sera corrigé, sa ligne demandera qu'on retire la mention.
-@Suite("Texte des dictées")
+/// What a dictation becomes, from raw model output to pasted text, one line per case.
+/// Each fix or new command adds its lines: the case handled, and the closest ordinary
+/// sentence, which must not change. A known issue is written with the expected result
+/// and the reason: once it is fixed, its line asks for the mention to be removed.
+@Suite("Dictation text")
 struct DictationCorpusTests {
     struct Case: Sendable, CustomTestStringConvertible {
         var raw: String
@@ -15,22 +15,22 @@ struct DictationCorpusTests {
         var options = DictationOptions()
         var vocabulary: [Replacement] = []
         var final = true
-        /// Défaut connu, pas encore corrigé : la ligne dit ce qui est attendu, et ceci pourquoi
-        /// ça échoue aujourd'hui.
+        /// Known issue, not fixed yet: the line says what is expected, and this says why
+        /// it fails today.
         var knownIssue: String?
-        /// Le défaut connu fausse aussi l'appui sur Entrée.
+        /// The known issue also affects the Enter press.
         var knownIssueOnReturn = false
 
         var testDescription: String {
             var label = raw.replacingOccurrences(of: "\n", with: "⏎")
             if options.style != .standard { label += " [\(options.style.rawValue)]" }
-            if !options.cleanup { label += " [sans nettoyage]" }
-            if !options.voiceCommands { label += " [sans commandes]" }
-            if !final { label += " [en cours]" }
+            if !options.cleanup { label += " [no cleanup]" }
+            if !options.voiceCommands { label += " [no commands]" }
+            if !final { label += " [in progress]" }
             return label
         }
 
-        /// Une phrase qui doit ressortir telle quelle.
+        /// A sentence that must come out unchanged.
         static func same(_ raw: String, options: DictationOptions = DictationOptions()) -> Case {
             Case(raw: raw, expected: raw, options: options)
         }
@@ -55,7 +55,7 @@ struct DictationCorpusTests {
         .same("Ben voilà, c'est fait."),
     ]
 
-    /// Des tournures proches d'une commande, qui n'en sont pas.
+    /// Phrases close to a command that are not one.
     static let lookalikes: [Case] = [
         .same("Il part à la pêche à la ligne demain."),
         .same("La nouvelle ligne de produits sort lundi."),
@@ -90,7 +90,7 @@ struct DictationCorpusTests {
         Case(raw: "Le projet ouvrez la parenthèse en retard fermez la parenthèse.", expected: "Le projet (en retard)."),
         Case(raw: "Courses nouvelle puce lait nouvelle puce pain", expected: "Courses\n- lait\n- pain"),
         Case(raw: "Courses, à la ligne, tiret lait, à la ligne, tiret pain", expected: "Courses\n- lait\n- pain"),
-        // Deux phrases avant la commande : « efface ça » n'emporte que la dernière, « efface tout » tout.
+        // Two sentences before the command: "efface ça" removes only the last, "efface tout" removes all.
         Case(raw: "Premier essai. Deuxième essai. Efface ça. Bonjour.", expected: "Premier essai. Bonjour."),
         Case(raw: "Ok, efface ça.", expected: ""),
         Case(raw: "Premier essai. Deuxième essai. Efface tout. Bonjour.", expected: "Bonjour."),
@@ -115,7 +115,7 @@ struct DictationCorpusTests {
         Case(raw: "First try. Second try. Clear everything. Hi.", expected: "Hi."),
     ]
 
-    /// « Appuie sur Entrée » tout à la fin : le texte part, la commande ne s'écrit pas.
+    /// "Appuie sur Entrée" at the very end: the text goes out, the command is not written.
     static let send: [Case] = [
         Case(raw: "On se voit demain, appuie sur entrée.", expected: "On se voit demain", pressReturn: true),
         Case(raw: "Merci beaucoup, appuyez sur entrée", expected: "Merci beaucoup", pressReturn: true),
@@ -138,7 +138,7 @@ struct DictationCorpusTests {
         .same("Je je pense.", options: DictationOptions(cleanup: false)),
     ]
 
-    /// Commandes vocales coupées : elles s'écrivent comme dites.
+    /// Voice commands off: they are written as spoken.
     static let commandsOff: [Case] = [
         .same("Bonjour, à la ligne, merci.", options: DictationOptions(voiceCommands: false)),
         .same("Tu viens point d'interrogation", options: DictationOptions(voiceCommands: false)),
@@ -171,33 +171,33 @@ struct DictationCorpusTests {
         Case(raw: "Génial !", expected: "génial !", options: DictationOptions(style: .casual)),
         Case(raw: "I think the URL is fine.", expected: "I think the URL is fine", options: DictationOptions(style: .casual)),
         Case(raw: "URL à vérifier.", expected: "URL à vérifier", options: DictationOptions(style: .casual)),
-        // Un morceau écrit au fil de la dictée garde son point : ce n'est pas la fin.
+        // A chunk written as dictation goes keeps its period: it is not the end.
         Case(raw: "Bonjour à tous. Merci pour votre message.", expected: "Bonjour à tous. Merci pour votre message.", options: DictationOptions(style: .message), final: false),
         Case(raw: "Bonjour à tous. Merci pour votre message.", expected: "bonjour à tous. merci pour votre message.", options: DictationOptions(style: .casual), final: false),
     ]
 
-    /// Défauts connus : le résultat attendu, pas celui d'aujourd'hui.
+    /// Known issues: the expected result, not today's.
     static let knownIssues: [Case] = [
-        Case(raw: "Le score final est de 2 points.", expected: "Le score final est de 2 points.", knownIssue: "« 2 points » en fin de phrase devient « : »"),
-        Case(raw: "On a marqué deux points.", expected: "On a marqué deux points.", knownIssue: "« deux points » en fin de phrase devient « : »"),
+        Case(raw: "Le score final est de 2 points.", expected: "Le score final est de 2 points.", knownIssue: "'2 points' at the end of a sentence becomes ':'"),
+        Case(raw: "On a marqué deux points.", expected: "On a marqué deux points.", knownIssue: "'deux points' at the end of a sentence becomes ':'"),
         Case(
             raw: "N'oublie pas d'appuyer sur entrée.", expected: "N'oublie pas d'appuyer sur entrée.",
-            knownIssue: "coupe la phrase et appuie sur Entrée", knownIssueOnReturn: true),
+            knownIssue: "cuts the sentence and presses Enter", knownIssueOnReturn: true),
         Case(
             raw: "Don't forget to press enter.", expected: "Don't forget to press enter.",
-            knownIssue: "coupe la phrase et appuie sur Entrée", knownIssueOnReturn: true),
+            knownIssue: "cuts the sentence and presses Enter", knownIssueOnReturn: true),
         Case(
             raw: "Il a dit ouvrez les guillemets bonjour fermez les guillemets et il est parti.",
-            expected: "Il a dit « bonjour » et il est parti.", knownIssue: "le guillemet fermant se colle au mot suivant"),
+            expected: "Il a dit « bonjour » et il est parti.", knownIssue: "the closing quote sticks to the next word"),
         Case(
             raw: "Le projet ouvrez la parenthèse en retard fermez la parenthèse avance",
-            expected: "Le projet (en retard) avance", knownIssue: "la parenthèse fermante se colle au mot suivant"),
-        Case(raw: "Je ne sais pas... peut-être.", expected: "Je ne sais pas... peut-être.", knownIssue: "« ... » devient « .. »"),
-        Case(raw: "Attends...", expected: "Attends...", knownIssue: "« ... » devient « .. »"),
+            expected: "Le projet (en retard) avance", knownIssue: "the closing parenthesis sticks to the next word"),
+        Case(raw: "Je ne sais pas... peut-être.", expected: "Je ne sais pas... peut-être.", knownIssue: "'...' becomes '..'"),
+        Case(raw: "Attends...", expected: "Attends...", knownIssue: "'...' becomes '..'"),
         Case(
             raw: "Merci, ma signature", expected: "merci, Paul\nÉquipe Plume", options: DictationOptions(style: .casual),
             vocabulary: [Replacement(original: "ma signature", with: "Paul\nÉquipe Plume")],
-            knownIssue: "le style décontracté passe en minuscule les lignes d'un extrait"),
+            knownIssue: "the casual style lowercases the lines of an excerpt"),
     ]
 
     private func check(_ c: Case) {
@@ -206,18 +206,18 @@ struct DictationCorpusTests {
         #expect(result.pressReturn == c.pressReturn)
     }
 
-    @Test(arguments: ordinary + lookalikes) func unePhraseOrdinaireNeBougePas(_ c: Case) { check(c) }
-    @Test(arguments: commands) func lesCommandesVocalesSExécutent(_ c: Case) { check(c) }
-    @Test(arguments: send) func appuyerSurEntréeEnvoieLeTexte(_ c: Case) { check(c) }
-    @Test(arguments: cleanup) func leNettoyageRetireLesHésitations(_ c: Case) { check(c) }
-    @Test(arguments: commandsOff) func sansCommandesVocalesRienNeSExécute(_ c: Case) { check(c) }
-    @Test(arguments: vocabulary) func leVocabulaireRemplaceDesMotsEntiers(_ c: Case) { check(c) }
-    @Test(arguments: styles) func leStyleSuitLApplication(_ c: Case) { check(c) }
+    @Test(arguments: ordinary + lookalikes) func anOrdinarySentenceDoesNotChange(_ c: Case) { check(c) }
+    @Test(arguments: commands) func voiceCommandsRun(_ c: Case) { check(c) }
+    @Test(arguments: send) func pressEnterSendsTheText(_ c: Case) { check(c) }
+    @Test(arguments: cleanup) func cleanupRemovesHesitations(_ c: Case) { check(c) }
+    @Test(arguments: commandsOff) func withoutVoiceCommandsNothingRuns(_ c: Case) { check(c) }
+    @Test(arguments: vocabulary) func vocabularyReplacesWholeWords(_ c: Case) { check(c) }
+    @Test(arguments: styles) func styleFollowsTheApp(_ c: Case) { check(c) }
 
-    @Test(arguments: knownIssues) func défautsConnus(_ c: Case) {
+    @Test(arguments: knownIssues) func knownIssuesStayMarked(_ c: Case) {
         guard let issue = c.knownIssue else { return check(c) }
         let result = Pipeline.format(c.raw, options: c.options, replacements: c.vocabulary, final: c.final)
-        // Seule l'attente qui échoue aujourd'hui est marquée : l'autre continue de veiller.
+        // Only the expectation that fails today is marked: the other keeps watching.
         withKnownIssue(Comment(rawValue: issue)) {
             #expect(result.text == c.expected)
             if c.knownIssueOnReturn { #expect(result.pressReturn == c.pressReturn) }

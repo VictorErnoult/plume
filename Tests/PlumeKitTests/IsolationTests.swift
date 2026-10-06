@@ -1,16 +1,16 @@
 import Foundation
 import Testing
 
-/// `./scripts/test.sh` et la CI mettent à part réglages, bibliothèque, dossier de support et
-/// canal de commande. Sans eux, un test qui lirait les réglages ouvrirait ceux de l'app
-/// installée (le lanceur des tests n'a pas l'identifiant de Plume) : un `swift test` nu échoue
-/// donc exprès.
-@Suite("Isolation des tests")
+/// `./scripts/test.sh` and CI set aside settings, library, support folder and command
+/// channel. Without them, a test that read the settings would open those of the installed
+/// app (the test runner does not have Plume's identifier): a bare `swift test` therefore
+/// fails on purpose.
+@Suite("Test isolation")
 struct IsolationTests {
-    @Test func lesTestsSontÀPartDeLAppInstallée() {
+    @Test func testsAreSeparateFromTheInstalledApp() {
         let environment = ProcessInfo.processInfo.environment
         for name in ["PLUME_DEFAULTS", "PLUME_SUPPORT", "PLUME_LIBRARY", "PLUME_CHANNEL"] {
-            #expect(environment[name]?.isEmpty == false, "\(name) manque : lancer ./scripts/test.sh")
+            #expect(environment[name]?.isEmpty == false, "\(name) is missing: run ./scripts/test.sh")
         }
     }
 }

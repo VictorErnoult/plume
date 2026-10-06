@@ -2,9 +2,9 @@ import Foundation
 import PlumeKit
 import Testing
 
-/// Ce que la ligne de commande donne aux scripts et aux IA (`plume last --json`…), avec le vrai
-/// binaire. On vérifie la présence des clés, pas leur exclusivité : en ajouter reste permis.
-@Suite("Ligne de commande")
+/// What the command line gives to scripts and AIs (`plume last --json`…), with the real
+/// binary. We check that the keys are present, not that they are exclusive: adding more is allowed.
+@Suite("Command line")
 struct CommandLineTests {
     static let summaryKeys: Set<String> = ["id", "date", "mode", "duree_s", "interlocuteurs", "apercu"]
 
@@ -18,7 +18,7 @@ struct CommandLineTests {
         try #require(try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [[String: Any]])
     }
 
-    @Test func pathDonneLeDossierDeLaBibliothèque() async throws {
+    @Test func pathGivesTheLibraryFolder() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let output = try await PlumeBinary.run(["path"], library: library.root)
@@ -26,7 +26,7 @@ struct CommandLineTests {
         #expect(output.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == library.root.path)
     }
 
-    @Test func lastDonneLaDernièreTranscriptionTelleQuEnregistrée() async throws {
+    @Test func lastGivesTheLatestTranscriptAsSaved() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let output = try await PlumeBinary.run(["last", "--json"], library: library.root)
@@ -34,7 +34,7 @@ struct CommandLineTests {
         #expect(try decodeTranscript(output.stdout) == library.imported)
     }
 
-    @Test func lastSeLimiteAuModeDemandé() async throws {
+    @Test func lastIsLimitedToTheRequestedMode() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let output = try await PlumeBinary.run(["last", "--mode", "reunion", "--json"], library: library.root)
@@ -42,7 +42,7 @@ struct CommandLineTests {
         #expect(try decodeTranscript(output.stdout) == library.meeting)
     }
 
-    @Test func showDonneUneTranscription() async throws {
+    @Test func showGivesATranscript() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let output = try await PlumeBinary.run(["show", library.dictation.id, "--json"], library: library.root)
@@ -50,30 +50,30 @@ struct CommandLineTests {
         #expect(try decodeTranscript(output.stdout) == library.dictation)
     }
 
-    @Test func listDonneDesRésumésDuPlusRécentAuPlusAncien() async throws {
+    @Test func listGivesSummariesNewestFirst() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let all = try summaries(try await PlumeBinary.run(["list", "--json"], library: library.root).stdout)
         #expect(all.map { $0["id"] as? String } == [library.imported.id, library.meeting.id, library.dictation.id])
         for summary in all {
-            #expect(Self.summaryKeys.isSubset(of: summary.keys), "clés : \(summary.keys.sorted())")
+            #expect(Self.summaryKeys.isSubset(of: summary.keys), "keys: \(summary.keys.sorted())")
         }
         let one = try summaries(try await PlumeBinary.run(["list", "-n", "1", "--json"], library: library.root).stdout)
         #expect(one.map { $0["id"] as? String } == [library.imported.id])
     }
 
-    @Test func searchTrouveSansTenirCompteDesAccentsNiDeLaCasse() async throws {
+    @Test func searchIgnoresAccentsAndCase() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let found = try summaries(try await PlumeBinary.run(["search", "TRIMESTRIEL", "pret", "--json"], library: library.root).stdout)
         #expect(found.map { $0["id"] as? String } == [library.dictation.id])
         #expect(Self.summaryKeys.isSubset(of: found.first.map { Set($0.keys) } ?? []))
-        // La recherche porte sur des sous-chaînes : « le » se trouve aussi dans « rappelle ».
+        // The search matches substrings: "le" is also found in "rappelle".
         let all = try summaries(try await PlumeBinary.run(["search", "le", "--json"], library: library.root).stdout)
         #expect(all.map { $0["id"] as? String } == [library.imported.id, library.meeting.id, library.dictation.id])
     }
 
-    @Test func uneTranscriptionInconnueSortEnErreur() async throws {
+    @Test func anUnknownTranscriptExitsWithAnError() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let output = try await PlumeBinary.run(["show", "1999-01-01_00-00-00", "--json"], library: library.root)
@@ -82,7 +82,7 @@ struct CommandLineTests {
         #expect(!output.stderr.isEmpty)
     }
 
-    @Test func uneBibliothèqueVideSortEnErreur() async throws {
+    @Test func anEmptyLibraryExitsWithAnError() async throws {
         let empty = FileManager.default.temporaryDirectory.appendingPathComponent("plume-library-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: empty) }
@@ -92,7 +92,7 @@ struct CommandLineTests {
     }
 
     @Test(arguments: ["json", "md", "txt", "srt", "vtt"])
-    func exportProduitSonFormat(format: String) async throws {
+    func exportProducesItsFormat(format: String) async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let output = try await PlumeBinary.run(["export", library.meeting.id, "--format", format], library: library.root)
@@ -117,9 +117,9 @@ struct CommandLineTests {
         }
     }
 
-    /// Le lanceur refuse sans rien lancer : même cassée, la vérification ne ferait pas lancer
-    /// l'app ni appuyer sur de vraies touches par ce test.
-    @Test func leLanceurRefuseLesCommandesQuiPiloteraientLApp() throws {
+    /// The launcher refuses without launching anything: even if broken, the check would not
+    /// make this test launch the app or press real keys.
+    @Test func theLauncherRefusesCommandsThatWouldDriveTheApp() throws {
         for arguments in [[], ["toggle", "dictee"], ["simulate-chord"], ["--version"], ["export", "x", "-o", "/tmp/x"]] {
             #expect(throws: PlumeBinary.Refused.self) { try PlumeBinary.check(arguments) }
         }
@@ -129,7 +129,7 @@ struct CommandLineTests {
         for input in [listen + "\n", initialize + "\r\n" + listen + "\r\n", summarize + "\n"] {
             #expect(throws: PlumeBinary.Refused.self) { try PlumeBinary.check(["mcp"], input: input) }
         }
-        // Ce qui est permis passe.
+        // What is allowed goes through.
         #expect(throws: Never.self) { try PlumeBinary.check(["list", "--json"]) }
         #expect(throws: Never.self) { try PlumeBinary.check(["mcp"], input: initialize + "\n") }
     }

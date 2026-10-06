@@ -2,38 +2,38 @@ import Foundation
 import Testing
 @testable import PlumeKit
 
-/// Les fichiers écrits par une version publiée (`Tests/Fixtures/<version>/`) : l'app doit
-/// toujours les relire, et les réécrire sans rien perdre.
-@Suite("Fichiers des versions publiées")
+/// The files written by a released version (`Tests/Fixtures/<version>/`): the app must
+/// always read them back, and rewrite them without losing anything.
+@Suite("Files of released versions")
 struct SavedFormatTests {
-    /// Champs ou réglages retirés exprès, chacun avec sa ligne dans `CHANGELOG.md` : les
-    /// échantillons qui les contiennent encore n'en sont pas retouchés, ce n'est pas une perte.
-    /// Chaque entrée est un chemin exact, sans indices, valable dans tous les fichiers : un champ
-    /// (`.summary`, `.segments.speaker`), un réglage par sa table (`.booleans.polish`). Un champ
-    /// présent à plusieurs endroits s'y inscrit pour chacun (`.polish` dans `applications.json`,
-    /// `.rules.polish` dans la sauvegarde). Une entrée exempte aussi son chemin de la vérification
-    /// des données inventées : ses valeurs ont été vérifiées quand le dossier a été produit.
-    /// Une entrée couvre aussi ce qui se trouve sous elle : `.shortcuts.transformShortcut` couvre
-    /// son `keyCode`.
+    /// Fields or settings removed on purpose, each with its line in `CHANGELOG.md`: the
+    /// samples that still contain them are not touched up, and this is not a loss.
+    /// Each entry is an exact path, without indices, valid in every file: a field
+    /// (`.summary`, `.segments.speaker`), a setting by its table (`.booleans.polish`). A field
+    /// present in several places is listed for each (`.polish` in `applications.json`,
+    /// `.rules.polish` in the backup). An entry also exempts its path from the invented-data
+    /// check: its values were checked when the folder was produced.
+    /// An entry also covers what lies under it: `.shortcuts.transformShortcut` covers
+    /// its `keyCode`.
     static let removedOnPurpose: Set<String> = []
 
-    /// Une perte excusée : le chemin, sans ses indices, est une entrée de la liste ou se trouve
-    /// dessous (un raccourci retiré couvre son `keyCode` et ses `modifiers`).
+    /// An excused loss: the path, without its indices, is an entry of the list or lies
+    /// under one (a removed shortcut covers its `keyCode` and its `modifiers`).
     static func isExcused(_ path: String, by entries: Set<String> = removedOnPurpose) -> Bool {
         let bare = path.replacingOccurrences(of: #"\[[0-9]+\]"#, with: "", options: .regularExpression)
         return entries.contains { bare == $0 || bare.hasPrefix($0 + ".") }
     }
 
-    @Test func ilYAAuMoinsUneVersion() {
-        #expect(!Fixtures.versions.isEmpty, "Tests/Fixtures/ est vide")
+    @Test func thereIsAtLeastOneVersion() {
+        #expect(!Fixtures.versions.isEmpty, "Tests/Fixtures/ is empty")
     }
 
-    /// Le dépôt est public : un échantillon ne contient que des données inventées (textes et
-    /// nombres : l'empreinte vocale n'a que des nombres), et que des fichiers JSON.
-    @Test func lesÉchantillonsNeContiennentQueDesDonnéesInventées() throws {
+    /// The repo is public: a sample contains only invented data (texts and numbers: the
+    /// voiceprint has only numbers), and only JSON files.
+    @Test func samplesContainOnlyInventedData() throws {
         let fm = FileManager.default
-        // À la racine, rien que des dossiers de version : un fichier ou un lien y échapperait
-        // aux vérifications ci-dessous.
+        // Only version folders at the root: a file or a link there would escape the
+        // checks below.
         let rootKeys: Set<URLResourceKey> = [.isDirectoryKey, .isSymbolicLinkKey]
         let entries = (try? fm.contentsOfDirectory(at: Fixtures.root, includingPropertiesForKeys: Array(rootKeys))) ?? []
         let stray = entries.filter { url in
@@ -42,23 +42,23 @@ struct SavedFormatTests {
                 && Fixtures.isVersion(url.lastPathComponent)
             return !isVersionFolder && url.lastPathComponent != ".DS_Store"
         }
-        #expect(stray.isEmpty, "Tests/Fixtures : seuls des dossiers de version \(stray.map(\.lastPathComponent).sorted())")
+        #expect(stray.isEmpty, "Tests/Fixtures: only version folders allowed, found \(stray.map(\.lastPathComponent).sorted())")
         let invented = FixtureSamples.allLeaves
         let keys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
         for version in Fixtures.versions {
             let everything = (fm.enumerator(at: version, includingPropertiesForKeys: keys)?.allObjects as? [URL]) ?? []
-            // Un lien symbolique compte comme un fichier : git garderait son chemin cible.
+            // A symbolic link counts as a file: git would keep its target path.
             let others = everything.filter { url in
                 let values = try? url.resourceValues(forKeys: Set(keys))
                 guard values?.isDirectory != true, url.lastPathComponent != ".DS_Store" else { return false }
                 return url.pathExtension != "json" || values?.isSymbolicLink == true
             }
-            #expect(others.isEmpty, "\(version.lastPathComponent) : pas du JSON \(others.map(\.lastPathComponent))")
+            #expect(others.isEmpty, "\(version.lastPathComponent): not JSON \(others.map(\.lastPathComponent))")
             for file in Fixtures.jsonFiles(in: version) {
-                // Ce qui a été retiré exprès n'est plus dans les échantillons d'aujourd'hui.
+                // What was removed on purpose is no longer in today's samples.
                 let kept = Fixtures.leaves(in: try Fixtures.object(at: file), at: "").filter { !Self.isExcused($0.path) }
                 let unknown = Set(kept.map(\.value)).subtracting(invented)
-                #expect(unknown.isEmpty, "\(file.path) : \(unknown.sorted())")
+                #expect(unknown.isEmpty, "\(file.path): \(unknown.sorted())")
             }
         }
     }
@@ -67,16 +67,16 @@ struct SavedFormatTests {
         FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)", isDirectory: true)
     }
 
-    /// Relu puis réécrit par l'app, un fichier garde chaque clé et chaque valeur d'origine,
-    /// hormis ce qui a été retiré exprès.
+    /// Read back then rewritten by the app, a file keeps every original key and value,
+    /// except what was removed on purpose.
     private func expectNothingLost(_ original: Any, rewritten: URL, _ name: String) throws {
         let lost = Fixtures.missing(original, in: try Fixtures.object(at: rewritten)).filter { path in
             !Self.isExcused(path)
         }
-        #expect(lost.isEmpty, "\(name) perd \(lost)")
+        #expect(lost.isEmpty, "\(name) loses \(lost)")
     }
 
-    @Test func lesTranscriptionsSeRelisentEtSeRéécriventSansPerte() throws {
+    @Test func transcriptsReadBackAndRewriteWithoutLoss() throws {
         for version in Fixtures.versions {
             let library = temporaryFolder()
             try FileManager.default.copyItem(at: version.appendingPathComponent("library"), to: library)
@@ -84,15 +84,15 @@ struct SavedFormatTests {
             let files = Fixtures.jsonFiles(in: library).filter { !$0.path.contains("/.annules/") }
             let store = TranscriptStore(root: library)
             let listed = store.list()
-            #expect(listed.count == files.count, "\(version.lastPathComponent) : \(listed.count) relues sur \(files.count)")
+            #expect(listed.count == files.count, "\(version.lastPathComponent): \(listed.count) read back out of \(files.count)")
             if listed.count != files.count {
-                // Une transcription qui ne se relit plus : dire pourquoi (souvent un champ
-                // obligatoire ajouté, voir AGENTS.md) plutôt que laisser chercher.
+                // A transcript that no longer reads back: say why (often a required field
+                // was added, see AGENTS.md) rather than leave it to be hunted down.
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
                 for file in files {
                     do { _ = try decoder.decode(Transcript.self, from: Data(contentsOf: file)) } catch {
-                        Issue.record("\(version.lastPathComponent)/\(file.lastPathComponent) : \(error)")
+                        Issue.record("\(version.lastPathComponent)/\(file.lastPathComponent): \(error)")
                     }
                 }
             }
@@ -102,7 +102,7 @@ struct SavedFormatTests {
                 let file = try #require(files.first { $0.lastPathComponent.hasPrefix(transcript.id + "_") })
                 let original = try Fixtures.object(at: file)
                 #expect(store.load(id: transcript.id) == transcript)
-                // Vidé d'abord : si l'app réécrivait ailleurs, la comparaison le verrait.
+                // Emptied first: if the app rewrote elsewhere, the comparison would see it.
                 try Data("{}".utf8).write(to: file)
                 try store.save(transcript)
                 try expectNothingLost(original, rewritten: file, "\(version.lastPathComponent)/\(file.lastPathComponent)")
@@ -110,7 +110,7 @@ struct SavedFormatTests {
         }
     }
 
-    @Test func lesAnnulésSeRelisentEtSeRéécriventSansPerte() throws {
+    @Test func cancelledReadBackAndRewriteWithoutLoss() throws {
         for version in Fixtures.versions {
             let library = temporaryFolder()
             try FileManager.default.copyItem(at: version.appendingPathComponent("library"), to: library)
@@ -118,11 +118,11 @@ struct SavedFormatTests {
             let files = Fixtures.jsonFiles(in: library.appendingPathComponent(".annules"))
             let cancelled = CancelledStore(library: library)
             let listed = cancelled.list()
-            #expect(listed.count == files.count, "\(version.lastPathComponent) : \(listed.count) relus sur \(files.count)")
+            #expect(listed.count == files.count, "\(version.lastPathComponent): \(listed.count) read back out of \(files.count)")
             for recording in listed {
                 let file = try #require(files.first { $0.lastPathComponent == recording.id + ".json" })
                 let original = try Fixtures.object(at: file)
-                // Vidé d'abord : si l'app réécrivait ailleurs, la comparaison le verrait.
+                // Emptied first: if the app rewrote elsewhere, the comparison would see it.
                 try Data("{}".utf8).write(to: file)
                 cancelled.update(recording)
                 try expectNothingLost(original, rewritten: file, "\(version.lastPathComponent)/\(file.lastPathComponent)")
@@ -130,7 +130,7 @@ struct SavedFormatTests {
         }
     }
 
-    @Test func lesRéglagesAnnexesSeRelisentEtSeRéécriventSansPerte() throws {
+    @Test func sideSettingsReadBackAndRewriteWithoutLoss() throws {
         let output = temporaryFolder()
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: output) }
@@ -139,17 +139,17 @@ struct SavedFormatTests {
             let support = version.appendingPathComponent("support")
 
             let vocabulary = support.appendingPathComponent("remplacements.json")
-            let replacements = try #require(ReplacementStore.read(from: vocabulary), "\(name) : vocabulaire illisible")
+            let replacements = try #require(ReplacementStore.read(from: vocabulary), "\(name): vocabulary unreadable")
             try ReplacementStore.write(replacements, to: output.appendingPathComponent("\(name)-remplacements.json"))
             try expectNothingLost(try Fixtures.object(at: vocabulary), rewritten: output.appendingPathComponent("\(name)-remplacements.json"), "\(name)/remplacements.json")
 
             let applications = support.appendingPathComponent("applications.json")
-            let rules = try #require(AppRuleStore.read(from: applications), "\(name) : règles illisibles")
+            let rules = try #require(AppRuleStore.read(from: applications), "\(name): rules unreadable")
             try AppRuleStore.write(rules, to: output.appendingPathComponent("\(name)-applications.json"))
             try expectNothingLost(try Fixtures.object(at: applications), rewritten: output.appendingPathComponent("\(name)-applications.json"), "\(name)/applications.json")
 
             let print = support.appendingPathComponent("empreinte-vocale.json")
-            let voiceprint = try #require(VoiceprintStore.read(from: print), "\(name) : empreinte illisible")
+            let voiceprint = try #require(VoiceprintStore.read(from: print), "\(name): voiceprint unreadable")
             try VoiceprintStore.write(voiceprint, to: output.appendingPathComponent("\(name)-empreinte.json"))
             try expectNothingLost(try Fixtures.object(at: print), rewritten: output.appendingPathComponent("\(name)-empreinte.json"), "\(name)/empreinte-vocale.json")
 
@@ -160,9 +160,9 @@ struct SavedFormatTests {
         }
     }
 
-    /// Une clé de réglage renommée remettrait ce réglage à sa valeur par défaut chez tout le
-    /// monde (`keepHistory`, l'interrupteur de confidentialité, vaut `true` par défaut).
-    @Test func chaqueRéglageSauvegardéEstToujoursReconnu() throws {
+    /// A renamed settings key would reset that setting to its default for everyone
+    /// (`keepHistory`, the privacy switch, defaults to `true`).
+    @Test func everySavedSettingIsStillRecognized() throws {
         for version in Fixtures.versions {
             let backup = try SettingsBackup.read(from: version.appendingPathComponent("reglages.json"))
             let name = version.lastPathComponent
@@ -171,13 +171,13 @@ struct SavedFormatTests {
                 .union(backup.strings.keys.filter { !SettingsBackup.stringKeys.contains($0) }.map { ".strings.\($0)" })
                 .union(backup.shortcuts.keys.filter { !SettingsBackup.shortcutKeys.contains($0) }.map { ".shortcuts.\($0)" })
                 .subtracting(Self.removedOnPurpose)
-            #expect(unknown.isEmpty, "\(name) : réglages plus reconnus \(unknown.sorted())")
+            #expect(unknown.isEmpty, "\(name): settings no longer recognized \(unknown.sorted())")
         }
     }
 
-    /// Ces réglages ne sont pas dans la sauvegarde, mais chaque Mac les a rangés sous ce nom :
-    /// `libraryPath` renommé, et une bibliothèque déplacée semblerait vide.
-    @Test func lesRéglagesHorsSauvegardeGardentLeurNom() {
+    /// These settings are not in the backup, but every Mac has stored them under this name:
+    /// rename `libraryPath`, and a moved library would look empty.
+    @Test func settingsOutsideTheBackupKeepTheirName() {
         #expect(PlumeSettings.Key.libraryPath == "libraryPath")
         #expect(PlumeSettings.Key.microphoneUID == "microphoneUID")
         #expect(PlumeSettings.Key.customModelPath == "customModelPath")
@@ -185,9 +185,9 @@ struct SavedFormatTests {
         #expect(PlumeSettings.Key.changelogSeen == "changelogSeen")
     }
 
-    /// Un format qui change ajoute le dossier de sa version : le plus récent contient tout ce que
-    /// le code d'aujourd'hui écrit pour les mêmes échantillons.
-    @Test func leDernierDossierEstÀJour() throws {
+    /// A format change adds the folder of its version: the newest contains everything
+    /// today's code writes for the same samples.
+    @Test func theNewestFolderIsUpToDate() throws {
         let newest = try #require(Fixtures.versions.last)
         let today = temporaryFolder()
         defer { try? FileManager.default.removeItem(at: today) }
@@ -199,31 +199,31 @@ struct SavedFormatTests {
             let frozen = newest.appendingPathComponent(relative)
             let name = "\(newest.lastPathComponent)/\(relative)"
             guard FileManager.default.fileExists(atPath: frozen.path) else {
-                Issue.record("\(name) manque : \(command)")
+                Issue.record("\(name) is missing: \(command)")
                 continue
             }
             let lost = Fixtures.missing(try Fixtures.object(at: file), in: try Fixtures.object(at: frozen))
-            #expect(lost.isEmpty, "\(name) n'a pas \(lost) : \(command)")
+            #expect(lost.isEmpty, "\(name) lacks \(lost): \(command)")
         }
     }
 
-    /// Les échantillons complets renseignent chaque champ facultatif : un champ ajouté sans
-    /// valeur d'exemple n'apparaîtrait dans aucun échantillon.
-    @Test func lesÉchantillonsCompletsRenseignentChaqueChamp() {
+    /// The full samples fill in every optional field: a field added without a sample
+    /// value would appear in no sample.
+    @Test func fullSamplesFillInEveryField() {
         func unset(_ value: Any) -> [String] {
             Mirror(reflecting: value).children.compactMap { child in
                 let mirror = Mirror(reflecting: child.value)
                 return mirror.displayStyle == .optional && mirror.children.isEmpty ? child.label : nil
             }
         }
-        #expect(unset(FixtureSamples.dictation).isEmpty, "dictée : \(unset(FixtureSamples.dictation))")
-        #expect(unset(FixtureSamples.meeting).isEmpty, "réunion : \(unset(FixtureSamples.meeting))")
-        #expect(unset(FixtureSamples.cancelled).isEmpty, "annulé : \(unset(FixtureSamples.cancelled))")
+        #expect(unset(FixtureSamples.dictation).isEmpty, "dictation: \(unset(FixtureSamples.dictation))")
+        #expect(unset(FixtureSamples.meeting).isEmpty, "meeting: \(unset(FixtureSamples.meeting))")
+        #expect(unset(FixtureSamples.cancelled).isEmpty, "cancelled: \(unset(FixtureSamples.cancelled))")
     }
 
-    /// Les échantillons couvrent chaque valeur que ces fichiers peuvent contenir : un cas ajouté à
-    /// une énumération, ou un réglage ajouté à la sauvegarde, doit y entrer aussi.
-    @Test func lesÉchantillonsCouvrentToutesLesValeurs() {
+    /// The samples cover every value these files can contain: a case added to an
+    /// enumeration, or a setting added to the backup, must enter them too.
+    @Test func samplesCoverEveryValue() {
         #expect(Set(FixtureSamples.transcripts.map(\.mode)) == Set(RecordingMode.allCases))
         #expect(Set(FixtureSamples.rules.map(\.style)) == Set(DictationStyle.allCases))
         #expect(Set(FixtureSamples.meeting.segments.map(\.channel)) == Set(AudioChannel.allCases))
@@ -233,15 +233,15 @@ struct SavedFormatTests {
         #expect(Set(FixtureSamples.backup.shortcuts.keys) == Set(SettingsBackup.shortcutKeys))
     }
 
-    /// `NSNumber` confond `true` et `1` : un booléen devenu nombre passerait la relecture sans perte.
-    @Test func lesValeursSeComparentTellesQuelles() {
+    /// `NSNumber` confuses `true` and `1`: a boolean turned into a number would pass the lossless read-back.
+    @Test func valuesCompareAsTheyAre() {
         #expect(!Fixtures.missing(["a": true], in: ["a": 1]).isEmpty)
         #expect(!Fixtures.missing(["a": [1, 2]], in: ["a": [1]]).isEmpty)
         #expect(Fixtures.missing(["a": 6, "b": ["c": "d"]], in: ["a": 6, "b": ["c": "d", "e": 1], "f": 2]).isEmpty)
     }
 
-    /// Une entrée n'excuse que le chemin qu'elle nomme : ni le réglage du même nom, ni l'inverse.
-    @Test func uneEntréeRetiréeNExcuseQueCeQuElleNomme() {
+    /// An entry excuses only the path it names: not the setting of the same name, nor the reverse.
+    @Test func aRemovedEntryExcusesOnlyWhatItNames() {
         #expect(Self.isExcused("[0].polish", by: [".polish"]))
         #expect(Self.isExcused(".rules[2].polish", by: [".rules.polish"]))
         #expect(!Self.isExcused(".rules[2].polish", by: [".polish"]))

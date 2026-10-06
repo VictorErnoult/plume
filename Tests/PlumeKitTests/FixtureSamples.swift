@@ -1,15 +1,15 @@
 import Foundation
 @testable import PlumeKit
 
-/// Les données inventées des échantillons de `Tests/Fixtures/` : le générateur les écrit, les
-/// tests vérifient que les fichiers n'en contiennent pas d'autres. Jamais de vraie donnée ici.
-/// On ajoute, on ne modifie pas : les échantillons déjà générés en dépendent.
+/// The invented data of the `Tests/Fixtures/` samples: the generator writes them, the
+/// tests check that the files contain nothing else. Never any real data here.
+/// Add, do not modify: the samples already generated depend on them.
 enum FixtureSamples {
     static func date(_ iso: String) -> Date {
         ISO8601DateFormatter().date(from: iso)!
     }
 
-    /// Une dictée où tout est renseigné.
+    /// A dictation with every field filled in.
     static let dictation = Transcript(
         id: "2026-10-02_09-15-00", createdAt: date("2026-10-02T07:15:00Z"), mode: .dictation, device: "mac",
         duration: 4.2, engine: "parakeet-ultra", text: "Le rapport trimestriel est prêt, je te l'envoie ce soir.",
@@ -17,7 +17,7 @@ enum FixtureSamples {
         audioFiles: ["2026-10-02_09-15-00_mic.m4a"], app: "Notes", title: "Rapport trimestriel",
         summary: "Rapport prêt, envoi ce soir.")
 
-    /// Une réunion : les deux canaux, des interlocuteurs, un titre et un résumé.
+    /// A meeting: both channels, speakers, a title and a summary.
     static let meeting = Transcript(
         id: "2026-10-02_14-31-05", createdAt: date("2026-10-02T12:31:05Z"), mode: .meeting, device: "mac",
         duration: 1834.5, engine: "parakeet-ultra",
@@ -30,7 +30,7 @@ enum FixtureSamples {
         speakers: ["Moi", "Inès"], audioFiles: ["2026-10-02_14-31-05_mic.m4a", "2026-10-02_14-31-05_sys.m4a"],
         app: "Zoom", title: "Point budget", summary: "## Points clés\n- Budget validé.")
 
-    /// Un import réduit aux champs obligatoires, comme un fichier d'avant `app`, `title` et `summary`.
+    /// An import reduced to the required fields, like a file from before `app`, `title` and `summary`.
     static let imported = Transcript(
         id: "2026-10-03_08-00-00", createdAt: date("2026-10-03T06:00:00Z"), mode: .imported, device: "mac",
         duration: 62, engine: "parakeet-v3", text: "Message vocal : rappelle-moi demain.",
@@ -48,7 +48,7 @@ enum FixtureSamples {
         Replacement(id: UUID(uuidString: "6F1C2A10-0000-4000-8000-000000000002")!, original: "ma signature", with: "Paul\nÉquipe Plume"),
     ]
 
-    /// Une règle par style, dont celle de toutes les autres applications.
+    /// One rule per style, including the one for all other apps.
     static let rules = [
         AppRule(
             id: UUID(uuidString: "6F1C2A10-0000-4000-8000-000000000003")!, bundleID: "com.apple.mail", name: "Mail",
@@ -63,7 +63,7 @@ enum FixtureSamples {
 
     static let voiceprint = Voiceprint(embedding: [0.125, -0.5, 0.25, 0.75], samples: 3)
 
-    /// Une sauvegarde avec toutes les clés que la 1.0.1 savait sauvegarder (`SettingsBackup.*Keys`).
+    /// A backup with every key 1.0.1 could save (`SettingsBackup.*Keys`).
     static let backup = SettingsBackup.File(
         date: date("2026-10-03T09:00:00Z"),
         shortcuts: [
@@ -87,12 +87,12 @@ enum FixtureSamples {
         ],
         replacements: replacements, rules: rules)
 
-    /// Écrit les échantillons dans `folder` avec le code de l'app, par des chemins explicites
-    /// seulement (jamais les réglages, le dossier de support ni le dossier personnel), et ne
-    /// garde que les fichiers JSON que l'app relit : Markdown, index, audio et mode d'emploi se
-    /// régénèrent.
+    /// Writes the samples into `folder` with the app's code, through explicit paths
+    /// only (never the settings, the support folder or the home folder), and keeps
+    /// only the JSON files the app reads back: Markdown, index, audio and the guide
+    /// regenerate.
     static func write(to folder: URL) throws {
-        // La sauvegarde des réglages, comme `export`, écrit dans un dossier qui existe.
+        // The settings backup, like `export`, writes into a folder that exists.
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let library = folder.appendingPathComponent("library", isDirectory: true)
         let store = TranscriptStore(root: library)
@@ -112,8 +112,8 @@ enum FixtureSamples {
         }
     }
 
-    /// Toutes les valeurs que les échantillons contiennent, telles que l'app les encode (textes,
-    /// dates, identifiants, nombres, empreinte vocale comprise), chacune en texte JSON.
+    /// Every value the samples contain, as the app encodes them (texts, dates,
+    /// identifiers, numbers, voiceprint included), each as JSON text.
     static var allLeaves: Set<String> {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -134,19 +134,19 @@ enum FixtureSamples {
     }
 }
 
-/// `Tests/Fixtures/` : un dossier par version qui a changé un format, avec les fichiers JSON que
-/// cette version écrivait et que l'app doit toujours savoir relire.
+/// `Tests/Fixtures/`: one folder per version that changed a format, with the JSON files that
+/// version wrote and that the app must still be able to read back.
 enum Fixtures {
     static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .appendingPathComponent("Fixtures", isDirectory: true)
 
-    /// Un nom de dossier de version : `1.0.1`, `1.10`.
+    /// A version folder name: `1.0.1`, `1.10`.
     static func isVersion(_ name: String) -> Bool {
         name.range(of: #"^[0-9]+(\.[0-9]+)*$"#, options: .regularExpression) != nil
     }
 
-    /// Les dossiers de version, du plus ancien au plus récent (ordre numérique : 1.9 avant
-    /// 1.10). Tout autre fichier ou dossier est ignoré.
+    /// The version folders, oldest to newest (numeric order: 1.9 before 1.10). Any
+    /// other file or folder is ignored.
     static var versions: [URL] {
         let fm = FileManager.default
         let names = (try? fm.contentsOfDirectory(atPath: root.path)) ?? []
@@ -160,7 +160,7 @@ enum Fixtures {
         .map { root.appendingPathComponent($0, isDirectory: true) }
     }
 
-    /// Tous les fichiers JSON d'un dossier, dossiers cachés compris (`.annules`).
+    /// All JSON files in a folder, hidden folders included (`.annules`).
     static func jsonFiles(in folder: URL) -> [URL] {
         let enumerator = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil)
         let urls = (enumerator?.allObjects as? [URL]) ?? []
@@ -171,8 +171,8 @@ enum Fixtures {
         try JSONSerialization.jsonObject(with: Data(contentsOf: url), options: [.fragmentsAllowed])
     }
 
-    /// Les valeurs d'un document JSON (pas les noms des clés), chacune en texte JSON : `"Inès"`,
-    /// `0.5`, `true`. Le texte distingue `true` de `1`, que `NSNumber` confond.
+    /// The values of a JSON document (not the key names), each as JSON text: `"Inès"`,
+    /// `0.5`, `true`. The text tells `true` from `1`, which `NSNumber` confuses.
     static func leaves(in value: Any) -> Set<String> {
         switch value {
         case let array as [Any]:
@@ -184,7 +184,7 @@ enum Fixtures {
         }
     }
 
-    /// Les valeurs d'un document JSON avec leur chemin (`.segments[1].text`), comme `missing`.
+    /// The values of a JSON document with their path (`.segments[1].text`), like `missing`.
     static func leaves(in value: Any, at path: String) -> [(path: String, value: String)] {
         switch value {
         case let array as [Any]:
@@ -196,14 +196,14 @@ enum Fixtures {
         }
     }
 
-    /// Une valeur simple en texte JSON.
+    /// A plain value as JSON text.
     static func json(_ value: Any) -> String {
         (try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "\(value)"
     }
 
-    /// Ce que `original` contient et que `copy` n'a plus, ou plus à l'identique : les chemins
-    /// (`.segments[1].speaker`). Vide quand rien ne se perd.
+    /// What `original` contains and `copy` no longer has, or no longer identical: the paths
+    /// (`.segments[1].speaker`). Empty when nothing is lost.
     static func missing(_ original: Any, in copy: Any, at path: String = "") -> [String] {
         switch (original, copy) {
         case let (original as [String: Any], copy as [String: Any]):

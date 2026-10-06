@@ -2,14 +2,14 @@ import Foundation
 import PlumeKit
 import Testing
 
-/// Le serveur MCP (`plume mcp`), comme le voit un client : des requêtes JSON-RPC sur l'entrée
-/// standard, une réponse par ligne. Jamais `listen` ni `summarize_transcript`, qui pilotent
-/// l'app ou l'IA locale : le lanceur les refuse.
-@Suite("Serveur MCP")
+/// The MCP server (`plume mcp`), as a client sees it: JSON-RPC requests on standard
+/// input, one response per line. Never `listen` or `summarize_transcript`, which drive
+/// the app or the local AI: the launcher refuses them.
+@Suite("MCP server")
 struct MCPServerTests {
     static let readTools = ["get_latest_transcript", "list_transcripts", "get_transcript", "search_transcripts"]
 
-    /// Envoie les requêtes, puis la fin de l'entrée ; rend les réponses par identifiant.
+    /// Sends the requests, then end of input; returns the responses by identifier.
     private func exchange(_ requests: [[String: Any]], library: URL) async throws -> (responses: [Int: [String: Any]], count: Int) {
         let input = try requests.map { String(decoding: try JSONSerialization.data(withJSONObject: $0), as: UTF8.self) }
             .joined(separator: "\n") + "\n"
@@ -18,7 +18,7 @@ struct MCPServerTests {
         let lines = output.stdout.split(separator: "\n").map(String.init)
         var responses: [Int: [String: Any]] = [:]
         for line in lines {
-            let response = try #require((try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any], "pas un objet JSON : \(line)")
+            let response = try #require((try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any], "not a JSON object: \(line)")
             #expect(response["jsonrpc"] as? String == "2.0")
             if let id = response["id"] as? Int { responses[id] = response }
         }
@@ -34,7 +34,7 @@ struct MCPServerTests {
         return content?.first?["text"] as? String ?? ""
     }
 
-    @Test func sePrésenteEtNeRépondPasAuxNotifications() async throws {
+    @Test func introducesItselfAndDoesNotAnswerNotifications() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let (responses, count) = try await exchange([
@@ -42,28 +42,28 @@ struct MCPServerTests {
             ["jsonrpc": "2.0", "method": "notifications/initialized"],
             ["jsonrpc": "2.0", "id": 2, "method": "ping"],
         ], library: library.root)
-        // Trois messages, deux réponses : la notification n'en a pas.
+        // Three messages, two responses: the notification has none.
         #expect(count == 2)
         let result = responses[1]?["result"] as? [String: Any]
         #expect((result?["serverInfo"] as? [String: Any])?["name"] as? String == "plume")
-        // Une autre version que celle par défaut du serveur : sinon un écho cassé passerait inaperçu.
+        // A version other than the server's default: otherwise a broken echo would go unnoticed.
         #expect(result?["protocolVersion"] as? String == "2024-11-05")
         #expect(responses[2]?["result"] != nil)
     }
 
-    @Test func listeSesOutilsAvecLeurSchéma() async throws {
+    @Test func listsItsToolsWithTheirSchema() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let (responses, _) = try await exchange([["jsonrpc": "2.0", "id": 1, "method": "tools/list"]], library: library.root)
         let tools = try #require((responses[1]?["result"] as? [String: Any])?["tools"] as? [[String: Any]])
         let names = Set(tools.compactMap { $0["name"] as? String })
-        #expect(names.isSuperset(of: Self.readTools + ["listen", "summarize_transcript"]), "outils : \(names.sorted())")
+        #expect(names.isSuperset(of: Self.readTools + ["listen", "summarize_transcript"]), "tools: \(names.sorted())")
         for tool in tools {
-            #expect(tool["inputSchema"] is [String: Any], "\(tool["name"] ?? "?") sans schéma")
+            #expect(tool["inputSchema"] is [String: Any], "\(tool["name"] ?? "?") has no schema")
         }
     }
 
-    @Test func lesOutilsDeLectureRendentLaBibliothèque() async throws {
+    @Test func readToolsReturnTheLibrary() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let (responses, _) = try await exchange([
@@ -84,7 +84,7 @@ struct MCPServerTests {
         let found = text(of: responses[5])
         #expect(found.contains(library.meeting.id))
         #expect(!found.contains(library.dictation.id) && !found.contains(library.imported.id))
-        // Un identifiant inconnu ne rend aucune des transcriptions.
+        // An unknown identifier returns none of the transcripts.
         let unknown = text(of: responses[6])
         #expect(!unknown.isEmpty)
         for sentence in ["Message vocal : rappelle-moi demain.", "On commence par le budget.", "Le rapport trimestriel est prêt."] {
@@ -92,15 +92,15 @@ struct MCPServerTests {
         }
     }
 
-    @Test func unOutilOuUneMéthodeInconnusSontSignalés() async throws {
+    @Test func anUnknownToolOrMethodIsReported() async throws {
         let library = try SampleLibrary.make()
         defer { library.remove() }
         let (responses, _) = try await exchange([
             call(1, "outil_inconnu"),
             ["jsonrpc": "2.0", "id": 2, "method": "methode/inconnue"],
         ], library: library.root)
-        // Outil inconnu : signalé dans le résultat (`isError`, ce que fait le serveur aujourd'hui)
-        // ou comme erreur du protocole (-32602, ce que demande MCP 2025-06-18) ; les deux conviennent.
+        // Unknown tool: reported in the result (`isError`, what the server does today)
+        // or as a protocol error (-32602, what MCP 2025-06-18 asks for); both are fine.
         let toolResult = responses[1]?["result"] as? [String: Any]
         let toolError = responses[1]?["error"] as? [String: Any]
         #expect(toolResult?["isError"] as? Bool == true || toolError?["code"] as? Int == -32602)
