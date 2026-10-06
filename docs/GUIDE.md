@@ -164,7 +164,8 @@ panels, update dialogs) follow the Mac's language. The choice applies to the win
 the menus, transcript titles ("Meeting, Oct 2, 2026 at 11:30 AM" / "Réunion du 2 oct. 2026 à
 11:30"), speaker names ("Me", "Speaker 1" / "Moi", "Interlocuteur 1") and the meeting notes
 written by the local AI. Voice commands work in both languages whatever the setting. Command-line
-messages follow the setting; `--json` keys are always French (see [Access for an AI](#access-for-an-ai)).
+messages follow the setting; some saved keys stay French whatever the setting (see
+[Field names](#field-names)).
 
 ## Transcription models
 
@@ -214,13 +215,16 @@ The app is signed with a stable local certificate: permissions survive updates.
 ```
 
 `dernier.md` is only there for scripts written before `latest.md`; it may go in a later
-version (announced in the changelog), so use `latest.md`. `README.md` is written only if missing: a `README.md` of your own
-is never touched. The French `LISEZMOI.md` of earlier versions is removed if you never edited it.
+version (announced in the changelog), so use `latest.md`. `README.md` is written only if
+missing: a `README.md` of your own is never touched. The French `LISEZMOI.md` of earlier
+versions is removed only if you never edited it and `README.md` is Plume's own.
 
 ### Field names
 
-The keys of `index.jsonl`, of the Markdown header and of `--json` output are French and stay
-so: scripts read them.
+The keys of `index.jsonl`, of the Markdown header and of `plume list` / `plume search --json`
+are French and stay so: scripts read them. `plume last`, `show` and `transcribe --json` and the
+per-transcript `.json` files use English camelCase keys instead, and the mode values
+`dictation`, `meeting` and `imported` (see [below](#english-json-keys)).
 
 | Key | Meaning |
 |---|---|
@@ -239,6 +243,23 @@ so: scripts read them.
 
 The mode also shows in file names (`_dictee`, `_reunion`, `_import`). The MCP tools' `mode`
 filter and `plume --mode` accept `dictation`, `meeting` and `imported` as well as these slugs.
+
+### English JSON keys
+
+The per-transcript `.json` file and `plume last` / `show` / `transcribe --json` hold one
+transcription with these keys:
+
+| Key | Meaning |
+|---|---|
+| `id`, `createdAt` | Id and start of the recording (ISO 8601) |
+| `mode` | `dictation`, `meeting` or `imported` |
+| `device`, `engine` | Device and transcription engine |
+| `duration` | Duration in seconds |
+| `text`, `rawText` | Final text, and the model's raw output before cleanup |
+| `segments` | Timestamped parts: `id`, `speaker`, `channel` (`mic` or `system`), `start`, `end`, `text` |
+| `speakers` | Speaker names or labels |
+| `audioFiles` | Audio file names, relative to the transcription's folder |
+| `app`, `title`, `summary` | Only when set: target app, title, summary |
 
 ## Access for an AI
 
@@ -268,6 +289,6 @@ filter and `plume --mode` accept `dictation`, `meeting` and `imported` as well a
 a Stream Deck. The links `plume://dictation`, `plume://meeting`, `plume://stop`, `plume://pause`,
 `plume://paste`, `plume://restore`, `plume://transform`, `plume://cancel` and `plume://open` do
 the same from Shortcuts or any app (the French `dictee`, `reunion`, `recoller`, `recuperer`,
-`transformer`, `annuler` and `ouvrir` still work). `plume doctor` shows the state of permissions, model, local AI and
-screens; `plume format "text"` shows what the formatting does to raw text; `plume polish` and
-`plume transform` try the local AI.
+`transformer`, `annuler` and `ouvrir` still work). `plume doctor` shows the state of
+permissions, model, local AI and screens; `plume format "text"` shows what the formatting
+does to raw text; `plume polish` and `plume transform` try the local AI.
