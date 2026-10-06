@@ -106,15 +106,15 @@ struct MCPServer {
 
     private static let modeProperty: [String: Any] = [
         "type": "string",
-        "enum": ["dictee", "reunion", "import"],
-        "description": "Filter by type: dictee (dictation), reunion (meeting, several speakers) or import (imported file).",
+        "enum": ["dictee", "reunion", "import", "dictation", "meeting", "imported"],
+        "description": "Filter by type: dictation (or dictee), meeting (or reunion; several speakers) or imported (or import; imported file).",
     ]
 
     private static let tools: [[String: Any]] = [
         [
             "name": "get_latest_transcript",
             "description":
-                "Returns the user's most recent voice transcript (full text, with speakers for a meeting). Use it for \"my latest transcript\", \"my latest meeting\" (mode=reunion) or \"my latest dictation\" (mode=dictee).",
+                "Returns the user's most recent voice transcript (full text, with speakers for a meeting). Use it for \"my latest transcript\", \"my latest meeting\" (mode=meeting) or \"my latest dictation\" (mode=dictation).",
             "inputSchema": ["type": "object", "properties": ["mode": modeProperty]],
         ],
         [

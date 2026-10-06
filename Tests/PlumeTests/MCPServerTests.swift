@@ -73,6 +73,10 @@ struct MCPServerTests {
             call(4, "list_transcripts", ["limit": 2]),
             call(5, "search_transcripts", ["query": "budget"]),
             call(6, "get_transcript", ["id": "1999-01-01_00-00-00"]),
+            call(7, "list_transcripts", ["mode": "reunion"]),
+            call(8, "list_transcripts", ["mode": "meeting"]),
+            call(9, "list_transcripts", ["mode": "dictation"]),
+            call(10, "list_transcripts", ["mode": "imported"]),
         ], library: library.root)
         #expect(text(of: responses[1]).contains("Message vocal : rappelle-moi demain."))
         #expect(text(of: responses[2]).contains("On commence par le budget."))
@@ -90,6 +94,12 @@ struct MCPServerTests {
         for sentence in ["Message vocal : rappelle-moi demain.", "On commence par le budget.", "Le rapport trimestriel est prêt."] {
             #expect(!unknown.contains(sentence))
         }
+        // The English mode names filter like the French slugs.
+        let meetings = text(of: responses[7])
+        #expect(meetings.contains(library.meeting.id) && !meetings.contains(library.dictation.id))
+        #expect(text(of: responses[8]) == meetings)
+        #expect(text(of: responses[9]).contains(library.dictation.id) && !text(of: responses[9]).contains(library.meeting.id))
+        #expect(text(of: responses[10]).contains(library.imported.id) && !text(of: responses[10]).contains(library.meeting.id))
     }
 
     @Test func anUnknownToolOrMethodIsReported() async throws {

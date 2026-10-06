@@ -736,13 +736,13 @@ final class IslandController {
             // Diagnostic: force the notched screen, wherever the mouse is, or alternate between
             // the screens at each exit.
             switch ProcessInfo.processInfo.environment["PLUME_SCREEN"] {
-            case "encoche":
+            case "notch", "encoche":
                 screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? screen
-            case "alterne":
+            case "alternate", "alterne":
                 let screens = NSScreen.screens
                 debugTurn += 1
                 screen = screens.isEmpty ? screen : screens[debugTurn % screens.count]
-            case "externe":
+            case "external", "externe":
                 screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top == 0 }) ?? screen
             default:
                 break
