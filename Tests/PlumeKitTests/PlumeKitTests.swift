@@ -749,7 +749,7 @@ struct SettingsBackupTests {
     @Test func roundTrip() throws {
         let file = SettingsBackup.File(
             date: Date(), shortcuts: ["dictationShortcut": Shortcut(keyCode: 49, modifiers: ModifierMask.option)],
-            booleans: ["voiceCommands": false, "pasInconnu": true], numbers: ["audioRetentionDays": 30], strings: ["soundPack": "bips"],
+            booleans: ["voiceCommands": false, "pasInconnu": true], numbers: ["audioRetentionDays": 30], strings: ["soundPack": "beeps"],
             replacements: [Replacement(original: "a", with: "b")], rules: [AppRule(bundleID: "*", name: "Autres", style: .message)])
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -759,6 +759,38 @@ struct SettingsBackupTests {
         #expect(decoded.shortcuts["dictationShortcut"]?.keyCode == 49)
         #expect(decoded.rules.first?.style == .message)
         #expect(decoded.replacements == file.replacements)
+    }
+}
+
+@Suite("Appearance and sound pack values")
+struct SettingsValueTests {
+    @Test func appearanceReadsOldAndNewValues() {
+        let cases: [(String?, String)] = [
+            ("sombre", "dark"), ("clair", "light"), ("systeme", "system"), ("dark", "dark"), ("light", "light"),
+            ("system", "system"), (nil, "dark"), ("autre", "dark"),
+        ]
+        for (raw, expected) in cases { #expect(PlumeSettings.normalizedAppearance(raw) == expected) }
+    }
+
+    @Test func soundPackReadsOldAndNewValues() {
+        let cases: [(String?, String)] = [
+            ("bips", "beeps"), ("clics", "clicks"), ("melodie", "melody"), ("glisse", "glide"), ("bois", "wood"),
+            ("pluck", "pluck"), ("beeps", "beeps"), ("wood", "wood"), (nil, "pluck"), ("inconnu", "inconnu"),
+        ]
+        for (raw, expected) in cases { #expect(PlumeSettings.normalizedSoundPack(raw) == expected) }
+    }
+
+    @Test func backupExportsEnglishValues() {
+        let name = "plume-tests-\(UUID())"
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        func strings() -> [String: String] { SettingsBackup.snapshot(defaults: defaults, replacements: [], rules: []).strings }
+
+        #expect(strings()["appearance"] == nil)
+        defaults.set("sombre", forKey: "appearance")
+        defaults.set("bips", forKey: "soundPack")
+        #expect(strings()["appearance"] == "dark")
+        #expect(strings()["soundPack"] == "beeps")
     }
 }
 

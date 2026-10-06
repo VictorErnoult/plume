@@ -272,7 +272,7 @@ public final class PlumeSettings: @unchecked Sendable {
 
     /// Recording sound pack (identifier, see `SoundPack` in the app).
     public var soundPack: String {
-        get { defaults.string(forKey: Key.soundPack) ?? "pluck" }
+        get { Self.normalizedSoundPack(defaults.string(forKey: Key.soundPack)) }
         set { defaults.set(newValue, forKey: Key.soundPack) }
     }
 
@@ -291,10 +291,36 @@ public final class PlumeSettings: @unchecked Sendable {
         set { defaults.set(newValue.rawValue, forKey: Key.language) }
     }
 
-    /// Window appearance: `sombre` (default), `clair` or `systeme`.
+    /// Window appearance: `dark` (default), `light` or `system`.
     public var appearance: String {
-        get { defaults.string(forKey: Key.appearance) ?? "sombre" }
+        get { Self.normalizedAppearance(defaults.string(forKey: Key.appearance)) }
         set { defaults.set(newValue, forKey: Key.appearance) }
+    }
+
+    /// Reads a stored appearance, French values from before 1.1 included. No default is
+    /// registered for `appearance`: it would end up in every settings export.
+    public static func normalizedAppearance(_ raw: String?) -> String {
+        switch raw {
+        case "sombre": return "dark"
+        case "clair": return "light"
+        case "systeme": return "system"
+        case "light", "system": return raw!
+        default: return "dark"
+        }
+    }
+
+    /// Reads a stored sound pack, French values from before 1.1 included. Unknown values
+    /// are kept: the app falls back to the standard pack itself.
+    public static func normalizedSoundPack(_ raw: String?) -> String {
+        switch raw {
+        case nil: return "pluck"
+        case "bips": return "beeps"
+        case "clics": return "clicks"
+        case "melodie": return "melody"
+        case "glisse": return "glide"
+        case "bois": return "wood"
+        default: return raw!
+        }
     }
 
     /// Shows the dictation / meeting choice during the first seconds of a recording.

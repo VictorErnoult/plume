@@ -405,11 +405,11 @@ enum Sounds {
     static func export(to directory: URL) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let kinds: [(String, Kind)] = [
-            ("debut", .start), ("fin", .stop), ("annulation", .cancel), ("reunion-on", .meetingOn),
-            ("reunion-off", .meetingOff), ("pret", .ready), ("fenetre", .windowOpen), ("page-0", .page(0)),
-            ("page-3", .page(3)), ("clic", .click), ("refus", .refuse), ("interrupteur-on", .toggleOn),
-            ("interrupteur-off", .toggleOff), ("onglet", .tab), ("cran", .sliderStep(0)), ("survol-ligne", .hoverRow),
-            ("survol-carte", .hoverCard), ("survol-bouton", .hoverButton),
+            ("start", .start), ("stop", .stop), ("cancel", .cancel), ("meeting-on", .meetingOn),
+            ("meeting-off", .meetingOff), ("ready", .ready), ("window", .windowOpen), ("page-0", .page(0)),
+            ("page-3", .page(3)), ("click", .click), ("refuse", .refuse), ("toggle-on", .toggleOn),
+            ("toggle-off", .toggleOff), ("tab", .tab), ("slider-step", .sliderStep(0)), ("hover-row", .hoverRow),
+            ("hover-card", .hoverCard), ("hover-button", .hoverButton),
         ]
         for (name, kind) in kinds {
             let (left, right) = render(kind, exact: true)
@@ -454,7 +454,7 @@ enum Sounds {
 /// The recording sound packs, selectable in settings. A pack replaces all or some
 /// of the recording sounds; the others stay synthesized.
 enum SoundPack: String, CaseIterable, Identifiable {
-    case pluck, bips, clics, melodie, glisse, bois
+    case pluck, beeps, clicks, melody, glide, wood
 
     static let standard = SoundPack.pluck
 
@@ -463,11 +463,11 @@ enum SoundPack: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .pluck: return "Pluck"
-        case .bips: return tr("Beeps")
-        case .clics: return tr("Clicks")
-        case .melodie: return tr("Melody")
-        case .glisse: return tr("Glide")
-        case .bois: return tr("Wood (synthesized)")
+        case .beeps: return tr("Beeps")
+        case .clicks: return tr("Clicks")
+        case .melody: return tr("Melody")
+        case .glide: return tr("Glide")
+        case .wood: return tr("Wood (synthesized)")
         }
     }
 
@@ -483,16 +483,16 @@ enum SoundPack: String, CaseIterable, Identifiable {
         case (.pluck, .meetingOn): return Sample(name: "pluck", offset: 2.38, gain: 0.22, length: 0.4, lowCut: 120)
         case (.pluck, .ready): return Sample(name: "pluck", offset: 4.43, gain: 0.25, length: 0.5, lowCut: 120)
         // Two beeps: one rises (at the start), the other falls (around 1.5 s).
-        case (.bips, .start): return Sample(name: "bip", gain: 0.35, length: 0.26, lowCut: 150, highCut: 3500, semitones: -3)
-        case (.bips, .stop):
-            return Sample(name: "bip", offset: 1.5, gain: 0.35, length: 0.26, lowCut: 150, highCut: 3500, semitones: -3)
+        case (.beeps, .start): return Sample(name: "beep", gain: 0.35, length: 0.26, lowCut: 150, highCut: 3500, semitones: -3)
+        case (.beeps, .stop):
+            return Sample(name: "beep", offset: 1.5, gain: 0.35, length: 0.26, lowCut: 150, highCut: 3500, semitones: -3)
         // Two clicks: "on" at the start, "off" around 1.07 s.
-        case (.clics, .start): return Sample(name: "clic", gain: 0.35, length: 0.08, lowCut: 120)
-        case (.clics, .stop): return Sample(name: "clic", offset: 1.07, gain: 0.35, length: 0.08, lowCut: 120)
-        case (.melodie, .start): return Sample(name: "melodie-debut", gain: 0.45, length: 0.32, lowCut: 500)
-        case (.melodie, .stop): return Sample(name: "melodie-fin", gain: 1.0, length: 0.50, lowCut: 500)
-        case (.glisse, .start): return Sample(name: "glisse-debut", gain: 0.5, length: 0.3, lowCut: 200)
-        case (.glisse, .stop): return Sample(name: "glisse-fin", offset: 0.03, gain: 0.45, length: 0.32, lowCut: 200)
+        case (.clicks, .start): return Sample(name: "click", gain: 0.35, length: 0.08, lowCut: 120)
+        case (.clicks, .stop): return Sample(name: "click", offset: 1.07, gain: 0.35, length: 0.08, lowCut: 120)
+        case (.melody, .start): return Sample(name: "melody-start", gain: 0.45, length: 0.32, lowCut: 500)
+        case (.melody, .stop): return Sample(name: "melody-end", gain: 1.0, length: 0.50, lowCut: 500)
+        case (.glide, .start): return Sample(name: "glide-start", gain: 0.5, length: 0.3, lowCut: 200)
+        case (.glide, .stop): return Sample(name: "glide-end", offset: 0.03, gain: 0.45, length: 0.32, lowCut: 200)
         default: return nil
         }
     }

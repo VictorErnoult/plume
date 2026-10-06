@@ -1016,9 +1016,9 @@ struct SettingsPage: View {
             }
             SettingRow(tr("Appearance")) {
                 Picker("", selection: $settings.appearance) {
-                    Text(tr("Dark")).tag("sombre")
-                    Text(tr("Light")).tag("clair")
-                    Text(tr("Match system")).tag("systeme")
+                    Text(tr("Dark")).tag("dark")
+                    Text(tr("Light")).tag("light")
+                    Text(tr("Match system")).tag("system")
                 }
                 .labelsHidden()
                 .frame(width: 190)

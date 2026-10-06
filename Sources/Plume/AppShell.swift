@@ -126,7 +126,7 @@ private struct Dock: View {
                 key: "T", slide: scheme == .dark ? -1 : 1, namespace: selection
             ) {
                 Sounds.play(.tab)
-                settings.appearance = scheme == .dark ? "clair" : "sombre"
+                settings.appearance = scheme == .dark ? "light" : "dark"
             }
             DockItem(
                 glyph: settings.sounds ? .speakerOn : .speakerOff, label: settings.sounds ? tr("Mute") : tr("Unmute"),
