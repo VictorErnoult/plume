@@ -78,6 +78,10 @@ Ce qu'on teste :
   version pas encore publiée (sans tag `v<version>`) se supprime et se régénère. Un champ ou un
   réglage retiré exprès s'inscrit dans `removedOnPurpose` (`SavedFormatTests`), avec sa ligne
   de `CHANGELOG.md`.
+- Ligne de commande (`--json`), outils du serveur MCP, `index.jsonl` et `dernier.md` : des
+  scripts et des IA les lisent. Ajouter une clé ou un outil, oui ; en renommer ou en retirer un
+  les casse : à noter dans `CHANGELOG.md` et `docs/GUIDE.md`, et à refléter dans les tests
+  (`CommandLineTests`, `MCPServerTests` ; le binaire ne se lance que par `PlumeBinary.run`).
 
 Pour que les tests restent sûrs et fiables :
 - Jamais les vraies données. Dans un test : des dossiers temporaires ; pas de
