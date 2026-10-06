@@ -277,14 +277,22 @@ public enum VoiceprintStore {
     public static var url: URL { PlumeSettings.supportDirectory.appendingPathComponent("empreinte-vocale.json") }
 
     public static func load() -> Voiceprint? {
+        read(from: url)
+    }
+
+    public static func save(_ voiceprint: Voiceprint) {
+        try? write(voiceprint, to: url)
+    }
+
+    /// Un fichier d'empreinte, `nil` s'il manque ou ne se lit pas.
+    public static func read(from url: URL) -> Voiceprint? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(Voiceprint.self, from: data)
     }
 
-    public static func save(_ voiceprint: Voiceprint) {
-        try? FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? JSONEncoder().encode(voiceprint).write(to: url, options: .atomic)
+    public static func write(_ voiceprint: Voiceprint, to url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(voiceprint).write(to: url, options: .atomic)
     }
 
     /// Apprend la voix du propriétaire à partir d'une dictée : par construction, c'est lui qui parle.

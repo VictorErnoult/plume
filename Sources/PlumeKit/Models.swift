@@ -34,7 +34,7 @@ public enum RecordingMode: String, Codable, Sendable, CaseIterable {
     }
 }
 
-public enum AudioChannel: String, Codable, Sendable {
+public enum AudioChannel: String, Codable, Sendable, CaseIterable {
     case mic
     case system
 }

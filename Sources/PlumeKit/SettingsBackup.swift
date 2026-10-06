@@ -56,10 +56,14 @@ public enum SettingsBackup {
     }
 
     public static func export(to url: URL, settings: PlumeSettings = .shared) throws {
+        try write(snapshot(settings: settings), to: url)
+    }
+
+    public static func write(_ file: File, to url: URL) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(snapshot(settings: settings)).write(to: url, options: .atomic)
+        try encoder.encode(file).write(to: url, options: .atomic)
     }
 
     public static func restore(_ file: File, settings: PlumeSettings = .shared) {
@@ -83,8 +87,12 @@ public enum SettingsBackup {
     }
 
     public static func `import`(from url: URL, settings: PlumeSettings = .shared) throws {
+        restore(try read(from: url), settings: settings)
+    }
+
+    public static func read(from url: URL) throws -> File {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        restore(try decoder.decode(File.self, from: Data(contentsOf: url)), settings: settings)
+        return try decoder.decode(File.self, from: Data(contentsOf: url))
     }
 }

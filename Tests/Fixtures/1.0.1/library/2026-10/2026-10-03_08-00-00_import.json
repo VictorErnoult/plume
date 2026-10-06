@@ -1,0 +1,19 @@
+{
+  "audioFiles" : [
+
+  ],
+  "createdAt" : "2026-10-03T06:00:00Z",
+  "device" : "mac",
+  "duration" : 62,
+  "engine" : "parakeet-v3",
+  "id" : "2026-10-03_08-00-00",
+  "mode" : "imported",
+  "rawText" : "message vocal rappelle-moi demain",
+  "segments" : [
+
+  ],
+  "speakers" : [
+
+  ],
+  "text" : "Message vocal : rappelle-moi demain."
+}

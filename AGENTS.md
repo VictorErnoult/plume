@@ -68,12 +68,22 @@ Ce qu'on teste :
   (`@testable import Plume`). Quand un changement de comportement touche une logique de l'app
   qui s'isole en une fonction sans déplacer le reste, on l'isole avec son test ; sinon, on ne
   force pas.
+- Fichiers enregistrés (transcriptions, annulés, vocabulaire, règles, empreinte vocale,
+  sauvegarde des réglages) : un fichier écrit par une version publiée doit se relire sans rien
+  perdre. Un nouveau champ est optionnel (`T?`), ou lu par `decodeIfPresent(…) ?? valeur` dans
+  un `init(from:)` écrit à la main, comme `AppRule` ; une valeur par défaut sur la propriété ne
+  suffit pas. Ne jamais retoucher un échantillon de `Tests/Fixtures/` : un changement de format
+  ajoute le dossier de la version qui le publie
+  (`FIXTURES_VERSION=<version> ./scripts/test.sh --filter FixtureGenerator`) ; celui d'une
+  version pas encore publiée (sans tag `v<version>`) se supprime et se régénère. Un champ ou un
+  réglage retiré exprès s'inscrit dans `removedOnPurpose` (`SavedFormatTests`), avec sa ligne
+  de `CHANGELOG.md`.
 
 Pour que les tests restent sûrs et fiables :
 - Jamais les vraies données. Dans un test : des dossiers temporaires ; pas de
-  `PlumeSettings.shared`, ni directement, ni par un paramètre `settings:` laissé à sa valeur
-  par défaut, ni par `SettingsModel` ; pas de `load`/`save` de `ReplacementStore`,
-  `AppRuleStore` ou `VoiceprintStore` (leurs fonctions pures restent permises) ;
+  `PlumeSettings.shared`, ni directement, ni par un paramètre `settings:` laissé à sa valeur par
+  défaut, ni par `SettingsModel` ; pas de `load`/`save` de `ReplacementStore`, `AppRuleStore` ou
+  `VoiceprintStore` (leurs fonctions pures et `read(from:)`/`write(_:to:)` restent permises) ;
   `replacements:` toujours explicite avec `Pipeline.format` ; pas de `TranscriptStore.delete`
   (vraie corbeille).
 - Pas le presse-papiers général (un presse-papiers nommé, libéré à la fin), pas d'événement

@@ -17,9 +17,7 @@ public enum ReplacementStore {
     public static var url: URL { PlumeSettings.supportDirectory.appendingPathComponent("remplacements.json") }
 
     public static func load() -> [Replacement] {
-        if let data = try? Data(contentsOf: url),
-            let items = try? JSONDecoder().decode([Replacement].self, from: data)
-        {
+        if let items = read(from: url) {
             return items
         }
         // Premier lancement : on reprend les remplacements déjà réglés dans Superwhisper.
@@ -29,11 +27,21 @@ public enum ReplacementStore {
     }
 
     public static func save(_ items: [Replacement]) {
-        try? FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? write(items, to: url)
+    }
+
+    /// Un fichier de vocabulaire, `nil` s'il manque ou ne se lit pas. Les tests y lisent les
+    /// échantillons des versions publiées sans passer par le vrai dossier.
+    public static func read(from url: URL) -> [Replacement]? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode([Replacement].self, from: data)
+    }
+
+    public static func write(_ items: [Replacement], to url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
-        try? encoder.encode(items).write(to: url, options: .atomic)
+        try encoder.encode(items).write(to: url, options: .atomic)
     }
 
     static func importFromSuperwhisper() -> [Replacement] {
