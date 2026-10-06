@@ -13,9 +13,9 @@ public enum ExportFormat: String, CaseIterable, Sendable, Identifiable {
     public var label: String {
         switch self {
         case .markdown: return "Markdown"
-        case .text: return tr("Texte brut")
-        case .subtitles: return tr("Sous-titres SRT")
-        case .webSubtitles: return tr("Sous-titres WebVTT")
+        case .text: return tr("Plain text")
+        case .subtitles: return tr("SRT subtitles")
+        case .webSubtitles: return tr("WebVTT subtitles")
         case .json: return "JSON"
         }
     }

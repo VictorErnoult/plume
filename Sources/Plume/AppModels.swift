@@ -12,11 +12,11 @@ enum Page: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .home: return tr("Accueil")
-        case .history: return tr("Historique")
-        case .vocabulary: return tr("Vocabulaire")
+        case .home: return tr("Home")
+        case .history: return tr("History")
+        case .vocabulary: return tr("Vocabulary")
         case .apps: return tr("Applications")
-        case .settings: return tr("Réglages")
+        case .settings: return tr("Settings")
         }
     }
 
@@ -114,8 +114,8 @@ final class AppModel: ObservableObject {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.audio, .movie]
-        panel.prompt = tr("Transcrire")
-        panel.message = tr("Choisis un ou plusieurs fichiers audio à transcrire.")
+        panel.prompt = tr("Transcribe")
+        panel.message = tr("Choose one or more audio files to transcribe.")
         if panel.runModal() == .OK { importFiles(panel.urls) }
     }
 }
@@ -133,11 +133,11 @@ enum HistoryFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: return tr("Tout")
-        case .dictation: return tr("Dictées")
-        case .meeting: return tr("Réunions")
+        case .all: return tr("All")
+        case .dictation: return tr("Dictations")
+        case .meeting: return tr("Meetings")
         case .imported: return tr("Imports")
-        case .cancelled: return tr("Annulés")
+        case .cancelled: return tr("Cancelled")
         }
     }
 
@@ -307,7 +307,7 @@ final class LibraryModel: ObservableObject {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = Exporter.fileName(for: transcript, format: format)
         panel.canCreateDirectories = true
-        panel.prompt = tr("Exporter")
+        panel.prompt = tr("Export")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         try? Exporter.render(transcript, as: format).write(to: url, atomically: true, encoding: .utf8)
     }
@@ -356,8 +356,8 @@ final class LibraryModel: ObservableObject {
 
     static func dayTitle(_ day: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(day) { return tr("Aujourd'hui") }
-        if calendar.isDateInYesterday(day) { return tr("Hier") }
+        if calendar.isDateInToday(day) { return tr("Today") }
+        if calendar.isDateInYesterday(day) { return tr("Yesterday") }
         let text = dayFormatter.string(from: day)
         return text.prefix(1).uppercased() + text.dropFirst()
     }
@@ -583,9 +583,9 @@ final class SettingsModel: ObservableObject {
 
         var label: String {
             switch self {
-            case .textAndAudio: return tr("Le texte et l'audio")
-            case .textOnly: return tr("Le texte seulement")
-            case .nothing: return tr("Rien")
+            case .textAndAudio: return tr("Text and audio")
+            case .textOnly: return tr("Text only")
+            case .nothing: return tr("Nothing")
             }
         }
     }
@@ -605,8 +605,8 @@ final class SettingsModel: ObservableObject {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.prompt = tr("Utiliser ce modèle")
-        panel.message = tr("Choisis le dossier qui contient Preprocessor, Encoder, Decoder, JointDecision (.mlmodelc) et parakeet_vocab.json.")
+        panel.prompt = tr("Use this model")
+        panel.message = tr("Choose the folder that contains Preprocessor, Encoder, Decoder, JointDecision (.mlmodelc) and parakeet_vocab.json.")
         if let current = settings.customModelURL { panel.directoryURL = current }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let missing = SpeechEngine.missingCustomFiles(in: url)
@@ -667,7 +667,7 @@ final class SettingsModel: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.prompt = tr("Choisir")
+        panel.prompt = tr("Choose")
         panel.directoryURL = settings.libraryURL
         if panel.runModal() == .OK, let url = panel.url {
             settings.libraryURL = url
@@ -693,8 +693,8 @@ final class SettingsModel: ObservableObject {
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.prompt = tr("Ajouter")
-        panel.message = tr("Choisis les applications qui ont leur propre réglage de dictée.")
+        panel.prompt = tr("Add")
+        panel.message = tr("Choose the applications that get their own dictation rule.")
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {
             guard let bundle = Bundle(url: url), let id = bundle.bundleIdentifier, !rules.contains(where: { $0.bundleID == id })
@@ -707,7 +707,7 @@ final class SettingsModel: ObservableObject {
     /// La règle « toutes les autres applications », créée au besoin.
     func addDefaultRule() {
         guard !rules.contains(where: { $0.bundleID == "*" }) else { return }
-        rules.append(AppRule(bundleID: "*", name: tr("Toutes les autres applications")))
+        rules.append(AppRule(bundleID: "*", name: tr("All other applications")))
     }
 
     /// Les messageries ont tout de suite le style « message ».
@@ -729,8 +729,8 @@ final class SettingsModel: ObservableObject {
     /// pour les retrouver sur un autre Mac.
     func exportSettings() {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = tr("Réglages Plume.json")
-        panel.prompt = tr("Enregistrer")
+        panel.nameFieldStringValue = tr("Plume Settings.json")
+        panel.prompt = tr("Record")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try SettingsBackup.export(to: url)
@@ -743,7 +743,7 @@ final class SettingsModel: ObservableObject {
     func importSettings() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
-        panel.prompt = tr("Importer")
+        panel.prompt = tr("Import file")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try SettingsBackup.import(from: url)
@@ -825,9 +825,9 @@ final class SettingsModel: ObservableObject {
     func connectClaudeDesktop() {
         do {
             try Integrations.connectClaudeDesktop()
-            integrationMessage = tr("Claude Desktop verra Plume à son prochain lancement.")
+            integrationMessage = tr("Claude Desktop will see Plume the next time it launches.")
         } catch {
-            integrationMessage = tr("La configuration de Claude Desktop n'a pas pu être modifiée.")
+            integrationMessage = tr("Claude Desktop's configuration could not be changed.")
         }
         refreshIntegrations()
     }

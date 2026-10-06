@@ -267,12 +267,12 @@ enum DemoLibrary {
         let meetingStart = calendar.date(byAdding: .minute, value: 11 * 60 + 30, to: today)!
         let lines: [(String, AudioChannel, String)] = [
             ("Inès", .system, "Bon, on fait le point sur le lancement de la nouvelle version ?"),
-            (tr("Moi"), .mic, "Oui. La page est prête, il reste les captures et le texte de l'annonce."),
+            (tr("Me"), .mic, "Oui. La page est prête, il reste les captures et le texte de l'annonce."),
             ("Thomas", .system, "Je peux m'occuper des captures cet après-midi, il me faut juste la dernière version."),
-            (tr("Moi"), .mic, "Parfait, je te l'envoie après la réunion."),
+            (tr("Me"), .mic, "Parfait, je te l'envoie après la réunion."),
             ("Inès", .system, "Pour l'annonce, on vise jeudi matin ? C'est là qu'on a le plus d'ouvertures."),
             ("Thomas", .system, "Jeudi ça me va. On prévoit aussi un message pour les anciens utilisateurs ?"),
-            (tr("Moi"), .mic, "Bonne idée, un mail court avec les trois nouveautés principales et un lien vers la page."),
+            (tr("Me"), .mic, "Bonne idée, un mail court avec les trois nouveautés principales et un lien vers la page."),
             ("Inès", .system, "Je le rédige demain et je vous le partage avant midi."),
         ]
         var segments: [Segment] = []
@@ -285,7 +285,7 @@ enum DemoLibrary {
         try? store.save(
             Transcript(
                 id: store.makeID(for: meetingStart), createdAt: meetingStart, mode: .meeting, duration: 1_472, engine: "demo",
-                text: TranscriptBuilder.text(for: segments), rawText: "", segments: segments, speakers: [tr("Moi"), "Inès", "Thomas"],
+                text: TranscriptBuilder.text(for: segments), rawText: "", segments: segments, speakers: [tr("Me"), "Inès", "Thomas"],
                 title: "Lancement de la nouvelle version",
                 summary: """
                     ## Points clés
@@ -299,7 +299,7 @@ enum DemoLibrary {
 
                     ## Actions
                     - **Thomas** : les captures, cet après-midi.
-                    - **\(tr("Moi"))** : envoyer la dernière version à Thomas après la réunion.
+                    - **\(tr("Me"))** : envoyer la dernière version à Thomas après la réunion.
                     - **Inès** : rédiger le mail demain et le partager avant midi.
                     """))
         for (minutes, text, app) in recent {

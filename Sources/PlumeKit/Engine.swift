@@ -27,14 +27,14 @@ public enum EngineModel: String, CaseIterable, Codable, Sendable {
 
     public var label: String {
         switch self {
-        case .parakeetUltra: return tr("Parakeet Ultra (recommandé)")
+        case .parakeetUltra: return tr("Parakeet Ultra (recommended)")
         case .parakeetV3: return tr("Parakeet TDT v3")
         case .parakeetRedux: return tr("Parakeet Redux (compact)")
-        case .parakeetV2: return tr("Parakeet TDT v2 (anglais)")
-        case .phonon2: return tr("Phonon-2 (anglais, compact)")
-        case .parakeetTdtCtc110m: return tr("Parakeet TDT-CTC 110M (anglais, rapide)")
-        case .parakeetJa: return tr("Parakeet japonais")
-        case .custom: return tr("Dossier personnalisé…")
+        case .parakeetV2: return tr("Parakeet TDT v2 (English)")
+        case .phonon2: return tr("Phonon-2 (English, compact)")
+        case .parakeetTdtCtc110m: return tr("Parakeet TDT-CTC 110M (English, fast)")
+        case .parakeetJa: return tr("Parakeet Japanese")
+        case .custom: return tr("Custom folder…")
         }
     }
 
@@ -42,21 +42,21 @@ public enum EngineModel: String, CaseIterable, Codable, Sendable {
     public var detail: String {
         switch self {
         case .parakeetUltra:
-            return tr("25 langues européennes dont le français · 600 Mo · le plus précis (FLEURS fr ≈ 4,3 % d'erreur), ~150× le temps réel.")
+            return tr("25 European languages · 600 MB · the most accurate (FLEURS fr ≈ 4.3% error), ~150× real time.")
         case .parakeetV3:
-            return tr("25 langues européennes · 600 Mo · le modèle NVIDIA d'origine, un peu moins précis qu'Ultra à la même vitesse.")
+            return tr("25 European languages · 600 MB · NVIDIA's original model, slightly less accurate than Ultra at the same speed.")
         case .parakeetRedux:
-            return tr("25 langues européennes · 220 Mo · encodeur 2 bits : trois fois plus petit, un peu moins précis en anglais, meilleur que v3 ailleurs. Première compilation de plusieurs minutes.")
+            return tr("25 European languages · 220 MB · 2-bit encoder: three times smaller, slightly less accurate in English, better than v3 elsewhere. First compile takes a few minutes.")
         case .parakeetV2:
-            return tr("Anglais seulement · 600 Mo · le plus précis en anglais (LibriSpeech 2,1 % d'erreur).")
+            return tr("English only · 600 MB · the most accurate in English (LibriSpeech 2.1% error).")
         case .phonon2:
-            return tr("Anglais seulement · très compact · ré-entraînement de v3 par Fermion Research.")
+            return tr("English only · very compact · a retraining of v3 by Fermion Research.")
         case .parakeetTdtCtc110m:
-            return tr("Anglais seulement · 110 M de paramètres · le plus rapide et le plus léger en mémoire.")
+            return tr("English only · 110M parameters · the fastest and lightest in memory.")
         case .parakeetJa:
-            return tr("Japonais seulement · 600 Mo.")
+            return tr("Japanese only · 600 MB.")
         case .custom:
-            return tr("Un dossier contenant Preprocessor, Encoder, Decoder et JointDecision (.mlmodelc) et parakeet_vocab.json, par exemple un Parakeet ré-entraîné et converti avec FluidAudio. Jamais téléchargé, jamais mis à jour.")
+            return tr("A folder containing Preprocessor, Encoder, Decoder and JointDecision (.mlmodelc) and parakeet_vocab.json, for example a Parakeet retrained and converted with FluidAudio. Never downloaded, never updated.")
         }
     }
 
@@ -117,8 +117,8 @@ public enum EngineError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .notReady: return tr("Le modèle de transcription n'est pas encore chargé.")
-        case .noCustomModel: return tr("Aucun dossier de modèle personnalisé n'est choisi (Réglages › Modèle).")
+        case .notReady: return tr("The transcription model is not loaded yet.")
+        case .noCustomModel: return tr("No custom model folder is chosen (Settings › Model).")
         case .incompleteCustomModel(let name): return "Le dossier du modèle ne contient pas \(name)."
         }
     }

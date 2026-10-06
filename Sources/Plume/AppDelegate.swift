@@ -179,7 +179,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             button.target = self
             button.action = #selector(statusClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            button.toolTip = tr("Plume — clic : ouvrir · clic droit : menu")
+            button.toolTip = tr("Plume — click: open · right-click: menu")
         }
         updateStatusIcon()
     }
@@ -204,19 +204,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let menu = NSMenu()
         let recording = session.phase == .recording
         menu.addItem(
-            item(recording ? tr("Terminer l'enregistrement") : tr("Dicter"), #selector(toggleDictation),
+            item(recording ? tr("Finish recording") : tr("Dictate"), #selector(toggleDictation),
                 hint: HotkeyManager.describe(settings.dictationShortcut)))
         if recording {
-            menu.addItem(item(session.paused ? tr("Reprendre") : tr("Mettre en pause"), #selector(togglePause)))
-            menu.addItem(item(tr("Annuler"), #selector(cancelRecording), hint: HotkeyManager.describe(settings.cancelShortcut)))
+            menu.addItem(item(session.paused ? tr("Resume") : tr("Pause"), #selector(togglePause)))
+            menu.addItem(item(tr("Cancel"), #selector(cancelRecording), hint: HotkeyManager.describe(settings.cancelShortcut)))
         } else {
-            menu.addItem(item(tr("Enregistrer une réunion"), #selector(toggleMeeting)))
+            menu.addItem(item(tr("Record a meeting"), #selector(toggleMeeting)))
             menu.addItem(
-                item(tr("Recoller la dernière dictée"), #selector(pasteLast), hint: HotkeyManager.describe(settings.pasteLastShortcut)))
+                item(tr("Paste the last dictation again"), #selector(pasteLast), hint: HotkeyManager.describe(settings.pasteLastShortcut)))
             if !settings.cancelled.list().isEmpty {
                 menu.addItem(
                     item(
-                        tr("Récupérer le dernier enregistrement annulé"), #selector(restoreCancelled),
+                        tr("Restore the last cancelled recording"), #selector(restoreCancelled),
                         hint: HotkeyManager.describe(settings.restoreShortcut)))
             }
             // Les dernières dictées, à recopier d'un clic.
@@ -229,17 +229,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     entry.representedObject = transcript.text
                     submenu.addItem(entry)
                 }
-                let parent = NSMenuItem(title: tr("Copier une dictée récente"), action: nil, keyEquivalent: "")
+                let parent = NSMenuItem(title: tr("Copy a recent dictation"), action: nil, keyEquivalent: "")
                 parent.submenu = submenu
                 menu.addItem(parent)
             }
         }
         menu.addItem(.separator())
-        menu.addItem(item(tr("Ouvrir Plume"), #selector(openWindow)))
+        menu.addItem(item(tr("Open Plume"), #selector(openWindow)))
         if Updates.shared.isAvailable {
-            menu.addItem(item(tr("Rechercher une mise à jour…"), #selector(checkForUpdates)))
+            menu.addItem(item(tr("Check for updates…"), #selector(checkForUpdates)))
         }
-        menu.addItem(item(tr("Quitter Plume"), #selector(quit), key: "q"))
+        menu.addItem(item(tr("Quit Plume"), #selector(quit), key: "q"))
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
@@ -248,7 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func item(_ title: String, _ action: Selector, key: String = "", hint: String? = nil) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.target = self
-        if let hint, hint != tr("Aucun") {
+        if let hint, hint != tr("None") {
             let text = NSMutableAttributedString(string: title)
             text.append(
                 NSAttributedString(
@@ -352,28 +352,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let appItem = NSMenuItem()
         appItem.submenu = NSMenu(title: tr("Plume"))
         appItem.submenu?.addItem(
-            NSMenuItem(title: tr("Masquer Plume"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
+            NSMenuItem(title: tr("Hide Plume"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
         appItem.submenu?.addItem(.separator())
         appItem.submenu?.addItem(
-            NSMenuItem(title: tr("Quitter Plume"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+            NSMenuItem(title: tr("Quit Plume"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         main.addItem(appItem)
 
         let edit = NSMenuItem()
-        edit.submenu = NSMenu(title: tr("Édition"))
-        edit.submenu?.addItem(NSMenuItem(title: tr("Annuler"), action: Selector(("undo:")), keyEquivalent: "z"))
-        edit.submenu?.addItem(NSMenuItem(title: tr("Couper"), action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
-        edit.submenu?.addItem(NSMenuItem(title: tr("Copier"), action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
-        edit.submenu?.addItem(NSMenuItem(title: tr("Coller"), action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+        edit.submenu = NSMenu(title: tr("Edit"))
+        edit.submenu?.addItem(NSMenuItem(title: tr("Cancel"), action: Selector(("undo:")), keyEquivalent: "z"))
+        edit.submenu?.addItem(NSMenuItem(title: tr("Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+        edit.submenu?.addItem(NSMenuItem(title: tr("Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+        edit.submenu?.addItem(NSMenuItem(title: tr("Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
         edit.submenu?.addItem(
-            NSMenuItem(title: tr("Tout sélectionner"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+            NSMenuItem(title: tr("Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
         main.addItem(edit)
 
         let windowItem = NSMenuItem()
-        windowItem.submenu = NSMenu(title: tr("Fenêtre"))
+        windowItem.submenu = NSMenu(title: tr("Window"))
         windowItem.submenu?.addItem(
-            NSMenuItem(title: tr("Fermer"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
+            NSMenuItem(title: tr("Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
         windowItem.submenu?.addItem(
-            NSMenuItem(title: tr("Réduire"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
+            NSMenuItem(title: tr("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
         main.addItem(windowItem)
 
         NSApp.mainMenu = main

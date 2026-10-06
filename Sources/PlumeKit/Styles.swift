@@ -14,15 +14,15 @@ public enum DictationStyle: String, Codable, Sendable, CaseIterable {
         switch self {
         case .standard: return tr("Standard")
         case .message: return tr("Message")
-        case .casual: return tr("Décontracté")
+        case .casual: return tr("Casual")
         }
     }
 
     public var detail: String {
         switch self {
-        case .standard: return tr("Majuscules et ponctuation complètes.")
-        case .message: return tr("Sans point final, comme on écrit sur Slack ou Messages.")
-        case .casual: return tr("Sans majuscule en début de phrase ni point final.")
+        case .standard: return tr("Full capitals and punctuation.")
+        case .message: return tr("No final period, the way you write on Slack or Messages.")
+        case .casual: return tr("No capital at the start of a sentence, no final period.")
         }
     }
 }

@@ -122,14 +122,14 @@ private struct Dock: View {
             Rectangle().fill(UI.active).frame(width: 1, height: 18).padding(.horizontal, 7)
             // Le soleil entre et sort par la gauche, la lune par la droite, comme sur le portfolio.
             DockItem(
-                glyph: scheme == .dark ? .sun : .moon, label: scheme == .dark ? tr("Thème clair") : tr("Thème sombre"),
+                glyph: scheme == .dark ? .sun : .moon, label: scheme == .dark ? tr("Light theme") : tr("Dark theme"),
                 key: "T", slide: scheme == .dark ? -1 : 1, namespace: selection
             ) {
                 Sounds.play(.tab)
                 settings.appearance = scheme == .dark ? "clair" : "sombre"
             }
             DockItem(
-                glyph: settings.sounds ? .speakerOn : .speakerOff, label: settings.sounds ? tr("Couper le son") : tr("Activer le son"),
+                glyph: settings.sounds ? .speakerOn : .speakerOff, label: settings.sounds ? tr("Mute") : tr("Unmute"),
                 key: "S", namespace: selection
             ) {
                 settings.sounds.toggle()
@@ -278,7 +278,7 @@ private struct ChangelogButton: View {
             }
             .buttonStyle(PressStyle())
             .onHover { hovering = $0 }
-            .help(tr("Nouveautés"))
+            .help(tr("What's new"))
             .animation(UI.quick, value: hovering)
             .animation(UI.spring, value: unseen)
             .popover(isPresented: $open, arrowEdge: .bottom) { ChangelogView(releases: releases) }
@@ -293,12 +293,12 @@ struct ChangelogView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(tr("Nouveautés")).font(UI.sans(18, .medium)).tracking(-0.3)
+                Text(tr("What's new")).font(UI.sans(18, .medium)).tracking(-0.3)
                 ForEach(releases) { release in
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text("Plume \(release.version)").font(UI.sans(14, .semibold))
-                            Text(release.date.map(ChangelogFile.format) ?? tr("en cours"))
+                            Text(release.date.map(ChangelogFile.format) ?? tr("in progress"))
                                 .font(UI.sans(12))
                                 .foregroundStyle(UI.text3)
                         }
@@ -355,7 +355,7 @@ private struct UpdatePill: View {
             Button(action: { updates.check() }) {
                 HStack(spacing: 6) {
                     Icon(.download, size: 12)
-                    Text("Plume \(version) " + tr("est disponible")).font(UI.sans(12, .medium))
+                    Text("Plume \(version) " + tr("is available")).font(UI.sans(12, .medium))
                 }
                 .foregroundStyle(UI.onText)
                 .padding(.horizontal, 9)
@@ -379,11 +379,11 @@ private struct ModelCard: View {
         switch session.modelStatus {
         case .loading(let fraction?) where fraction < 1:
             return (
-                tr("Téléchargement du modèle de transcription"),
-                tr("Une seule fois, environ 600 Mo. Ensuite tout se passe sur ce Mac, sans connexion."), fraction, false
+                tr("Downloading the transcription model"),
+                tr("Just once, about 600 MB. After that everything happens on this Mac, offline."), fraction, false
             )
         case .failed(let reason):
-            return (tr("Le modèle de transcription n'a pas pu être chargé"), reason, nil, true)
+            return (tr("The transcription model could not be loaded"), reason, nil, true)
         default:
             return nil
         }
@@ -402,7 +402,7 @@ private struct ModelCard: View {
                         if let fraction = state.fraction {
                             Text("\(Int(fraction * 100)) %").font(UI.mono(13)).foregroundStyle(UI.text2)
                         } else if state.failed {
-                            PlumeButton(title: tr("Réessayer"), kind: .primary) { session.loadModel() }
+                            PlumeButton(title: tr("Retry"), kind: .primary) { session.loadModel() }
                         }
                     }
                     if let fraction = state.fraction {
@@ -429,14 +429,14 @@ private struct StatusPill: View {
 
     private var state: (color: Color, text: String, ready: Bool) {
         switch session.phase {
-        case .recording: return (Theme.recording, session.mode == .meeting ? tr("Réunion en cours") : tr("Dictée en cours"), false)
-        case .processing: return (UI.text, tr("Transcription…"), false)
+        case .recording: return (Theme.recording, session.mode == .meeting ? tr("Recording a meeting") : tr("Dictating"), false)
+        case .processing: return (UI.text, tr("Transcribing…"), false)
         default:
             switch session.modelStatus {
-            case .loading(let fraction?) where fraction < 1: return (UI.text, tr("Modèle :") + " \(Int(fraction * 100)) %", false)
-            case .loading: return (UI.text, tr("Chargement du modèle…"), false)
-            case .failed: return (Theme.recording, tr("Modèle indisponible"), false)
-            case .ready: return (UI.success, tr("Prêt"), true)
+            case .loading(let fraction?) where fraction < 1: return (UI.text, tr("Model:") + " \(Int(fraction * 100)) %", false)
+            case .loading: return (UI.text, tr("Loading the model…"), false)
+            case .failed: return (Theme.recording, tr("Model unavailable"), false)
+            case .ready: return (UI.success, tr("Ready"), true)
             }
         }
     }
@@ -480,15 +480,15 @@ struct HomePage: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                PageHeader(title: firstName.isEmpty ? tr("Bonjour") : tr("Bonjour") + " \(firstName)") {
+                PageHeader(title: firstName.isEmpty ? tr("Hello") : tr("Hello") + " \(firstName)") {
                     HStack(spacing: 6) {
-                        Text(tr("Appuie sur"))
+                        Text(tr("Press"))
                         Keycaps(shortcut: HotkeyManager.describe(settings.dictationShortcut))
-                        Text(tr("pour dicter, le texte se colle là où est ton curseur."))
+                        Text(tr("to dictate; the text is pasted where your cursor is."))
                     }
                 } trailing: {
                     HStack(spacing: 8) {
-                        PlumeButton(title: tr("Transcrire un fichier"), icon: .download) { app.chooseFiles() }
+                        PlumeButton(title: tr("Transcribe a file"), icon: .download) { app.chooseFiles() }
                         // Sans raccourci : la fenêtre se range et la dictée démarre dans l'encoche.
                         DictateButton(session: session) { app.onStartFromWindow() }
                     }
@@ -505,12 +505,12 @@ struct HomePage: View {
                     TodayTile(stats: stats).rise(2)
                     StreakTile(stats: stats).rise(3)
                     StatTile(
-                        value: stats.timeSaved / 60, format: HomePage.span, label: tr("gagnés sur le clavier"),
-                        detail: "\(HomePage.number(Double(stats.words))) " + tr("mots au total")
+                        value: stats.timeSaved / 60, format: HomePage.span, label: tr("saved over typing"),
+                        detail: "\(HomePage.number(Double(stats.words))) " + tr("words in total")
                     ).rise(4)
                     StatTile(
                         value: Double(stats.wordsPerMinute), format: { $0 < 1 ? "—" : HomePage.number($0) },
-                        label: tr("mots par minute"), detail: tr("au clavier : 40")
+                        label: tr("words per minute"), detail: tr("typing: 40")
                     ).rise(5)
                 }
                 .fixedSize(horizontal: false, vertical: true)
@@ -520,8 +520,8 @@ struct HomePage: View {
                     Card {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(tr("Activité")).font(UI.sans(14, .medium))
-                                Text(tr("mots dictés par jour")).font(UI.sans(13)).foregroundStyle(UI.text2)
+                                Text(tr("Activity")).font(UI.sans(14, .medium))
+                                Text(tr("words dictated per day")).font(UI.sans(13)).foregroundStyle(UI.text2)
                             }
                             ActivityHeatmap(days: stats.days)
                         }
@@ -585,7 +585,7 @@ private struct DictateButton: View {
                         .monospacedDigit()
                 } else {
                     Icon(.mic, size: 14)
-                    Text(tr("Dicter")).font(UI.sans(13, .medium))
+                    Text(tr("Dictate")).font(UI.sans(13, .medium))
                 }
             }
             .foregroundStyle(recording ? Color.white : UI.onText)
@@ -604,7 +604,7 @@ private struct DictateButton: View {
         }
         .animation(UI.quick, value: hovering)
         .animation(UI.spring, value: recording)
-        .help(recording ? tr("Terminer la dictée") : tr("La fenêtre se range, l'encoche t'écoute ; le texte se colle là où était ton curseur."))
+        .help(recording ? tr("Finish the dictation") : tr("The window steps aside and the notch listens; the text is pasted where your cursor was."))
         .disabled(session.modelStatus != .ready && !recording)
     }
 }
@@ -617,17 +617,17 @@ private struct RecentCard: View {
         Card {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(tr("Dernières transcriptions")).font(UI.sans(14, .medium))
+                    Text(tr("Latest transcriptions")).font(UI.sans(14, .medium))
                     Spacer()
                     Button {
                         withAnimation(UI.spring) { app.page = .history }
                     } label: {
-                        Text(tr("Tout voir")).font(UI.sans(13)).foregroundStyle(UI.text2)
+                        Text(tr("See all")).font(UI.sans(13)).foregroundStyle(UI.text2)
                     }
                     .buttonStyle(PressStyle())
                 }
                 if app.recent.isEmpty {
-                    Text(tr("Rien pour l'instant : ta première dictée apparaîtra ici."))
+                    Text(tr("Nothing yet: your first dictation will show up here."))
                         .font(UI.sans(13))
                         .foregroundStyle(UI.text2)
                         .padding(.top, 6)
@@ -653,7 +653,7 @@ private struct RecentRow: View {
     /// « 42 mots · 18 s ».
     private var summary: String {
         let words = LibraryStats.wordCount(transcript.text)
-        return "\(HomePage.number(Double(words))) " + tr(words > 1 ? "mots" : "mot") + " · " + Format.duration(transcript.duration)
+        return "\(HomePage.number(Double(words))) " + tr(words > 1 ? "words" : "word") + " · " + Format.duration(transcript.duration)
     }
 
     private var when: String {
@@ -710,7 +710,7 @@ private struct RecentRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(PressStyle())
-            .help(tr("Copier le texte"))
+            .help(tr("Copy the text"))
         }
         .padding(.leading, 8)
         .padding(.trailing, 6)
@@ -798,8 +798,8 @@ private struct TodayTile: View {
         Tile {
             VStack(alignment: .leading, spacing: 4) {
                 TileFigure(value: shown, format: HomePage.number)
-                Text(tr("mots aujourd'hui")).font(UI.sans(13, .medium)).lineLimit(1)
-                Text(isRecord ? tr("Meilleure journée") : tr("record :") + " \(HomePage.number(Double(record)))")
+                Text(tr("words today")).font(UI.sans(13, .medium)).lineLimit(1)
+                Text(isRecord ? tr("Best day") : tr("record:") + " \(HomePage.number(Double(record)))")
                     .font(UI.sans(12))
                     .foregroundStyle(isRecord ? UI.text : UI.text2)
                     .lineLimit(1)
@@ -837,8 +837,8 @@ private struct StreakTile: View {
         Tile {
             VStack(alignment: .leading, spacing: 4) {
                 TileFigure(value: shown, format: HomePage.number)
-                Text(stats.streak > 1 ? tr("jours d'affilée") : tr("jour d'affilée")).font(UI.sans(13, .medium)).lineLimit(1)
-                Text(tr("record :") + " \(stats.bestStreak) " + tr(stats.bestStreak > 1 ? "jours" : "jour"))
+                Text(stats.streak > 1 ? tr("days in a row") : tr("day in a row")).font(UI.sans(13, .medium)).lineLimit(1)
+                Text(tr("record:") + " \(stats.bestStreak) " + tr(stats.bestStreak > 1 ? "days" : "day"))
                     .font(UI.sans(12))
                     .foregroundStyle(UI.text2)
                     .lineLimit(1)
@@ -943,16 +943,16 @@ private struct ActivityHeatmap: View {
                 if let hovered, let day = days.first(where: { $0.date == hovered }) {
                     Text(Self.dayFormatter.string(from: day.date).capitalizedFirst)
                         .foregroundStyle(UI.text)
-                    Text(day.words == 0 ? tr("rien dicté") : "\(HomePage.number(Double(day.words))) " + tr("mots"))
+                    Text(day.words == 0 ? tr("nothing dictated") : "\(HomePage.number(Double(day.words))) " + tr("words"))
                 } else {
-                    Text(tr("Survole une case pour voir le détail d'une journée."))
+                    Text(tr("Hover a cell to see a day's details."))
                 }
                 Spacer()
-                Text(tr("Moins"))
+                Text(tr("Less"))
                 ForEach(0..<4, id: \.self) { step in
                     RoundedRectangle(cornerRadius: 3, style: .continuous).fill(UI.activity[step]).frame(width: 11, height: 11)
                 }
-                Text(tr("Plus"))
+                Text(tr("More"))
             }
             .font(UI.sans(12))
             .foregroundStyle(UI.text2)
@@ -974,7 +974,7 @@ struct CopyButton: View {
 
     var body: some View {
         PlumeButton(
-            title: copied ? tr("Copié") : tr("Copier"), icon: copied ? .check : .copy,
+            title: copied ? tr("Copied") : tr("Copy"), icon: copied ? .check : .copy,
             kind: prominent ? .primary : .secondary, sound: .confirm
         ) {
             Paster.copy(text)
@@ -991,13 +991,13 @@ struct PermissionsCard: View {
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                Text(tr("Deux autorisations pour commencer")).font(UI.sans(14, .medium))
+                Text(tr("Two permissions to get started")).font(UI.sans(14, .medium))
                 PermissionRow(
-                    title: tr("Microphone"), detail: tr("Pour entendre ta voix."), granted: settings.microphoneGranted,
+                    title: tr("Microphone access"), detail: tr("To hear your voice."), granted: settings.microphoneGranted,
                     action: settings.requestMicrophone)
                 Rectangle().fill(UI.line).frame(height: 1)
                 PermissionRow(
-                    title: tr("Accessibilité"), detail: tr("Pour coller le texte dans le champ actif."),
+                    title: tr("Accessibility"), detail: tr("To paste the text into the active field."),
                     granted: settings.accessibilityGranted, action: settings.requestAccessibility)
             }
         }
@@ -1020,12 +1020,12 @@ struct PermissionRow: View {
             if granted {
                 HStack(spacing: 6) {
                     Icon(.circleCheck, size: 15)
-                    Text(tr("Accordée")).font(UI.sans(13, .medium))
+                    Text(tr("Granted")).font(UI.sans(13, .medium))
                 }
                 .foregroundStyle(UI.success)
                 .transition(.scale.combined(with: .opacity))
             } else {
-                PlumeButton(title: tr("Autoriser"), kind: .primary, action: action)
+                PlumeButton(title: tr("Allow"), kind: .primary, action: action)
             }
         }
         .animation(UI.spring, value: granted)

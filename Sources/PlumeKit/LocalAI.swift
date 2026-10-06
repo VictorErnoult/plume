@@ -28,8 +28,8 @@ public enum LocalAI {
         public var errorDescription: String? {
             switch self {
             case .unavailable(let reason): return reason
-            case .refused: return tr("L'IA locale n'a pas voulu traiter ce texte.")
-            case .empty: return tr("L'IA locale n'a rien répondu.")
+            case .refused: return tr("The local AI declined to process this text.")
+            case .empty: return tr("The local AI returned nothing.")
             }
         }
     }

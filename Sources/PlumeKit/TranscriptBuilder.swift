@@ -6,10 +6,10 @@ public enum TranscriptBuilder {
     public static let paragraphGap = 2.5
 
     /// Le propriétaire de l'appareil : « Moi », ou « Me » en anglais.
-    public static var meName: String { tr("Moi") }
+    public static var meName: String { tr("Me") }
 
     /// « Interlocuteur 1 », ou « Speaker 1 ».
-    public static func speakerName(_ index: Int) -> String { "\(tr("Interlocuteur")) \(index)" }
+    public static func speakerName(_ index: Int) -> String { "\(tr("Speaker")) \(index)" }
 
     /// Reconnaît le propriétaire quelle que soit la langue dans laquelle il a été nommé.
     public static func isMe(_ speaker: String) -> Bool { speaker == "Moi" || speaker == "Me" }

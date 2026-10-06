@@ -344,11 +344,11 @@ public final class TranscriptStore: @unchecked Sendable {
         if t.title != nil { lines.append("\(dateTitle(for: t))") }
         lines.append("")
         if let summary = t.summary?.trimmingCharacters(in: .whitespacesAndNewlines), !summary.isEmpty {
-            lines.append("## " + tr("Résumé"))
+            lines.append("## " + tr("Summary"))
             lines.append("")
             lines.append(summary)
             lines.append("")
-            lines.append("## " + tr("Transcription"))
+            lines.append("## " + tr("Transcript"))
             lines.append("")
         }
         lines.append(body(for: t))

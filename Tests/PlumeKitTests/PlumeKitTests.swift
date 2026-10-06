@@ -777,14 +777,19 @@ struct EngineModelTests {
 struct LocalizationTests {
     @Test func traduitEnAnglaisEtRevientAuFrançais() {
         L10n.$override.withValue(.english) {
-            #expect(tr("Historique") == "History")
-            #expect(tr("Chaîne inconnue de la table") == "Chaîne inconnue de la table")
+            #expect(tr("History") == "History")
+            #expect(tr("String missing from the table") == "String missing from the table")
             #expect(TranscriptBuilder.speakerName(1) == "Speaker 1")
             #expect(TranscriptBuilder.meName == "Me")
             #expect(RecordingMode.meeting.label == "Meeting")
         }
         L10n.$override.withValue(.french) {
-            #expect(tr("Historique") == "Historique")
+            #expect(tr("History") == "Historique")
+            #expect(tr("String missing from the table") == "String missing from the table")
+            #expect(tr("Microphone") == "Micro")
+            #expect(tr("Microphone access") == "Microphone")
+            #expect(tr("Import") == "Import")
+            #expect(tr("Import file") == "Importer")
             #expect(TranscriptBuilder.speakerName(1) == "Interlocuteur 1")
             #expect(TranscriptBuilder.isMe("Me") && TranscriptBuilder.isMe("Moi") && !TranscriptBuilder.isMe("Inès"))
         }

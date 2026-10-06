@@ -204,7 +204,7 @@ final class SessionController: ObservableObject {
             AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                 Task { @MainActor in
                     guard granted else {
-                        self?.finish(.failed(tr("Micro non autorisé")))
+                        self?.finish(.failed(tr("Microphone not allowed")))
                         return
                     }
                     // Réponse immédiate : on enchaîne. Sinon l'intention est passée, on ne
@@ -212,13 +212,13 @@ final class SessionController: ObservableObject {
                     if Date().timeIntervalSince(asked) < 20 {
                         self?.start(mode, intent: intent)
                     } else {
-                        self?.finish(.done(tr("Micro autorisé")), hideAfter: 2)
+                        self?.finish(.done(tr("Microphone allowed")), hideAfter: 2)
                     }
                 }
             }
             return
         case .denied, .restricted:
-            finish(.failed(tr("Micro non autorisé")))
+            finish(.failed(tr("Microphone not allowed")))
             Permissions.openSettings(.microphone)
             return
         default:
@@ -261,7 +261,7 @@ final class SessionController: ObservableObject {
             try capture.start()
         } catch {
             micRecorder.writer?.close()
-            finish(.failed(tr("Micro indisponible")))
+            finish(.failed(tr("Microphone unavailable")))
             return
         }
         mic = capture
@@ -632,7 +632,7 @@ final class SessionController: ObservableObject {
     func restoreCancelled(id: String? = nil, paste: Bool = true, completion: ((Transcript?) -> Void)? = nil) {
         guard phase != .recording else { return }
         hideTask?.cancel()
-        setPhase(.processing(tr("Récupération")))
+        setPhase(.processing(tr("Restoring")))
         imports += 1
         unloadTask?.cancel()
         let settings = self.settings
@@ -645,7 +645,7 @@ final class SessionController: ObservableObject {
             await keepingCancelled?.value
             let store = settings.cancelled
             guard let recording = id.flatMap(store.load) ?? store.list().first else {
-                finish(.failed(tr("Rien à récupérer")), hideAfter: 1.8)
+                finish(.failed(tr("Nothing to restore")), hideAfter: 1.8)
                 completion?(nil)
                 return
             }
@@ -662,21 +662,21 @@ final class SessionController: ObservableObject {
                 completion?(transcript)
                 if transcript.mode == .meeting {
                     Sounds.play(.ready)
-                    finish(.done(tr("Réunion récupérée")), hideAfter: 6)
+                    finish(.done(tr("Meeting restored")), hideAfter: 6)
                 } else if paste, settings.pasteAfterDictation, !TestHooks.noPaste,
                     Paster.paste(transcript.text, restoreClipboard: settings.restoreClipboard)
                 {
-                    finish(.done(tr("Récupéré")), hideAfter: 1.5)
+                    finish(.done(tr("Restored")), hideAfter: 1.5)
                 } else {
                     if !TestHooks.noPaste { Paster.copy(transcript.text) }
-                    finish(.done(tr("Récupéré · ⌘V pour coller")), hideAfter: 2.5)
+                    finish(.done(tr("Restored · ⌘V to paste")), hideAfter: 2.5)
                 }
             } catch CancelledStore.Failure.nothingHeard {
-                finish(.failed(tr("Rien entendu")), hideAfter: 1.8)
+                finish(.failed(tr("Nothing heard")), hideAfter: 1.8)
                 completion?(nil)
             } catch {
                 Log.write("récupération impossible (\(recording.id)) : \(error.localizedDescription)")
-                finish(.failed(tr("Récupération impossible")), hideAfter: 3)
+                finish(.failed(tr("Couldn't restore")), hideAfter: 3)
                 completion?(nil)
             }
         }
@@ -697,7 +697,7 @@ final class SessionController: ObservableObject {
             setPhase(.idle)
             return
         }
-        setPhase(.processing(tr("Transcription")))
+        setPhase(.processing(tr("Transcript")))
         let mode = self.mode
         let intent = self.intent
         let systemChannel = self.systemChannel
@@ -798,14 +798,14 @@ final class SessionController: ObservableObject {
                 let last = await live.finish()
                 stream(last, final: true)
                 if !TestHooks.noPaste, !typed.isEmpty, streamPressReturn || rule?.pressReturn == true { Paster.pressReturn() }
-                finish(.done(typed.isEmpty ? tr("Rien entendu") : tr("Écrit")), hideAfter: 1.0)
+                finish(.done(typed.isEmpty ? tr("Nothing heard") : tr("Written")), hideAfter: 1.0)
             }
             let options = DictationOptions(
                 settings: settings, style: intent == .dictation ? rule?.style ?? .standard : .standard)
             let result = try await Pipeline.dictation(samples: samples, engine: engine, options: options)
             guard !result.text.isEmpty else {
                 if let safety { try? FileManager.default.removeItem(at: safety) }
-                if live == nil { finish(.failed(tr("Rien entendu")), hideAfter: 1.5) }
+                if live == nil { finish(.failed(tr("Nothing heard")), hideAfter: 1.5) }
                 return
             }
             TestHooks.log("dictée : \(result.text)")
@@ -815,16 +815,16 @@ final class SessionController: ObservableObject {
             if intent == .transform {
                 // La dictée était une consigne : l'IA locale l'applique à la sélection.
                 guard LocalAI.availability.isAvailable else {
-                    finish(.failed(LocalAI.availability.reason ?? tr("IA locale indisponible")), hideAfter: 4)
+                    finish(.failed(LocalAI.availability.reason ?? tr("Local AI unavailable")), hideAfter: 4)
                     if let safety { try? FileManager.default.removeItem(at: safety) }
                     return
                 }
-                report(.processing(selection.isEmpty ? tr("Rédaction") : tr("Réécriture")))
+                report(.processing(selection.isEmpty ? tr("Writing") : tr("Rewriting")))
                 raw = selection.isEmpty ? "Consigne : \(text)" : "Consigne : \(text)\n\nTexte d'origine :\n\(selection)"
                 text = try await LocalAI.transform(selection, instruction: text)
                 TestHooks.log("transformation : \(text)")
             } else if live == nil, intent == .dictation, rule?.polish ?? settings.polish, LocalAI.availability.isAvailable {
-                report(.processing(tr("Mise au propre")))
+                report(.processing(tr("Cleaning up")))
                 let instructions = (rule?.instructions).flatMap { $0.isEmpty ? nil : $0 } ?? settings.polishInstructions
                 if let polished = try? await LocalAI.polish(text, instructions: instructions) {
                     text = TextStyle.apply(options.style, to: TextCleanup.capitalizeFirst(polished))
@@ -836,14 +836,14 @@ final class SessionController: ObservableObject {
             if live != nil {
                 // Déjà écrit au fil de l'eau : rien à coller.
             } else if intent == .capture {
-                finish(.done(tr("Transcrit")), hideAfter: 1.0)
+                finish(.done(tr("Transcribed")), hideAfter: 1.0)
             } else if TestHooks.noPaste {
-                finish(.done(tr("Collé")), hideAfter: 1.0)
+                finish(.done(tr("Pasted")), hideAfter: 1.0)
             } else if Date().timeIntervalSince(stoppedAt) > 8 {
                 // Après une longue attente (modèle en cours de téléchargement), le curseur n'est
                 // sans doute plus au même endroit : on copie sans coller.
                 Paster.copy(text)
-                finish(.done(tr("Copié · ⌘V pour coller")), hideAfter: 3)
+                finish(.done(tr("Copied · ⌘V to paste")), hideAfter: 3)
             } else if settings.pasteAfterDictation {
                 var toPaste = text
                 if settings.smartInsert, intent == .dictation, let context = Paster.insertionContext() {
@@ -851,7 +851,7 @@ final class SessionController: ObservableObject {
                 }
                 let pasted = Paster.paste(toPaste, restoreClipboard: settings.restoreClipboard, typing: rule?.typeText == true)
                 if pasted, pressReturn { Paster.pressReturn() }
-                finish(.done(pasted ? tr("Collé") : tr("Copié · ⌘V pour coller")), hideAfter: pasted ? 1.0 : 2.5)
+                finish(.done(pasted ? tr("Pasted") : tr("Copied · ⌘V to paste")), hideAfter: pasted ? 1.0 : 2.5)
                 if !pasted, !askedForAccessibility {
                     // Sans l'autorisation Accessibilité, impossible de coller : on la demande une fois.
                     askedForAccessibility = true
@@ -859,7 +859,7 @@ final class SessionController: ObservableObject {
                 }
             } else {
                 Paster.copy(text)
-                finish(.done(tr("Copié")), hideAfter: 1.0)
+                finish(.done(tr("Copied")), hideAfter: 1.0)
             }
 
             let draft = Transcript(
@@ -910,7 +910,7 @@ final class SessionController: ObservableObject {
                 }.value
             }
             let reason = (error as? LocalAI.Failure)?.errorDescription
-            finish(.failed(reason ?? tr("Transcription impossible · audio conservé")), hideAfter: 3.5)
+            finish(.failed(reason ?? tr("Transcription failed · audio kept")), hideAfter: 3.5)
             Log.write("erreur : \(error.localizedDescription)")
         }
     }
@@ -934,16 +934,16 @@ final class SessionController: ObservableObject {
                     guard let self, case .processing = self.phase else { return }
                     let label: String
                     switch stage {
-                    case .cleaningEcho: label = tr("Nettoyage de l'écho")
-                    case .transcribing: label = tr("Transcription")
-                    case .separatingSpeakers: label = tr("Séparation des voix")
+                    case .cleaningEcho: label = tr("Removing echo")
+                    case .transcribing: label = tr("Transcript")
+                    case .separatingSpeakers: label = tr("Separating speakers")
                     }
                     self.setPhase(.processing(label))
                 }
             }
             guard !result.segments.isEmpty else {
                 temporary.forEach { try? FileManager.default.removeItem(at: $0) }
-                finish(.failed(tr("Rien entendu")), hideAfter: 1.5)
+                finish(.failed(tr("Nothing heard")), hideAfter: 1.5)
                 return
             }
 
@@ -970,19 +970,19 @@ final class SessionController: ObservableObject {
                 return (try? store.save(transcript)) != nil ? transcript : nil
             }.value
             guard let saved else {
-                finish(.failed(tr("Enregistrement impossible")))
+                finish(.failed(tr("Could not save")))
                 return
             }
             lastTranscript = saved
             onLibraryChanged?()
             Sounds.play(.ready)
-            finish(.done(tr("Réunion enregistrée")), hideAfter: 6)
+            finish(.done(tr("Meeting saved")), hideAfter: 6)
             if settings.autoSummary, LocalAI.availability.isAvailable {
                 summarize(saved)
             }
         } catch {
             // Les fichiers audio de la réunion restent en place pour une reprise ultérieure.
-            finish(.failed(tr("Transcription impossible · audio conservé")), hideAfter: 3.5)
+            finish(.failed(tr("Transcription failed · audio kept")), hideAfter: 3.5)
             Log.write("erreur : \(error.localizedDescription)")
         }
     }
@@ -1022,11 +1022,11 @@ final class SessionController: ObservableObject {
         guard phase != .recording else { return }
         let last = lastTranscript?.mode == .dictation ? lastTranscript : settings.store.latest(mode: .dictation)
         guard let last, !last.text.isEmpty else {
-            finish(.failed(tr("Aucune dictée")), hideAfter: 1.5)
+            finish(.failed(tr("No dictation")), hideAfter: 1.5)
             return
         }
         let pasted = TestHooks.noPaste || Paster.paste(last.text, restoreClipboard: settings.restoreClipboard)
-        finish(.done(pasted ? tr("Recollé") : tr("Copié · ⌘V pour coller")), hideAfter: pasted ? 1.2 : 2.5)
+        finish(.done(pasted ? tr("Pasted again") : tr("Copied · ⌘V to paste")), hideAfter: pasted ? 1.2 : 2.5)
     }
 
     // MARK: - Réunion détectée

@@ -1,15 +1,15 @@
 import Foundation
 
-/// Langue de l'interface. Le code est écrit en français ; l'anglais vient d'une table de
-/// traduction, et c'est la langue par défaut de l'app. L'autre langue se choisit dans les
-/// réglages, sans tenir compte de celle du système.
+/// Interface language. The code is written in English; French comes from a translation
+/// table. English is the app's default language. The other language is picked in the
+/// settings, regardless of the system's.
 public enum Language: String, CaseIterable, Codable, Sendable, Identifiable {
     case english = "en"
     case french = "fr"
 
     public var id: String { rawValue }
 
-    /// Le nom de la langue, dans la langue elle-même.
+    /// The language's name, in the language itself.
     public var label: String {
         switch self {
         case .english: return "English"
@@ -17,7 +17,7 @@ public enum Language: String, CaseIterable, Codable, Sendable, Identifiable {
         }
     }
 
-    /// Pour les dates et les nombres.
+    /// For dates and numbers.
     public var locale: Locale {
         switch self {
         case .english: return Locale(identifier: "en_US")
@@ -27,33 +27,33 @@ public enum Language: String, CaseIterable, Codable, Sendable, Identifiable {
 }
 
 public enum L10n {
-    /// Langue en vigueur. Les sources sont en français : c'est la valeur de départ, et celle
-    /// des tests ; l'app et la ligne de commande la règlent au lancement d'après les réglages.
+    /// Current language. The sources are in English: it is the starting value, and the tests'
+    /// one; the app and the command line set it at launch from the settings.
     public static var current: Language {
         get { override ?? stored }
         set { stored = newValue }
     }
 
-    nonisolated(unsafe) private static var stored: Language = .french
+    nonisolated(unsafe) private static var stored: Language = .english
 
-    /// Une langue le temps d'un bloc, pour la tâche en cours seulement : les tests s'en servent
-    /// au lieu de changer `current`, que les autres tests lisent en même temps.
+    /// A language for the length of a block, for the current task only: tests use it
+    /// instead of changing `current`, which other tests read at the same time.
     @TaskLocal public static var override: Language?
 
-    /// Traduction d'une chaîne française. Une chaîne absente de la table revient telle quelle.
-    public static func translate(_ french: String) -> String {
-        guard current == .english else { return french }
-        return english[french] ?? french
+    /// Translation of an English string. A string missing from the table comes back as is.
+    public static func translate(_ english: String) -> String {
+        guard current == .french else { return english }
+        return french[english] ?? english
     }
 
-    /// Les chaînes de la table qui ne sont pas traduites (diagnostic).
-    public static var missing: [String] { english.filter { $0.value.isEmpty }.map(\.key).sorted() }
+    /// Table entries without a translation (diagnostics).
+    public static var missing: [String] { french.filter { $0.value.isEmpty }.map(\.key).sorted() }
 
-    /// Français → anglais, pour tout ce que l'interface affiche.
-    static let english: [String: String] = L10nTable.english
+    /// English → French, for everything the interface shows.
+    static let french: [String: String] = L10nTable.french
 }
 
-/// `tr("Historique")` : le texte dans la langue en vigueur.
-public func tr(_ french: String) -> String {
-    L10n.translate(french)
+/// `tr("History")`: the text in the current language.
+public func tr(_ english: String) -> String {
+    L10n.translate(english)
 }

@@ -180,21 +180,21 @@ struct IslandView: View {
         case .processing(let label):
             switch session.modelStatus {
             case .loading(let fraction?) where fraction < 1:
-                return (nil, .white, tr("Téléchargement du modèle") + " \(Int(fraction * 100)) %")
+                return (nil, .white, tr("Downloading the model") + " \(Int(fraction * 100)) %")
             case .loading:
-                return (nil, .white, tr("Chargement du modèle…"))
+                return (nil, .white, tr("Loading the model…"))
             default:
-                return session.mode == .meeting || label != tr("Transcription") ? (nil, .white, label + "…") : nil
+                return session.mode == .meeting || label != tr("Transcript") ? (nil, .white, label + "…") : nil
             }
         // Un message court (« Collé », « Rien entendu ») tient dans l'oreille droite ; seul un
         // message long ouvre une ligne sous l'encoche. La coche ou l'alerte est à gauche.
         case .done(let label), .failed(let label):
             return earLabel == nil ? (nil, .white, label) : nil
         case .suggestion(let app):
-            return (nil, .white, "\(app) " + tr("utilise le micro"))
+            return (nil, .white, "\(app) " + tr("is using the microphone"))
         case .recording:
             if session.intent == .transform, session.elapsed < 4 {
-                return (nil, .white, session.hasSelection ? tr("Dicte ce qu'il faut faire du texte sélectionné") : tr("Dicte ce qu'il faut écrire"))
+                return (nil, .white, session.hasSelection ? tr("Say what to do with the selected text") : tr("Say what to write"))
             }
             return nil
         default:
@@ -387,13 +387,13 @@ struct IslandView: View {
     /// « Annuler (⇧⎋) », ou « Annuler » quand aucun raccourci n'est attribué.
     private var cancelHelp: String {
         let shortcut = settings.cancelShortcut
-        return shortcut.isEmpty ? tr("Annuler") : tr("Annuler") + " (" + HotkeyManager.describe(shortcut) + ")"
+        return shortcut.isEmpty ? tr("Cancel") : tr("Cancel") + " (" + HotkeyManager.describe(shortcut) + ")"
     }
 
     private func label(for action: Drawer.Action) -> String {
         switch action {
-        case .openTranscript: return tr("Ouvrir")
-        case .startMeeting: return tr("Enregistrer")
+        case .openTranscript: return tr("Open")
+        case .startMeeting: return tr("Record")
         }
     }
 
@@ -528,7 +528,7 @@ struct IslandView: View {
                     Icon(.sparkles, size: 12)
                         .foregroundColor(Theme.textPrimary)
                 }
-                Text(session.paused ? tr("Pause") : Format.clock(session.elapsed))
+                Text(session.paused ? tr("Paused") : Format.clock(session.elapsed))
                     .font(UI.mono(12.5, .medium))
                     .foregroundColor(session.paused ? Theme.textSecondary : Theme.textPrimary)
             }
@@ -541,7 +541,7 @@ struct IslandView: View {
                     .fixedSize()
             }
         case .suggestion:
-            Text(tr("Réunion ?"))
+            Text(tr("Meeting?"))
                 .font(UI.sans(13, .medium))
                 .foregroundColor(Theme.textPrimary)
                 .lineLimit(1)
@@ -555,13 +555,13 @@ struct IslandView: View {
         HStack(spacing: 6) {
             MeetingKey(on: mode == .meeting) { session.switchMode(to: mode == .meeting ? .dictation : .meeting) }
             Spacer(minLength: 0)
-            IslandButton(help: paused ? tr("Reprendre") : tr("Mettre en pause"), action: { session.togglePause() }) {
+            IslandButton(help: paused ? tr("Resume") : tr("Pause"), action: { session.togglePause() }) {
                 Icon(paused ? .play : .pause, size: 11, filled: true)
             }
             IslandButton(help: cancelHelp, action: { session.cancel() }) {
                 Icon(.x, size: 12)
             }
-            IslandButton(help: tr("Terminer"), prominent: true, action: { session.stop() }) {
+            IslandButton(help: tr("Finish"), prominent: true, action: { session.stop() }) {
                 RoundedRectangle(cornerRadius: 2.5, style: .continuous)
                     .frame(width: 9.5, height: 9.5)
             }
@@ -581,7 +581,7 @@ private struct MeetingKey: View {
             HStack(spacing: 7) {
                 Icon(.users, size: 13)
                     .frame(width: 16)
-                Text(tr("Réunion"))
+                Text(tr("Meeting"))
                     .font(UI.sans(12.5, .medium))
                 // Voyant : il s'allume avec le mode.
                 Circle()
@@ -603,7 +603,7 @@ private struct MeetingKey: View {
         .onHover { hovering = $0 }
         .animation(.spring(duration: 0.3, bounce: 0.25), value: on)
         .animation(.easeOut(duration: 0.15), value: hovering)
-        .help(on ? tr("Revenir à une simple dictée") : tr("Capter aussi le son de l'ordinateur et séparer les interlocuteurs"))
+        .help(on ? tr("Back to a plain dictation") : tr("Also capture the computer's audio and separate the speakers"))
     }
 }
 

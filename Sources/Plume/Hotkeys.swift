@@ -298,7 +298,7 @@ final class HotkeyManager {
 
     /// `⌃⌥` ou `⌥Espace`.
     static func describe(_ shortcut: Shortcut) -> String {
-        guard !shortcut.isEmpty else { return tr("Aucun") }
+        guard !shortcut.isEmpty else { return tr("None") }
         var text = ""
         if shortcut.modifiers & ModifierMask.control != 0 { text += "⌃" }
         if shortcut.modifiers & ModifierMask.option != 0 { text += "⌥" }

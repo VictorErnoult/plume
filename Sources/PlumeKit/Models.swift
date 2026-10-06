@@ -10,8 +10,8 @@ public enum RecordingMode: String, Codable, Sendable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .dictation: return tr("Dictée")
-        case .meeting: return tr("Réunion")
+        case .dictation: return tr("Dictation")
+        case .meeting: return tr("Meeting")
         case .imported: return tr("Import")
         }
     }

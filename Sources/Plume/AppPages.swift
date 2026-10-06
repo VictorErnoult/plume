@@ -40,23 +40,23 @@ struct HistoryPage: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text(showingCancelled ? tr("Annulés") : tr("Historique")).font(UI.sans(24, .medium)).tracking(-0.4)
+                    Text(showingCancelled ? tr("Cancelled") : tr("History")).font(UI.sans(24, .medium)).tracking(-0.4)
                     Spacer()
                     if library.importing > 0 {
                         ProgressView().controlSize(.small).transition(.opacity)
                     }
                     PlumeButton(
                         icon: .undo, kind: showingCancelled ? .primary : .secondary,
-                        help: showingCancelled ? tr("Revenir à l'historique") : tr("Enregistrements annulés, encore récupérables")
+                        help: showingCancelled ? tr("Back to the history") : tr("Cancelled recordings, still restorable")
                     ) {
                         Sounds.play(.tab)
                         withAnimation(UI.spring) { library.filter = showingCancelled ? .all : .cancelled }
                     }
-                    PlumeButton(icon: .plus, help: tr("Transcrire un fichier audio")) { app.chooseFiles() }
+                    PlumeButton(icon: .plus, help: tr("Transcribe an audio file")) { app.chooseFiles() }
                 }
                 HStack(spacing: 7) {
                     Icon(.search, size: 14).foregroundStyle(UI.text2)
-                    TextField(tr("Rechercher"), text: $library.query)
+                    TextField(tr("Search"), text: $library.query)
                         .textFieldStyle(.plain)
                         .font(UI.sans(14))
                     if !library.query.isEmpty {
@@ -131,11 +131,11 @@ struct HistoryPage: View {
     private var cancelledEmptyState: some View {
         VStack(spacing: 9) {
             Icon(.undo, size: 28).foregroundStyle(UI.text3)
-            Text(tr("Aucun enregistrement annulé")).font(UI.sans(15, .medium))
+            Text(tr("No cancelled recordings")).font(UI.sans(15, .medium))
             Text(
                 app.settings.cancelledRetentionHours > 0
-                    ? tr("Un enregistrement annulé reste ici quelque temps, le temps de le récupérer.")
-                    : tr("Les enregistrements annulés ne sont pas gardés : à régler dans Réglages › Bibliothèque.")
+                    ? tr("A cancelled recording stays here for a while, so you can get it back.")
+                    : tr("Cancelled recordings aren't kept: change it in Settings › Library.")
             )
             .font(UI.sans(13))
             .foregroundStyle(UI.text2)
@@ -149,10 +149,10 @@ struct HistoryPage: View {
         VStack(spacing: 9) {
             Icon(library.query.isEmpty ? .audioLines : .search, size: 28)
                 .foregroundStyle(UI.text3)
-            Text(library.query.isEmpty ? tr("Aucune transcription") : tr("Aucun résultat"))
+            Text(library.query.isEmpty ? tr("No transcriptions") : tr("No results"))
                 .font(UI.sans(15, .medium))
             if library.query.isEmpty {
-                Text(tr("Dicte quelque chose, ou dépose un fichier audio dans cette fenêtre."))
+                Text(tr("Dictate something, or drop an audio file into this window."))
                     .font(UI.sans(13))
                     .foregroundStyle(UI.text2)
             }
@@ -294,7 +294,7 @@ private struct CancelledRow: View {
                             .font(UI.mono(11))
                             .foregroundStyle(UI.text3)
                     }
-                    Text(recording.preview ?? (recording.text == nil ? tr("Pas encore transcrit") : tr("Rien entendu")))
+                    Text(recording.preview ?? (recording.text == nil ? tr("Not transcribed yet") : tr("Nothing heard")))
                         .font(UI.sans(13))
                         .foregroundStyle(recording.preview == nil ? UI.text3 : UI.text2)
                         .lineLimit(2)
@@ -332,7 +332,7 @@ private struct CancelledDetail: View {
     private var restoring: Bool { library.restoring == recording.id }
 
     private var title: String {
-        recording.mode == .meeting ? tr("Réunion annulée") : tr("Dictée annulée")
+        recording.mode == .meeting ? tr("Cancelled meeting") : tr("Cancelled dictation")
     }
 
     private var meta: String {
@@ -353,7 +353,7 @@ private struct CancelledDetail: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = L10n.current.locale
         formatter.unitsStyle = .full
-        return tr("Supprimé automatiquement") + " " + formatter.localizedString(for: end, relativeTo: Date())
+        return tr("Deleted automatically") + " " + formatter.localizedString(for: end, relativeTo: Date())
     }
 
     var body: some View {
@@ -371,8 +371,8 @@ private struct CancelledDetail: View {
                     Spacer(minLength: 12)
                     HStack(spacing: 6) {
                         if let text = recording.text, !text.isEmpty { CopyButton(text: text) }
-                        PlumeButton(icon: .trash, help: tr("Supprimer définitivement")) { confirmingDelete = true }
-                        PlumeButton(title: tr("Récupérer"), icon: .undo, kind: .primary, help: tr("Le ranger dans l'historique, comme s'il n'avait pas été annulé")) {
+                        PlumeButton(icon: .trash, help: tr("Delete for good")) { confirmingDelete = true }
+                        PlumeButton(title: tr("Restore"), icon: .undo, kind: .primary, help: tr("Put it in the history, as if it had never been cancelled")) {
                             app.restoreCancelled(recording)
                         }
                         .disabled(restoring || library.restoring != nil)
@@ -387,7 +387,7 @@ private struct CancelledDetail: View {
                 HStack(spacing: 8) {
                     if restoring {
                         ProgressView().controlSize(.small)
-                        Text(recording.mode == .meeting ? tr("Transcription et séparation des voix…") : tr("En cours…"))
+                        Text(recording.mode == .meeting ? tr("Transcribing and separating voices…") : tr("Working…"))
                             .font(UI.sans(13)).foregroundStyle(UI.text2)
                     } else if let expiry {
                         Text(expiry).font(UI.sans(13)).foregroundStyle(UI.text3)
@@ -406,8 +406,8 @@ private struct CancelledDetail: View {
                 } else {
                     Text(
                         recording.mode == .meeting
-                            ? tr("Une réunion annulée n'est transcrite que si tu la récupères. Tu peux l'écouter d'abord.")
-                            : (recording.text == nil ? tr("Pas encore transcrit.") : tr("Rien d'intelligible dans cet enregistrement."))
+                            ? tr("A cancelled meeting is only transcribed if you restore it. You can listen to it first.")
+                            : (recording.text == nil ? tr("Not transcribed yet.") : tr("Nothing intelligible in this recording."))
                     )
                     .font(UI.sans(14))
                     .foregroundStyle(UI.text2)
@@ -419,14 +419,14 @@ private struct CancelledDetail: View {
             .padding(.bottom, UI.dockClearance)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .confirmationDialog(tr("Supprimer cet enregistrement ?"), isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button(tr("Supprimer"), role: .destructive) {
+        .confirmationDialog(tr("Delete this recording?"), isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button(tr("Delete"), role: .destructive) {
                 Sounds.play(.refuse)
                 library.deleteCancelled(recording)
             }
-            Button(tr("Annuler"), role: .cancel) {}
+            Button(tr("Cancel"), role: .cancel) {}
         } message: {
-            Text(tr("Il ne pourra plus être récupéré."))
+            Text(tr("It can't be restored afterwards."))
         }
     }
 }
@@ -451,8 +451,8 @@ private struct TranscriptDetail: View {
         var parts: [String] = []
         if transcript.title != nil { parts.append(TranscriptStore.dateTitle(for: transcript)) }
         parts.append(Format.duration(transcript.duration))
-        if transcript.speakers.count > 1 { parts.append("\(transcript.speakers.count) " + tr("interlocuteurs")) }
-        parts.append("\(HomePage.number(Double(LibraryStats.wordCount(transcript.text)))) " + tr("mots"))
+        if transcript.speakers.count > 1 { parts.append("\(transcript.speakers.count) " + tr("speakers")) }
+        parts.append("\(HomePage.number(Double(LibraryStats.wordCount(transcript.text)))) " + tr("words"))
         if let app = transcript.app { parts.append(app) }
         if transcript.device == "iphone" { parts.append("iPhone") }
         return parts.joined(separator: "  ·  ")
@@ -479,7 +479,7 @@ private struct TranscriptDetail: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(PressStyle(scale: 0.99))
-                        .help(tr("Donner un titre"))
+                        .help(tr("Give a title"))
                         Text(meta)
                             .font(UI.sans(13))
                             .foregroundStyle(UI.text2)
@@ -488,13 +488,13 @@ private struct TranscriptDetail: View {
                     HStack(spacing: 6) {
                         CopyButton(text: transcript.text, prominent: true)
                         exportMenu
-                        PlumeButton(icon: .folder, help: tr("Afficher les fichiers dans le Finder")) { library.reveal(transcript) }
-                        PlumeButton(icon: .trash, help: tr("Mettre à la corbeille")) { confirmingDelete = true }
+                        PlumeButton(icon: .folder, help: tr("Show files in Finder")) { library.reveal(transcript) }
+                        PlumeButton(icon: .trash, help: tr("Move to Trash")) { confirmingDelete = true }
                     }
                 }
 
                 if audio.isEmpty {
-                    Text(tr("L'enregistrement audio n'a pas été conservé."))
+                    Text(tr("The audio recording was not kept."))
                         .font(UI.sans(13))
                         .foregroundStyle(UI.text3)
                         .padding(.top, 14)
@@ -506,15 +506,15 @@ private struct TranscriptDetail: View {
                 HStack(spacing: 8) {
                     if transcript.mode != .dictation, !audio.isEmpty { voices }
                     if !audio.isEmpty {
-                        PlumeButton(title: tr("Retranscrire"), icon: .history, help: tr("Refaire la transcription avec le modèle actuel")) {
+                        PlumeButton(title: tr("Transcribe again"), icon: .history, help: tr("Transcribe again with the current model")) {
                             library.retranscribe(transcript)
                         }
                         .disabled(working || reprocessing)
                     }
                     if transcript.mode != .dictation || LibraryStats.wordCount(transcript.text) > 120 {
                         PlumeButton(
-                            title: transcript.summary == nil ? tr("Résumer") : tr("Résumer à nouveau"), icon: .sparkles,
-                            help: aiAvailable ? tr("Points clés, décisions et actions, par l'IA locale") : LocalAI.availability.reason
+                            title: transcript.summary == nil ? tr("Summarize") : tr("Summarize again"), icon: .sparkles,
+                            help: aiAvailable ? tr("Key points, decisions and actions, by the local AI") : LocalAI.availability.reason
                         ) {
                             library.summarize(transcript)
                         }
@@ -522,7 +522,7 @@ private struct TranscriptDetail: View {
                     }
                     if working {
                         ProgressView().controlSize(.small)
-                        Text(tr("En cours…")).font(UI.sans(13)).foregroundStyle(UI.text2)
+                        Text(tr("Working…")).font(UI.sans(13)).foregroundStyle(UI.text2)
                     }
                 }
                 .padding(.top, 12)
@@ -555,34 +555,34 @@ private struct TranscriptDetail: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .animation(UI.ease, value: reprocessing)
         }
-        .confirmationDialog(tr("Supprimer cette transcription ?"), isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button(tr("Mettre à la corbeille"), role: .destructive) {
+        .confirmationDialog(tr("Delete this transcript?"), isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button(tr("Move to Trash"), role: .destructive) {
                 Sounds.play(.refuse)
                 library.delete(transcript)
             }
-            Button(tr("Annuler"), role: .cancel) {}
+            Button(tr("Cancel"), role: .cancel) {}
         } message: {
-            Text(tr("Le texte et l'audio partent dans la corbeille du Mac."))
+            Text(tr("The text and the audio go to the Mac's Trash."))
         }
         .alert(
-            tr("Renommer l'interlocuteur"),
+            tr("Rename the speaker"),
             isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })
         ) {
-            TextField(tr("Nom"), text: $newName)
-            Button(tr("Renommer")) {
+            TextField(tr("Name"), text: $newName)
+            Button(tr("Rename")) {
                 if let renaming { library.rename(renaming, to: newName, in: transcript) }
                 renaming = nil
             }
-            Button(tr("Annuler"), role: .cancel) { renaming = nil }
+            Button(tr("Cancel"), role: .cancel) { renaming = nil }
         } message: {
-            Text(tr("Le nouveau nom remplace") + " « \(renaming ?? "") » " + tr("dans toute la transcription."))
+            Text(tr("The new name replaces") + " « \(renaming ?? "") » " + tr("throughout the transcript."))
         }
-        .alert(tr("Titre de la transcription"), isPresented: $editingTitle) {
-            TextField(tr("Titre"), text: $newTitle)
-            Button(tr("Enregistrer")) { library.retitle(transcript, to: newTitle) }
-            Button(tr("Annuler"), role: .cancel) {}
+        .alert(tr("Transcript title"), isPresented: $editingTitle) {
+            TextField(tr("Title"), text: $newTitle)
+            Button(tr("Record")) { library.retitle(transcript, to: newTitle) }
+            Button(tr("Cancel"), role: .cancel) {}
         } message: {
-            Text(tr("Laisse vide pour revenir à la date."))
+            Text(tr("Leave empty to go back to the date."))
         }
     }
 
@@ -604,7 +604,7 @@ private struct TranscriptDetail: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help(tr("Exporter"))
+        .help(tr("Export"))
     }
 
     /// Le résumé écrit par l'IA locale : points clés, décisions, actions.
@@ -613,8 +613,8 @@ private struct TranscriptDetail: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
                     Icon(.listChecks, size: 14)
-                    Text(tr("Résumé")).font(UI.sans(14, .medium))
-                    Text(tr("par l'IA locale")).font(UI.sans(12)).foregroundStyle(UI.text3)
+                    Text(tr("Summary")).font(UI.sans(14, .medium))
+                    Text(tr("by the local AI")).font(UI.sans(12)).foregroundStyle(UI.text3)
                     Spacer()
                     CopyButton(text: summary)
                 }
@@ -656,15 +656,15 @@ private struct TranscriptDetail: View {
     private var voices: some View {
         HStack(spacing: 8) {
             Menu {
-                Button(tr("Détection automatique")) { library.reprocess(transcript, speakers: nil) }
+                Button(tr("Automatic detection")) { library.reprocess(transcript, speakers: nil) }
                 Divider()
                 ForEach(1...8, id: \.self) { count in
-                    Button(count == 1 ? tr("1 personne") : "\(count) " + tr("personnes")) { library.reprocess(transcript, speakers: count) }
+                    Button(count == 1 ? tr("1 person") : "\(count) " + tr("people")) { library.reprocess(transcript, speakers: count) }
                 }
             } label: {
                 HStack(spacing: 6) {
                     Icon(.users, size: 13)
-                    Text(tr("Refaire la séparation des voix")).font(UI.sans(13, .medium))
+                    Text(tr("Redo speaker separation")).font(UI.sans(13, .medium))
                     Icon(.chevronDown, size: 12).foregroundStyle(UI.text2)
                 }
                 .foregroundStyle(UI.text)
@@ -676,10 +676,10 @@ private struct TranscriptDetail: View {
             .buttonStyle(.plain)
             .fixedSize()
             .disabled(reprocessing)
-            .help(tr("Si les voix sont mal séparées, indique combien de personnes parlaient."))
+            .help(tr("If the voices are poorly separated, say how many people were talking."))
             if reprocessing {
                 ProgressView().controlSize(.small)
-                Text(tr("Nouvelle écoute en cours…")).font(UI.sans(13)).foregroundStyle(UI.text2)
+                Text(tr("Listening again…")).font(UI.sans(13)).foregroundStyle(UI.text2)
             }
         }
     }
@@ -703,7 +703,7 @@ private struct TranscriptDetail: View {
                         .lineLimit(1)
                 }
                 .buttonStyle(PressStyle())
-                .help(tr("Renommer cet interlocuteur"))
+                .help(tr("Rename this speaker"))
                 Button {
                     player.play(id: transcript.id, urls: audio, from: segment.start)
                 } label: {
@@ -712,7 +712,7 @@ private struct TranscriptDetail: View {
                         .foregroundStyle(UI.text3)
                 }
                 .buttonStyle(PressStyle())
-                .help(tr("Écouter à partir d'ici"))
+                .help(tr("Listen from here"))
             }
             .frame(width: 118, alignment: .leading)
             Text(segment.text)
@@ -751,7 +751,7 @@ private struct PlayerBar: View {
             }
             .buttonStyle(PressStyle(scale: 0.9))
             .keyboardShortcut(.space, modifiers: [])
-            .help(tr("Écouter l'enregistrement"))
+            .help(tr("Listen to the recording"))
             .animation(UI.spring, value: playing)
 
             Text(Format.clock(active ? player.currentTime : 0))
@@ -804,10 +804,10 @@ struct VocabularyPage: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 PageHeader(
-                    title: tr("Vocabulaire"),
-                    subtitle: tr("Les mots que le modèle écrit mal, et ce qu'il faut écrire à la place. Ou des raccourcis : « ma signature » devient ta signature complète.")
+                    title: tr("Vocabulary"),
+                    subtitle: tr("Words the model gets wrong, and what to write instead. Or snippets: “my signature” becomes your full signature.")
                 ) {
-                    PlumeButton(title: tr("Ajouter"), icon: .plus, kind: .primary) {
+                    PlumeButton(title: tr("Add"), icon: .plus, kind: .primary) {
                         withAnimation(UI.spring) { settings.addReplacement() }
                     }
                 }
@@ -816,9 +816,9 @@ struct VocabularyPage: View {
                 Card(padding: 6) {
                     VStack(spacing: 0) {
                         HStack(spacing: 10) {
-                            Text(tr("Entendu")).frame(maxWidth: .infinity, alignment: .leading)
+                            Text(tr("Heard")).frame(maxWidth: .infinity, alignment: .leading)
                             Spacer().frame(width: 14)
-                            Text(tr("Écrit")).frame(maxWidth: .infinity, alignment: .leading)
+                            Text(tr("Written")).frame(maxWidth: .infinity, alignment: .leading)
                             Spacer().frame(width: 24)
                         }
                         .font(UI.sans(12, .medium))
@@ -828,7 +828,7 @@ struct VocabularyPage: View {
 
                         if settings.replacements.isEmpty {
                             Rectangle().fill(UI.line).frame(height: 1)
-                            Text(tr("Aucun remplacement pour l'instant."))
+                            Text(tr("No replacements yet."))
                                 .font(UI.sans(13))
                                 .foregroundStyle(UI.text2)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -838,14 +838,14 @@ struct VocabularyPage: View {
                             VStack(spacing: 0) {
                                 Rectangle().fill(UI.line).frame(height: 1)
                                 HStack(spacing: 10) {
-                                    TextField(tr("ce que tu dis"), text: $item.original)
+                                    TextField(tr("what you say"), text: $item.original)
                                         .textFieldStyle(.plain)
                                         .frame(maxWidth: .infinity)
                                     Icon(.arrowRight, size: 13)
                                         .foregroundStyle(UI.text3)
                                         .frame(width: 14)
                                     // Plusieurs lignes possibles : une adresse, une signature.
-                                    TextField(tr("ce qui doit s'écrire"), text: $item.with, axis: .vertical)
+                                    TextField(tr("what should be written"), text: $item.with, axis: .vertical)
                                         .textFieldStyle(.plain)
                                         .lineLimit(1...6)
                                         .frame(maxWidth: .infinity)
@@ -859,7 +859,7 @@ struct VocabularyPage: View {
                                             .contentShape(Rectangle())
                                     }
                                     .buttonStyle(PressStyle())
-                                    .help(tr("Supprimer"))
+                                    .help(tr("Delete"))
                                 }
                                 .font(UI.sans(14))
                                 .padding(.horizontal, 12)
@@ -871,7 +871,7 @@ struct VocabularyPage: View {
                 }
                 .rise(1)
 
-                Text(tr("Le remplacement se fait sur des mots entiers, sans tenir compte des majuscules, à la fin de chaque dictée ou réunion. Un retour à la ligne dans « Écrit » (⌥↩) fait un raccourci sur plusieurs lignes."))
+                Text(tr("Replacements apply to whole words, regardless of case, at the end of each dictation or meeting. A line break in “Written” (⌥↩) makes a multi-line snippet."))
                     .font(UI.sans(13))
                     .foregroundStyle(UI.text2)
                     .rise(2)
@@ -895,17 +895,17 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .general: return tr("Général")
-        case .shortcuts: return tr("Raccourcis")
-        case .dictation: return tr("Dictée")
-        case .meeting: return tr("Réunion")
-        case .ai: return tr("IA locale")
-        case .audio: return tr("Micro et sons")
-        case .model: return tr("Modèle")
-        case .library: return tr("Bibliothèque")
-        case .access: return tr("Accès pour une IA")
-        case .permissions: return tr("Autorisations")
-        case .about: return tr("À propos")
+        case .general: return tr("General")
+        case .shortcuts: return tr("Shortcuts")
+        case .dictation: return tr("Dictation")
+        case .meeting: return tr("Meeting")
+        case .ai: return tr("Local AI")
+        case .audio: return tr("Microphone & sounds")
+        case .model: return tr("Model")
+        case .library: return tr("Library")
+        case .access: return tr("Access for an AI")
+        case .permissions: return tr("Permissions")
+        case .about: return tr("About")
         }
     }
 
@@ -965,7 +965,7 @@ struct SettingsPage: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(tr("Réglages"))
+            Text(tr("Settings"))
                 .font(UI.sans(24, .medium))
                 .tracking(-0.4)
                 .padding(.horizontal, 16)
@@ -1007,55 +1007,55 @@ struct SettingsPage: View {
 
     private var general: some View {
         SettingsSection("") {
-            SettingRow(tr("Langue"), detail: tr("Celle de la fenêtre, de l'encoche et des transcriptions.")) {
+            SettingRow(tr("Language"), detail: tr("For the window, the notch and the transcripts.")) {
                 Picker("", selection: $settings.language) {
                     ForEach(Language.allCases) { Text($0.label).tag($0) }
                 }
                 .labelsHidden()
                 .frame(width: 150)
             }
-            SettingRow(tr("Apparence")) {
+            SettingRow(tr("Appearance")) {
                 Picker("", selection: $settings.appearance) {
-                    Text(tr("Sombre")).tag("sombre")
-                    Text(tr("Claire")).tag("clair")
-                    Text(tr("Comme le système")).tag("systeme")
+                    Text(tr("Dark")).tag("sombre")
+                    Text(tr("Light")).tag("clair")
+                    Text(tr("Match system")).tag("systeme")
                 }
                 .labelsHidden()
                 .frame(width: 190)
             }
             SettingToggle(
-                tr("Ouvrir Plume à la connexion"),
+                tr("Open Plume at login"),
                 isOn: Binding(get: { settings.launchAtLogin }, set: { settings.setLaunchAtLogin($0) }))
         }
     }
 
     private var shortcuts: some View {
-        SettingsSection("", footer: tr("Appui bref : démarrer, puis arrêter. Maintenir le raccourci de dictée : parler tant qu'il est tenu.")) {
-            SettingRow(tr("Dicter")) {
+        SettingsSection("", footer: tr("Short press: start, then stop. Hold the dictation shortcut: talk for as long as you hold it.")) {
+            SettingRow(tr("Dictate")) {
                 ShortcutRecorder(shortcut: $settings.dictationShortcut, onRecording: settings.onRecordingShortcut)
             }
-            SettingRow(tr("Enregistrer une réunion"), detail: tr("Le mode réunion s'active aussi en survolant l'encoche.")) {
+            SettingRow(tr("Record a meeting"), detail: tr("Meeting mode can also be switched on by hovering the notch.")) {
                 ShortcutRecorder(shortcut: $settings.meetingShortcut, optional: true, onRecording: settings.onRecordingShortcut)
             }
-            SettingRow(tr("Transformer la sélection"), detail: settings.ai.isAvailable
-                ? tr("Sélectionne un texte, dicte une consigne (« traduis en anglais », « plus court »), l'IA locale le réécrit. Sans sélection, elle rédige.")
+            SettingRow(tr("Transform the selection"), detail: settings.ai.isAvailable
+                ? tr("Select text, say an instruction (“translate to French”, “shorter”), and the local AI rewrites it. With nothing selected, it writes.")
                 : (settings.ai.reason ?? "")) {
                 ShortcutRecorder(shortcut: $settings.transformShortcut, optional: true, onRecording: settings.onRecordingShortcut)
             }
             .disabled(!settings.ai.isAvailable)
             SettingRow(
-                tr("Annuler la dictée"),
-                detail: tr("Intercepté seulement pendant une dictée : le reste du temps, la touche garde son rôle. Une ou plusieurs touches, Échap compris.")
+                tr("Cancel the dictation"),
+                detail: tr("Only caught during a dictation: the rest of the time, the key does its usual job. One key or a combination, Esc included.")
             ) {
                 ShortcutRecorder(shortcut: $settings.cancelShortcut, optional: true, keyOnly: true, onRecording: settings.onRecordingShortcut)
             }
-            SettingRow(tr("Récupérer le dernier enregistrement annulé"), detail: tr("Le transcrit et le colle, comme s'il n'avait pas été annulé.")) {
+            SettingRow(tr("Restore the last cancelled recording"), detail: tr("Transcribes and pastes it, as if it had never been cancelled.")) {
                 ShortcutRecorder(shortcut: $settings.restoreShortcut, optional: true, onRecording: settings.onRecordingShortcut)
             }
-            SettingRow(tr("Recoller la dernière dictée"), detail: tr("Quand le collage a raté, ou pour la réutiliser ailleurs.")) {
+            SettingRow(tr("Paste the last dictation again"), detail: tr("When the paste failed, or to reuse it elsewhere.")) {
                 ShortcutRecorder(shortcut: $settings.pasteLastShortcut, optional: true, onRecording: settings.onRecordingShortcut)
             }
-            SettingRow(tr("Ouvrir Plume")) {
+            SettingRow(tr("Open Plume")) {
                 ShortcutRecorder(shortcut: $settings.openShortcut, optional: true, onRecording: settings.onRecordingShortcut)
             }
         }
@@ -1063,34 +1063,34 @@ struct SettingsPage: View {
 
     private var dictation: some View {
         VStack(alignment: .leading, spacing: 22) {
-            SettingsSection(tr("Collage")) {
-                SettingToggle(tr("Coller dans le champ actif à la fin"), detail: tr("Sinon, le texte est seulement copié. Le presse-papiers est toujours rétabli ensuite."), isOn: $settings.pasteAfterDictation)
+            SettingsSection(tr("Pasting")) {
+                SettingToggle(tr("Paste into the active field when done"), detail: tr("Otherwise the text is only copied. The clipboard is always restored afterwards."), isOn: $settings.pasteAfterDictation)
                 SettingToggle(
-                    tr("Adapter l'insertion à ce qui entoure le curseur"),
-                    detail: tr("Une espace si le curseur touche un mot, une minuscule si la phrase est commencée, pas de point final si elle continue."),
+                    tr("Fit the text to what surrounds the cursor"),
+                    detail: tr("A space if the cursor touches a word, lowercase if the sentence has begun, no final period if it continues."),
                     isOn: $settings.smartInsert
                 )
                 .disabled(!settings.pasteAfterDictation)
                 SettingToggle(
-                    tr("Écrire au fur et à mesure"),
-                    detail: tr("Les mots se tapent dans le champ pendant que tu parles, au lieu d'être collés d'un coup à la fin ; quand le modèle se corrige, Plume efface et retape. La mise au propre par l'IA ne s'applique alors pas ; l'historique garde la version complète."),
-                    badge: tr("bêta"),
+                    tr("Write as you speak"),
+                    detail: tr("Words are typed into the field while you talk, instead of being pasted all at once at the end; when the model corrects itself, Plume erases and retypes. The AI clean-up does not apply then; the history keeps the complete version."),
+                    badge: tr("beta"),
                     isOn: $settings.streamingPaste
                 )
                 .disabled(!settings.pasteAfterDictation)
             }
-            SettingsSection(tr("Texte")) {
-                SettingToggle(tr("Retirer les hésitations et les mots répétés"), isOn: $settings.cleanup)
+            SettingsSection(tr("Text")) {
+                SettingToggle(tr("Remove hesitations and repeated words"), isOn: $settings.cleanup)
                 SettingToggle(
-                    tr("Commandes vocales"),
-                    detail: tr("« À la ligne », « nouveau paragraphe », « nouvelle puce », « point d'interrogation », « ouvrez les guillemets », « efface ça », « appuie sur Entrée »."),
+                    tr("Voice commands"),
+                    detail: tr("“New line”, “new paragraph”, “bullet point”, “question mark”, “open quote”, “scratch that”, “press enter”."),
                     isOn: $settings.voiceCommands)
             }
-            SettingsSection(tr("Pendant la dictée")) {
-                SettingToggle(tr("Afficher les mots en direct"), detail: tr("Le texte défile sous l'encoche pendant que tu parles."), isOn: $settings.liveTranscript)
+            SettingsSection(tr("While dictating")) {
+                SettingToggle(tr("Show words as you speak"), detail: tr("The text scrolls under the notch while you speak."), isOn: $settings.liveTranscript)
                 SettingToggle(
-                    tr("Couper le son de l'ordinateur pendant la dictée"),
-                    detail: tr("Musique ou vidéo en cours : le son est coupé le temps de parler, puis rétabli."),
+                    tr("Mute the computer while dictating"),
+                    detail: tr("Music or video playing: the sound is muted while you talk, then restored."),
                     isOn: $settings.muteWhileDictating)
             }
         }
@@ -1099,16 +1099,16 @@ struct SettingsPage: View {
     private var meeting: some View {
         SettingsSection("") {
             SettingToggle(
-                tr("Capter aussi le son de l'ordinateur"),
-                detail: tr("Les autres participants (Meet, Zoom, Teams…) sont transcrits même au casque, et chaque interlocuteur est séparé. Sans casque, l'écho des haut-parleurs est retiré du micro."),
+                tr("Also capture the computer's audio"),
+                detail: tr("The other participants (Meet, Zoom, Teams…) are transcribed even with headphones, and each speaker is separated. Without headphones, the speakers' echo is removed from the microphone."),
                 isOn: $settings.systemAudio)
             SettingToggle(
-                tr("Proposer d'enregistrer quand un appel démarre"),
-                detail: tr("Dès que Zoom, Teams, FaceTime ou Meet (dans le navigateur) ouvre le micro, l'encoche propose la réunion."),
+                tr("Offer to record when a call starts"),
+                detail: tr("As soon as Zoom, Teams, FaceTime or Meet (in the browser) opens the microphone, the notch offers to record the meeting."),
                 isOn: $settings.meetingDetection)
             SettingToggle(
-                tr("Résumer chaque réunion"), detail: settings.ai.isAvailable
-                    ? tr("Points clés, décisions, actions et un titre, dès que la réunion est transcrite.")
+                tr("Summarize every meeting"), detail: settings.ai.isAvailable
+                    ? tr("Key points, decisions, actions and a title, as soon as the meeting is transcribed.")
                     : (settings.ai.reason ?? ""),
                 isOn: $settings.autoSummary
             )
@@ -1120,17 +1120,17 @@ struct SettingsPage: View {
         SettingsSection(
             "",
             footer: settings.ai.isAvailable
-                ? tr("Apple Intelligence, sur ce Mac : rien n'est envoyé nulle part. Toujours en option, le texte brut reste dans l'historique.")
+                ? tr("Apple Intelligence, on this Mac: nothing is sent anywhere. Always optional; the raw text stays in the history.")
                 : settings.ai.reason
         ) {
             SettingToggle(
-                tr("Mettre les dictées au propre"),
-                detail: tr("Ponctuation, faux départs et auto-corrections (« non pardon ») repris par l'IA. Les règles par application ont la priorité."),
+                tr("Clean up dictations"),
+                detail: tr("Punctuation, false starts and self-corrections (“no, sorry”) fixed by the AI. Per-app rules take precedence."),
                 isOn: $settings.polish
             )
             .disabled(!settings.ai.isAvailable)
-            SettingRow(tr("Consignes"), detail: tr("Ce que l'IA doit respecter en mettant au propre.")) {
-                TextField(tr("tutoie, pas d'émojis, ton direct…"), text: $settings.polishInstructions)
+            SettingRow(tr("Instructions"), detail: tr("What the AI must respect when cleaning up.")) {
+                TextField(tr("informal tone, no emojis, be direct…"), text: $settings.polishInstructions)
                     .textFieldStyle(.plain)
                     .font(UI.sans(13))
                     .padding(.horizontal, 10)
@@ -1138,7 +1138,7 @@ struct SettingsPage: View {
                     .background(RoundedRectangle(cornerRadius: UI.radius, style: .continuous).fill(UI.hover))
             }
             .disabled(!settings.ai.isAvailable || !settings.polish)
-            SettingRow(tr("Transformer la sélection"), detail: tr("Le raccourci se règle dans Raccourcis : sélectionne un texte, dicte une consigne, l'IA le réécrit.")) {
+            SettingRow(tr("Transform the selection"), detail: tr("The shortcut is set under Shortcuts: select text, say an instruction, the AI rewrites it.")) {
                 Keycaps(shortcut: HotkeyManager.describe(settings.transformShortcut))
             }
             .disabled(!settings.ai.isAvailable)
@@ -1148,29 +1148,29 @@ struct SettingsPage: View {
     private var audio: some View {
         VStack(alignment: .leading, spacing: 22) {
             SettingsSection(
-                tr("Micro"),
+                tr("Microphone"),
                 footer: settings.chosenMicrophoneMissing
-                    ? tr("Le micro choisi n'est pas branché : en attendant, Plume utilise celui du Mac.")
-                    : tr("Plume garde ce micro quoi qu'il arrive : connecter des écouteurs ou un casque Bluetooth n'y change rien.")
+                    ? tr("The chosen microphone is not connected: meanwhile, Plume uses the Mac's.")
+                    : tr("Plume keeps this microphone no matter what: connecting earbuds or a Bluetooth headset changes nothing.")
             ) {
-                SettingRow(tr("Micro utilisé")) {
+                SettingRow(tr("Microphone in use")) {
                     Picker("", selection: $settings.microphoneUID) {
-                        Text(settings.microphones.first(where: \.isBuiltIn).map { "\($0.name) " + tr("(par défaut)") } ?? tr("Micro du Mac (par défaut)"))
+                        Text(settings.microphones.first(where: \.isBuiltIn).map { "\($0.name) " + tr("(default)") } ?? tr("Mac microphone (default)"))
                             .tag("")
                         ForEach(settings.microphones.filter { !$0.isBuiltIn }) { device in
                             Text(device.isBluetooth ? "\(device.name) (Bluetooth)" : device.name).tag(device.uid)
                         }
                         if settings.chosenMicrophoneMissing {
-                            Text(tr("Micro choisi (non branché)")).tag(settings.microphoneUID)
+                            Text(tr("Chosen microphone (not connected)")).tag(settings.microphoneUID)
                         }
                     }
                     .labelsHidden()
                     .frame(width: 270)
                 }
             }
-            SettingsSection(tr("Sons"), footer: tr("Un son doux au début et à la fin de chaque enregistrement, et une note discrète sur les gestes dans cette fenêtre.")) {
-                SettingToggle(tr("Sons de Plume"), isOn: $settings.sounds)
-                SettingRow(tr("Pack de sons"), detail: tr("Les sons de début et de fin d'enregistrement.")) {
+            SettingsSection(tr("Sounds"), footer: tr("A soft sound at the start and end of each recording, and a quiet note on gestures in this window.")) {
+                SettingToggle(tr("Plume sounds"), isOn: $settings.sounds)
+                SettingRow(tr("Sound pack"), detail: tr("The sounds at the start and end of each recording.")) {
                     Picker("", selection: $settings.soundPack) {
                         ForEach(SoundPack.allCases) { Text($0.title).tag($0) }
                     }
@@ -1206,9 +1206,9 @@ struct SettingsPage: View {
         SettingsSection(
             "",
             footer: settings.modelMessage
-                ?? tr("Tous tournent sur le Neural Engine, téléchargés une fois depuis Hugging Face. Changer de modèle recharge ~600 Mo ; le bouton « Retranscrire » de l'historique permet de comparer sur un même enregistrement.")
+                ?? tr("All run on the Neural Engine, downloaded once from Hugging Face. Switching models reloads ~600 MB; the history's “Transcribe again” button lets you compare on the same recording.")
         ) {
-            SettingRow(tr("Modèle"), detail: settings.model.detail) {
+            SettingRow(tr("Model"), detail: settings.model.detail) {
                 Picker("", selection: $settings.model) {
                     ForEach(EngineModel.allCases, id: \.self) { Text($0.label).tag($0) }
                 }
@@ -1217,12 +1217,12 @@ struct SettingsPage: View {
             }
             if settings.model == .custom {
                 SettingRow(
-                    tr("Dossier du modèle"),
+                    tr("Model folder"),
                     detail: settings.customModelPath.isEmpty
-                        ? tr("Aucun dossier choisi : Plume ne peut rien transcrire.")
+                        ? tr("No folder chosen: Plume cannot transcribe anything.")
                         : (settings.customModelPath as NSString).abbreviatingWithTildeInPath
                 ) {
-                    PlumeButton(title: tr("Choisir…"), icon: .folder) { settings.chooseModelDirectory() }
+                    PlumeButton(title: tr("Choose…"), icon: .folder) { settings.chooseModelDirectory() }
                 }
             }
         }
@@ -1232,48 +1232,48 @@ struct SettingsPage: View {
         SettingsSection(
             "",
             footer: settings.retention == .nothing
-                ? tr("Les dictées sont collées puis oubliées : ni texte, ni audio, ni fichier de secours, et les statistiques de l'accueil s'arrêtent. Les réunions, qui n'ont pas d'autre débouché, restent rangées dans l'historique.")
+                ? tr("Dictations are pasted, then forgotten: no text, no audio, no safety file, and the home statistics stop. Meetings, which have nowhere else to go, are still filed in the history.")
                 : nil
         ) {
-            SettingRow(tr("Dossier"), detail: (settings.libraryPath as NSString).abbreviatingWithTildeInPath) {
-                PlumeButton(title: tr("Modifier…")) { settings.chooseLibrary() }
+            SettingRow(tr("Folder"), detail: (settings.libraryPath as NSString).abbreviatingWithTildeInPath) {
+                PlumeButton(title: tr("Change…")) { settings.chooseLibrary() }
             }
-            SettingRow(tr("Conserver de chaque dictée"), detail: tr("L'audio sert à réécouter et à retranscrire depuis l'historique.")) {
+            SettingRow(tr("Keep from each dictation"), detail: tr("Audio lets you listen again and re-transcribe from the history.")) {
                 Picker("", selection: $settings.retention) {
                     ForEach(SettingsModel.Retention.allCases) { Text($0.label).tag($0) }
                 }
                 .labelsHidden()
                 .frame(width: 190)
             }
-            SettingRow(tr("Garder l'audio"), detail: tr("Le texte, lui, reste. L'audio plus ancien est supprimé au lancement.")) {
+            SettingRow(tr("Keep audio"), detail: tr("The text stays. Older audio is deleted at launch.")) {
                 Picker("", selection: $settings.audioRetentionDays) {
-                    Text(tr("Toujours")).tag(0)
-                    Text(tr("90 jours")).tag(90)
-                    Text(tr("30 jours")).tag(30)
-                    Text(tr("7 jours")).tag(7)
+                    Text(tr("Always")).tag(0)
+                    Text(tr("90 days")).tag(90)
+                    Text(tr("30 days")).tag(30)
+                    Text(tr("7 days")).tag(7)
                 }
                 .labelsHidden()
                 .frame(width: 150)
             }
             .disabled(settings.retention != .textAndAudio)
             SettingRow(
-                tr("Garder les enregistrements annulés"),
-                detail: tr("Une dictée ou une réunion annulée par erreur se récupère depuis l'historique, le menu ou un raccourci. Passé ce délai, elle est supprimée.")
+                tr("Keep cancelled recordings"),
+                detail: tr("A dictation or meeting cancelled by mistake can be restored from the history, the menu or a shortcut. After this delay, it is deleted.")
             ) {
                 Picker("", selection: $settings.cancelledRetentionHours) {
-                    Text(tr("Ne pas garder")).tag(0)
-                    Text(tr("1 heure")).tag(1)
-                    Text(tr("24 heures")).tag(24)
-                    Text(tr("7 jours")).tag(24 * 7)
-                    Text(tr("30 jours")).tag(24 * 30)
+                    Text(tr("Don't keep")).tag(0)
+                    Text(tr("1 hour")).tag(1)
+                    Text(tr("24 hours")).tag(24)
+                    Text(tr("7 days")).tag(24 * 7)
+                    Text(tr("30 days")).tag(24 * 30)
                 }
                 .labelsHidden()
                 .frame(width: 150)
             }
-            SettingRow(tr("Tous les réglages"), detail: tr("Raccourcis, options, vocabulaire et applications dans un fichier, pour un autre Mac.")) {
+            SettingRow(tr("All settings"), detail: tr("Shortcuts, options, vocabulary and applications in one file, for another Mac.")) {
                 HStack(spacing: 6) {
-                    PlumeButton(title: tr("Importer…")) { settings.importSettings() }
-                    PlumeButton(title: tr("Exporter…"), icon: .fileDown) { settings.exportSettings() }
+                    PlumeButton(title: tr("Import…")) { settings.importSettings() }
+                    PlumeButton(title: tr("Export…"), icon: .fileDown) { settings.exportSettings() }
                 }
             }
         }
@@ -1283,67 +1283,67 @@ struct SettingsPage: View {
         SettingsSection(
             "",
             footer: settings.integrationMessage
-                ?? tr("Un assistant peut lire tes transcriptions : par le dossier de la bibliothèque, par la commande plume, ou par le serveur MCP de Plume.")
+                ?? tr("An assistant can read your transcripts: through the library folder, the plume command, or Plume's MCP server.")
         ) {
             SettingRow(
-                tr("Commande plume"),
+                tr("plume command"),
                 detail: !settings.commandInstalled
                     ? "plume last, plume search… dans un terminal."
                     : (settings.commandOnPath
-                        ? tr("Installée dans ~/.local/bin.")
-                        : tr("Installée dans ~/.local/bin — ajoute ce dossier à ton PATH pour l'appeler par son nom."))
+                        ? tr("Installed in ~/.local/bin.")
+                        : tr("Installed in ~/.local/bin — add that folder to your PATH to call it by name."))
             ) {
-                LinkState(done: settings.commandInstalled, action: tr("Installer")) { settings.installCommand() }
+                LinkState(done: settings.commandInstalled, action: tr("Install")) { settings.installCommand() }
             }
-            SettingRow(tr("Claude Code"), detail: tr("Déclare le serveur MCP de Plume pour tous tes projets.")) {
+            SettingRow(tr("Claude Code"), detail: tr("Registers Plume's MCP server for all your projects.")) {
                 HStack(spacing: 6) {
                     if !settings.claudeCodeConnected {
-                        PlumeButton(icon: .copy, help: tr("Copier la commande à lancer soi-même"), sound: .confirm) {
+                        PlumeButton(icon: .copy, help: tr("Copy the command to run yourself"), sound: .confirm) {
                             Paster.copy(Integrations.claudeCodeCommand)
                         }
                     }
                     if settings.connectingClaudeCode {
                         ProgressView().controlSize(.small)
                     } else {
-                        LinkState(done: settings.claudeCodeConnected, action: tr("Connecter")) { settings.connectClaudeCode() }
+                        LinkState(done: settings.claudeCodeConnected, action: tr("Connect")) { settings.connectClaudeCode() }
                     }
                 }
             }
             if Integrations.claudeDesktopPresent {
-                SettingRow(tr("Claude Desktop"), detail: tr("Ajoute Plume à sa configuration, sans toucher au reste.")) {
-                    LinkState(done: settings.claudeDesktopConnected, action: tr("Connecter")) { settings.connectClaudeDesktop() }
+                SettingRow(tr("Claude Desktop"), detail: tr("Adds Plume to its configuration, leaving the rest untouched.")) {
+                    LinkState(done: settings.claudeDesktopConnected, action: tr("Connect")) { settings.connectClaudeDesktop() }
                 }
             }
-            SettingRow(tr("Autre assistant"), detail: tr("La configuration MCP à coller dans son fichier de réglages.")) {
-                PlumeButton(title: tr("Copier"), icon: .copy, sound: .confirm) { Paster.copy(Integrations.configuration) }
+            SettingRow(tr("Another assistant"), detail: tr("The MCP configuration to paste into its settings file.")) {
+                PlumeButton(title: tr("Copy"), icon: .copy, sound: .confirm) { Paster.copy(Integrations.configuration) }
             }
         }
     }
 
     private var permissions: some View {
         SettingsSection("") {
-            PermissionRow(title: tr("Microphone"), detail: tr("Pour entendre ta voix."), granted: settings.microphoneGranted, action: settings.requestMicrophone)
+            PermissionRow(title: tr("Microphone access"), detail: tr("To hear your voice."), granted: settings.microphoneGranted, action: settings.requestMicrophone)
                 .padding(.horizontal, 14).padding(.vertical, 10)
-            PermissionRow(title: tr("Accessibilité"), detail: tr("Pour coller le texte dans le champ actif."), granted: settings.accessibilityGranted, action: settings.requestAccessibility)
+            PermissionRow(title: tr("Accessibility"), detail: tr("To paste the text into the active field."), granted: settings.accessibilityGranted, action: settings.requestAccessibility)
                 .padding(.horizontal, 14).padding(.vertical, 10)
-            SettingRow(tr("Enregistrement audio du système"), detail: tr("Demandée à la première réunion, pour capter le son de l'ordinateur.")) {
-                PlumeButton(title: tr("Ouvrir les réglages")) { Permissions.openSettings(.audioCapture) }
+            SettingRow(tr("System audio recording"), detail: tr("Asked at the first meeting, to capture the computer's audio.")) {
+                PlumeButton(title: tr("Open settings")) { Permissions.openSettings(.audioCapture) }
             }
         }
     }
 
     private var about: some View {
         SettingsSection("") {
-            SettingRow("Plume \(Updates.version)", detail: tr("Dictée et transcription locales : rien ne quitte ce Mac.")) {
+            SettingRow("Plume \(Updates.version)", detail: tr("Local dictation and transcription: nothing leaves this Mac.")) {
                 if updates.isAvailable {
-                    PlumeButton(title: tr("Rechercher une mise à jour")) { updates.check() }
+                    PlumeButton(title: tr("Check for updates")) { updates.check() }
                 }
             }
             if updates.isAvailable {
-                SettingToggle(tr("Rechercher les mises à jour automatiquement"), isOn: $updates.automatic)
+                SettingToggle(tr("Check for updates automatically"), isOn: $updates.automatic)
             }
-            SettingRow(tr("Licences"), detail: tr("Modèles, polices, icônes et bibliothèques utilisés par Plume.")) {
-                PlumeButton(title: tr("Afficher")) {
+            SettingRow(tr("Licenses"), detail: tr("Models, fonts, icons and libraries used by Plume.")) {
+                PlumeButton(title: tr("Show")) {
                     if let url = Bundle.main.url(forResource: "LICENCES", withExtension: "md") { NSWorkspace.shared.open(url) }
                 }
             }
@@ -1404,7 +1404,7 @@ private struct LinkState: View {
         if done {
             HStack(spacing: 6) {
                 Icon(.circleCheck, size: 15)
-                Text(tr("Fait")).font(UI.sans(13, .medium))
+                Text(tr("Done")).font(UI.sans(13, .medium))
             }
             .foregroundStyle(UI.success)
             .frame(height: 30)
@@ -1539,7 +1539,7 @@ struct ShortcutRecorder: View {
             Button(action: { recording ? finish(nil) : begin() }) {
                 Group {
                     if recording {
-                        Text(tr("Tape le raccourci…")).foregroundStyle(UI.text)
+                        Text(tr("Press the shortcut…")).foregroundStyle(UI.text)
                     } else if shortcut.isEmpty {
                         Text(HotkeyManager.describe(shortcut)).foregroundStyle(UI.text2)
                     } else {
@@ -1564,7 +1564,7 @@ struct ShortcutRecorder: View {
                     Icon(.circleX, size: 14).foregroundStyle(UI.text3)
                 }
                 .buttonStyle(PressStyle())
-                .help(tr("Retirer ce raccourci"))
+                .help(tr("Remove this shortcut"))
             }
         }
         .onDisappear { finish(nil) }
