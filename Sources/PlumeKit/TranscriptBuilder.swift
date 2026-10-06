@@ -1,25 +1,25 @@
 import Foundation
 
-/// Assemble les mots horodatés et la diarisation en tours de parole lisibles.
+/// Assembles timestamped words and diarization into readable speaker turns.
 public enum TranscriptBuilder {
-    /// Pause au-delà de laquelle un même locuteur ouvre un nouveau paragraphe.
+    /// Pause beyond which the same speaker opens a new paragraph.
     public static let paragraphGap = 2.5
 
-    /// Le propriétaire de l'appareil : « Moi », ou « Me » en anglais.
+    /// The device owner: "Me", or "Moi" in French.
     public static var meName: String { tr("Me") }
 
-    /// « Interlocuteur 1 », ou « Speaker 1 ».
+    /// "Speaker 1", or "Interlocuteur 1" in French.
     public static func speakerName(_ index: Int) -> String { "\(tr("Speaker")) \(index)" }
 
-    /// Reconnaît le propriétaire quelle que soit la langue dans laquelle il a été nommé.
+    /// Recognizes the owner whatever the language they were named in.
     public static func isMe(_ speaker: String) -> Bool { speaker == "Moi" || speaker == "Me" }
 
-    /// Attribue chaque mot à un locuteur puis regroupe en tours de parole.
+    /// Assigns each word to a speaker, then groups them into speaker turns.
     /// - Parameters:
-    ///   - words: mots horodatés d'un canal.
-    ///   - turns: résultat de la diarisation de ce canal (vide = locuteur unique).
-    ///   - names: nom affiché pour chaque identifiant de locuteur.
-    ///   - fallback: nom utilisé sans diarisation.
+    ///   - words: timestamped words of a channel.
+    ///   - turns: diarization result for this channel (empty = single speaker).
+    ///   - names: display name for each speaker identifier.
+    ///   - fallback: name used without diarization.
     public static func segments(
         words: [Word], turns: [SpeakerTurn], names: [String: String], fallback: String, channel: AudioChannel
     ) -> [Segment] {
@@ -51,7 +51,7 @@ public enum TranscriptBuilder {
         return out
     }
 
-    /// Locuteur actif à l'instant `t` : le tour qui le contient, sinon le plus proche dans le temps.
+    /// Active speaker at time `t`: the turn that contains it, otherwise the closest in time.
     public static func speaker(at t: Double, in turns: [SpeakerTurn]) -> String? {
         var nearest: (id: String, distance: Double)?
         for turn in turns {
@@ -64,8 +64,8 @@ public enum TranscriptBuilder {
         return nearest?.id
     }
 
-    /// Un ou deux mots isolés attribués à quelqu'un d'autre au milieu d'une phrase sont
-    /// presque toujours une erreur de frontière : on les rend au locuteur environnant.
+    /// One or two isolated words attributed to someone else in the middle of a sentence are
+    /// almost always a boundary error: give them back to the surrounding speaker.
     static func smooth(_ labels: inout [String], words: [Word]) {
         guard labels.count >= 3 else { return }
         var i = 1
@@ -85,14 +85,14 @@ public enum TranscriptBuilder {
         }
     }
 
-    /// Recale chaque changement de locuteur sur une coupure naturelle de la parole.
+    /// Realigns each speaker change on a natural break in the speech.
     ///
-    /// La diarisation situe les changements de voix à quelques dixièmes de seconde près, ce qui
-    /// laisse souvent un ou deux mots du mauvais côté (« il y | a tellement de… »). Autour de
-    /// chaque changement, on cherche donc la vraie frontière : une pause, ou une fin de phrase.
+    /// Diarization places voice changes to within a few tenths of a second, which
+    /// often leaves a word or two on the wrong side ("il y | a tellement de…"). Around
+    /// each change, we therefore look for the real boundary: a pause, or a sentence end.
     static func snap(_ labels: inout [String], words: [Word], reach: Int = 4) {
         guard labels.count >= 2 else { return }
-        /// Qualité d'une frontière placée juste avant le mot `index` : une pause, une fin de phrase.
+        /// Quality of a boundary placed just before word `index`: a pause, a sentence end.
         func quality(_ index: Int) -> Double {
             let previous = words[index - 1]
             var score = min(max(0, words[index].start - previous.end), 1.0)
@@ -101,7 +101,7 @@ public enum TranscriptBuilder {
             }
             return score
         }
-        /// Écart, en secondes, entre l'instant `moment` et la coupure située avant le mot `index`.
+        /// Gap, in seconds, between time `moment` and the break located before word `index`.
         func distance(_ index: Int, from moment: Double) -> Double {
             let start = words[index - 1].end
             let end = words[index].start
@@ -117,8 +117,8 @@ public enum TranscriptBuilder {
             }
             let left = labels[index - 1]
             let right = labels[index]
-            // Positions possibles pour la frontière : tant qu'on reste dans la prise de parole
-            // de gauche (en reculant) ou de droite (en avançant), à quelques mots au plus.
+            // Possible positions for the boundary: as long as we stay within the left (going back)
+            // or right (going forward) speaker's turn, a few words at most.
             var candidates: [Int] = []
             var back = index - 1
             while back >= 1, index - back <= reach, labels[back] == left {
@@ -131,14 +131,14 @@ public enum TranscriptBuilder {
                 forward += 1
             }
 
-            // La diarisation se trompe rarement de plus d'une demi-seconde : une coupure
-            // éloignée de l'instant qu'elle indique doit être nettement meilleure pour l'emporter.
+            // Diarization is rarely wrong by more than half a second: a break
+            // far from the time it indicates must be clearly better to win.
             let moment = (words[index - 1].end + words[index].start) / 2
             var best = index
             var bestScore = quality(index)
             for candidate in candidates {
-                // Le dernier mot avant une pause « dure » longtemps dans les horodatages : on
-                // plafonne l'écart à trois dixièmes de seconde par mot enjambé.
+                // The last word before a pause "lasts" a long time in the timestamps: the
+                // gap is capped at three tenths of a second per word crossed.
                 let away = min(distance(candidate, from: moment), 0.3 * Double(abs(candidate - index)))
                 guard away <= 2 else { continue }
                 let score = quality(candidate) - 1.2 * away
@@ -156,7 +156,7 @@ public enum TranscriptBuilder {
         }
     }
 
-    /// Noms d'affichage dans l'ordre de première prise de parole : « Interlocuteur 1 », « 2 »…
+    /// Display names in order of first speaking: "Speaker 1", "2"…
     public static func names(for turns: [SpeakerTurn], startingAt first: Int = 1, me: String? = nil) -> [String: String] {
         var names: [String: String] = [:]
         var next = first
@@ -171,7 +171,7 @@ public enum TranscriptBuilder {
         return names
     }
 
-    /// Fusionne plusieurs canaux en un seul fil chronologique.
+    /// Merges several channels into a single chronological thread.
     public static func merge(_ channels: [[Segment]]) -> [Segment] {
         let sorted = channels.flatMap { $0 }.sorted { $0.start < $1.start }
         return sorted.enumerated().map { index, segment in
@@ -181,7 +181,7 @@ public enum TranscriptBuilder {
         }
     }
 
-    /// Suite de mots d'un même locuteur sur un canal, avant mise en forme.
+    /// Run of words by the same speaker on a channel, before formatting.
     public struct Run: Sendable, Equatable {
         public var speaker: String
         public var channel: AudioChannel
@@ -198,9 +198,9 @@ public enum TranscriptBuilder {
         }
     }
 
-    /// Attribue chaque mot d'un canal à un locuteur et regroupe les mots consécutifs.
-    /// - Parameter label: nom à donner à un identifiant de locuteur de la diarisation
-    ///   (`nil` quand aucun tour n'a été détecté).
+    /// Assigns each word of a channel to a speaker and groups consecutive words.
+    /// - Parameter label: name to give to a diarization speaker identifier
+    ///   (`nil` when no turn was detected).
     public static func runs(
         words: [Word], turns: [SpeakerTurn], channel: AudioChannel, gap: Double = paragraphGap,
         label: (String?) -> String
@@ -224,17 +224,17 @@ public enum TranscriptBuilder {
         word.text.last.map { ".?!…".contains($0) } ?? false
     }
 
-    /// Entremêle les prises de parole de tous les canaux dans l'ordre où elles ont eu lieu.
+    /// Interleaves the speaking turns of all channels in the order they happened.
     ///
-    /// Quand quelqu'un intervient au milieu du long tour d'un autre, ce tour est coupé à la fin
-    /// de la phrase la plus proche : l'intervention apparaît à sa place dans la conversation
-    /// au lieu d'être repoussée après le monologue.
+    /// When someone speaks up in the middle of another's long turn, that turn is cut at the end
+    /// of the nearest sentence: the interruption appears in its place in the conversation
+    /// instead of being pushed back after the monologue.
     public static func interleave(_ runs: [Run], gap: Double = paragraphGap) -> [Run] {
-        // Chaque morceau porte l'instant qui fixe sa place dans le fil : son début, ou, pour la
-        // suite d'un tour coupé, l'instant de l'intervention qui l'a coupé (la suite vient après).
+        // Each chunk carries the time that fixes its place in the thread: its start, or, for the
+        // rest of a cut turn, the time of the interruption that cut it (the rest comes after).
         var keyed: [(key: Double, run: Run)] = []
         for run in runs {
-            // Instants où un autre locuteur prend la parole pendant ce tour.
+            // Times when another speaker takes the floor during this turn.
             let interruptions = runs
                 .filter { $0.speaker != run.speaker && $0.start > run.start + 0.5 && $0.start < run.end - 0.5 }
                 .map(\.start)
@@ -253,7 +253,7 @@ public enum TranscriptBuilder {
         }
         let pieces = keyed.sorted { $0.key < $1.key }.map(\.run)
 
-        // Deux morceaux consécutifs du même locuteur, sans personne entre eux, se recollent.
+        // Two consecutive chunks by the same speaker, with nobody between them, are glued back together.
         var merged: [Run] = []
         for piece in pieces {
             if let last = merged.last, last.speaker == piece.speaker, piece.start - last.end < gap {
@@ -265,8 +265,8 @@ public enum TranscriptBuilder {
         return merged
     }
 
-    /// Indice où couper `words` pour laisser passer une intervention à l'instant `moment` :
-    /// la fin de phrase la plus proche, à défaut la pause la plus proche.
+    /// Index at which to cut `words` to let an interruption through at time `moment`:
+    /// the nearest sentence end, failing that the nearest pause.
     static func splitIndex(in words: [Word], near moment: Double) -> Int? {
         guard words.count >= 4 else { return nil }
         var best: (index: Int, score: Double)?
@@ -277,15 +277,15 @@ public enum TranscriptBuilder {
             guard sentence || gap >= 0.35 else { continue }
             let distance = abs(previous.end - moment)
             guard distance <= 5 else { continue }
-            // Une fin de phrase vaut mieux qu'une simple pause, à distance égale.
+            // A sentence end beats a mere pause, at equal distance.
             let score = distance + (sentence ? 0 : 2.5)
             if score < (best?.score ?? .infinity) { best = (index, score) }
         }
         return best?.index
     }
 
-    /// Convertit les prises de parole en segments, en nommant les locuteurs dans l'ordre où
-    /// ils interviennent : « Interlocuteur 1 », « 2 »… ; `Moi` garde son nom.
+    /// Converts speaking turns into segments, naming the speakers in the order
+    /// they speak: "Speaker 1", "2"…; `Me` keeps its name.
     public static func segments(from runs: [Run], me: Set<String> = []) -> [Segment] {
         var names: [String: String] = [:]
         var next = 1
@@ -300,20 +300,20 @@ public enum TranscriptBuilder {
                 names[run.speaker] = name
                 next += 1
             }
-            // Un tour de parole commence par une majuscule, même quand le modèle l'a enchaîné
-            // sans ponctuation à la phrase de quelqu'un d'autre.
+            // A speaker turn starts with a capital, even when the model ran it on
+            // without punctuation from someone else's sentence.
             var text = run.text
             if let first = text.first, first.isLowercase { text = first.uppercased() + text.dropFirst() }
             return Segment(id: index, speaker: name, channel: run.channel, start: run.start, end: run.end, text: text)
         }
     }
 
-    /// Retire du canal micro ce qui n'est que l'écho du son de l'ordinateur
-    /// (réunion sans écouteurs : les haut-parleurs repassent dans le micro).
+    /// Removes from the microphone channel what is only the echo of the system audio
+    /// (meeting without earphones: the speakers play back into the microphone).
     ///
-    /// Un segment micro n'est un écho que s'il répète, au même moment, les mêmes enchaînements
-    /// de mots que le son système. Partager du vocabulaire courant ne suffit pas : une vraie
-    /// réponse (« d'accord, je vois ce que tu veux dire ») doit rester.
+    /// A microphone segment is an echo only if it repeats, at the same moment, the same sequences
+    /// of words as the system audio. Sharing common vocabulary is not enough: a real
+    /// reply ("d'accord, je vois ce que tu veux dire") must stay.
     public static func removingEcho(mic: [Segment], systemWords: [Word]) -> [Segment] {
         guard !systemWords.isEmpty else { return mic }
         return mic.filter { segment in
@@ -330,7 +330,7 @@ public enum TranscriptBuilder {
         }
     }
 
-    /// Même filtre, appliqué aux prises de parole du micro avant leur mise en forme.
+    /// Same filter, applied to the microphone's speaking turns before formatting.
     public static func removingEcho(mic: [Run], systemWords: [Word]) -> [Run] {
         let kept = Set(
             removingEcho(
@@ -347,7 +347,7 @@ public enum TranscriptBuilder {
             .filter { !$0.isEmpty }
     }
 
-    /// Texte brut d'une conversation : dialogue horodaté s'il y a plusieurs voix, paragraphes sinon.
+    /// Plain text of a conversation: timestamped dialogue if there are several voices, paragraphs otherwise.
     public static func text(for segments: [Segment]) -> String {
         if speakers(in: segments).count > 1 {
             return segments
@@ -364,8 +364,8 @@ public enum TranscriptBuilder {
     }
 }
 
-/// Empreinte vocale du propriétaire, apprise au fil des dictées, pour le reconnaître
-/// (« Moi ») parmi les interlocuteurs d'une réunion.
+/// Voiceprint of the owner, learned over the dictations, to recognize them
+/// ("Me") among the speakers of a meeting.
 public struct Voiceprint: Codable, Sendable {
     public var embedding: [Float]
     public var samples: Int
@@ -384,7 +384,7 @@ public struct Voiceprint: Codable, Sendable {
         return denominator > 0 ? dot / denominator : 0
     }
 
-    /// Intègre une nouvelle mesure (moyenne glissante plafonnée pour suivre l'évolution de la voix).
+    /// Integrates a new measurement (running average, capped to follow changes in the voice).
     public mutating func add(_ other: [Float]) {
         guard other.count == embedding.count else { return }
         let weight = Float(min(samples, 30))
@@ -394,7 +394,7 @@ public struct Voiceprint: Codable, Sendable {
         samples += 1
     }
 
-    /// Identifiant du locuteur qui correspond à l'empreinte, s'il y en a un de suffisamment proche.
+    /// Identifier of the speaker matching the voiceprint, if one is close enough.
     public func match(in embeddings: [String: [Float]], threshold: Float = 0.45) -> String? {
         let scored = embeddings.map { ($0.key, Self.cosine(embedding, $0.value)) }
         guard let best = scored.max(by: { $0.1 < $1.1 }), best.1 >= threshold else { return nil }

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Tampon d'échantillons mono 16 kHz, alimenté par le thread audio et lu par la transcription.
+/// Buffer of mono 16 kHz samples, fed by the audio thread and read by the transcription.
 public final class SampleBuffer: @unchecked Sendable {
     private var storage: [Float] = []
     private let lock = NSLock()
@@ -39,7 +39,7 @@ public final class SampleBuffer: @unchecked Sendable {
 }
 
 public enum AudioLevel {
-    /// Niveau RMS d'un bloc d'échantillons.
+    /// RMS level of a block of samples.
     public static func rms(_ samples: ArraySlice<Float>) -> Float {
         guard !samples.isEmpty else { return 0 }
         var sum: Float = 0
@@ -47,12 +47,12 @@ public enum AudioLevel {
         return (sum / Float(samples.count)).squareRoot()
     }
 
-    /// Vrai si aucune trame de 100 ms ne dépasse le seuil de parole.
+    /// True if no 100 ms frame exceeds the speech threshold.
     public static func isSilent(_ samples: [Float], threshold: Float = 0.006) -> Bool {
         firstActiveFrame(samples, threshold: threshold) == nil
     }
 
-    /// Indice du premier échantillon d'une trame de 100 ms au-dessus du seuil.
+    /// Index of the first sample of a 100 ms frame above the threshold.
     public static func firstActiveFrame(_ samples: [Float], threshold: Float = 0.006) -> Int? {
         let frame = SpeechEngine.sampleRate / 10
         var i = 0
@@ -65,16 +65,16 @@ public enum AudioLevel {
     }
 }
 
-/// Transcription en direct par fenêtre glissante.
+/// Live transcription over a sliding window.
 ///
-/// À chaque passe, on retranscrit tout ce qui n'est pas encore « validé » (au plus ~13 s).
-/// Dès que la fenêtre contient une pause nette, le texte qui la précède est validé et ne
-/// bougera plus ; le reste est « volatil » et peut encore être corrigé à la passe suivante.
+/// On each pass, everything not yet "committed" is transcribed again (at most ~13 s).
+/// As soon as the window contains a clear pause, the text before it is committed and will
+/// no longer move; the rest is "volatile" and can still be corrected on the next pass.
 public actor LiveTranscriber {
     public struct State: Sendable, Equatable {
-        /// Texte validé, stable.
+        /// Committed text, stable.
         public var committed: String
-        /// Texte de la fenêtre en cours, susceptible de changer.
+        /// Text of the current window, liable to change.
         public var volatile: String
 
         public var full: String {
@@ -91,17 +91,17 @@ public actor LiveTranscriber {
     private var volatileText = ""
     private var processedCount = 0
 
-    /// Durée maximale d'audio non validé envoyée au modèle (son entrée native fait 15 s).
+    /// Maximum duration of uncommitted audio sent to the model (its native input is 15 s).
     private let maxWindow: Double
-    /// Audio déjà validé rejoué avant la fenêtre, pour que le modèle garde le fil de la phrase.
+    /// Already committed audio replayed before the window, so the model keeps the thread of the sentence.
     private let leftContext = 2.0
-    /// Durée à partir de laquelle on cherche une pause où valider.
+    /// Duration from which we look for a pause to commit at.
     private let commitAfter: Double
-    /// Fin de fenêtre laissée volatile : le modèle manque de contexte sur les derniers mots.
+    /// End of the window left volatile: the model lacks context on the last words.
     private let tailKeep = 1.2
 
-    /// - Parameter eager: fenêtres plus courtes, validées plus tôt : chaque passe coûte moins
-    ///   et le texte arrive plus vite, au prix d'un peu de contexte (écriture au fil de la dictée).
+    /// - Parameter eager: shorter windows, committed earlier: each pass costs less
+    ///   and the text arrives faster, at the price of a bit of context (typing as you dictate).
     public init(engine: SpeechEngine, buffer: SampleBuffer, eager: Bool = false) {
         self.engine = engine
         self.buffer = buffer
@@ -111,7 +111,7 @@ public actor LiveTranscriber {
 
     public var state: State { State(committed: committedText, volatile: volatileText) }
 
-    /// Une passe de transcription. Renvoie `nil` si rien de nouveau n'a été capté.
+    /// One transcription pass. Returns `nil` if nothing new was captured.
     public func tick() async -> State? {
         let total = buffer.count
         guard total - processedCount >= Int(0.3 * sampleRate) else { return nil }
@@ -122,13 +122,13 @@ public actor LiveTranscriber {
         let truncated = end < total
         let fresh = buffer.slice(committedSample..<end)
 
-        // Rien de parlé depuis la dernière validation : on avance en gardant une demi-seconde.
+        // Nothing spoken since the last commit: move on, keeping half a second.
         guard let firstActive = AudioLevel.firstActiveFrame(fresh) else {
             committedSample = max(committedSample, end - Int(0.5 * sampleRate))
             volatileText = ""
             return state
         }
-        // On saute le silence initial pour ne pas le retranscrire à chaque passe.
+        // Skip the initial silence so it isn't transcribed again on every pass.
         committedSample += max(0, firstActive - Int(0.3 * sampleRate))
 
         let contextSamples = min(Int(leftContext * sampleRate), committedSample)
@@ -136,7 +136,7 @@ public actor LiveTranscriber {
         let window = buffer.slice(windowStart..<end)
         guard let output = try? await engine.transcribe(window) else { return state }
 
-        // Les mots du contexte sont déjà validés : on ne garde que ce qui suit.
+        // The context words are already committed: keep only what follows.
         let contextDuration = Double(contextSamples) / sampleRate
         let words = output.words.filter { ($0.start + $0.end) / 2 >= contextDuration }
         let windowDuration = Double(window.count) / sampleRate
@@ -166,7 +166,7 @@ public actor LiveTranscriber {
         return state
     }
 
-    /// Fin d'enregistrement : tout ce qui reste est transcrit et validé d'un coup.
+    /// End of recording: everything left is transcribed and committed at once.
     public func finish() async -> State {
         let total = buffer.count
         guard total > committedSample else {
@@ -187,10 +187,10 @@ public actor LiveTranscriber {
         return state
     }
 
-    /// Nombre de mots à valider, ou `nil` si aucune coupe propre n'existe encore.
+    /// Number of words to commit, or `nil` if no clean cut exists yet.
     ///
-    /// On coupe de préférence à une fin de phrase ou à une vraie pause : couper au milieu
-    /// d'une phrase prive la fenêtre suivante de son contexte et dégrade la reconnaissance.
+    /// We prefer to cut at a sentence end or a real pause: cutting in the middle
+    /// of a sentence deprives the next window of its context and degrades recognition.
     private func commitIndex(words: [Word], windowDuration: Double, freshDuration: Double, force: Bool) -> Int? {
         let limit = force ? windowDuration : windowDuration - tailKeep
         var strong: Int?
@@ -205,10 +205,10 @@ public actor LiveTranscriber {
             if gap >= 0.3 { weak = i }
             if gap > (widest?.gap ?? -1) { widest = (i, gap) }
         }
-        // Silence après le dernier mot : tout ce qui a été dit peut être validé.
+        // Silence after the last word: everything that was said can be committed.
         if let last = words.last, windowDuration - last.end >= 0.9 { return words.count }
         if let strong { return strong }
-        // Parole continue : à l'approche de la saturation, on se contente d'une respiration.
+        // Continuous speech: near saturation, settle for a breath.
         if force || freshDuration >= maxWindow - 3 {
             return weak ?? widest?.index
         }

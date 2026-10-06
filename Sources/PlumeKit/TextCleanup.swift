@@ -1,13 +1,13 @@
 import Foundation
 
-/// Nettoyage léger et déterministe d'une dictée : retire les hésitations et les mots
-/// bégayés, sans jamais reformuler. Le texte brut reste conservé dans le transcript.
+/// Light, deterministic cleanup of a dictation: removes hesitations and stuttered
+/// words, never rewording. The raw text stays kept in the transcript.
 public enum TextCleanup {
-    /// Hésitations supprimées quand elles forment un mot à part entière.
+    /// Hesitations removed when they form a word on their own.
     private static let fillers: Set<String> = ["euh", "heu", "euhm", "hum", "hmm", "mmh", "um", "uh", "uhm", "erm"]
 
-    /// Mots-outils qui ne se répètent jamais légitimement (« de de », « mon mon »).
-    /// « nous » et « vous » en sont exclus : « nous nous sommes », « vous vous êtes ».
+    /// Function words that are never legitimately repeated ("de de", "mon mon").
+    /// "nous" and "vous" are excluded: "nous nous sommes", "vous vous êtes".
     private static let functionWords: Set<String> = [
         "le", "la", "les", "l'", "un", "une", "des", "de", "du", "d'", "à", "au", "aux", "et", "en",
         "je", "j'", "tu", "il", "elle", "on", "ils", "elles", "ce", "ça", "c'est", "que", "qu'", "qui",
@@ -31,7 +31,7 @@ public enum TextCleanup {
         return capitalizeFirst(result)
     }
 
-    /// Forme de comparaison : minuscules, sans ponctuation finale.
+    /// Comparison form: lowercase, no trailing punctuation.
     private static func key(_ token: String) -> String {
         token.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?…"))
     }
@@ -47,7 +47,7 @@ public enum TextCleanup {
                 out.append(token)
                 continue
             }
-            // « bon, euh. Voilà » : la ponctuation forte portée par l'hésitation revient au mot précédent.
+            // "bon, euh. Voilà": the strong punctuation carried by the hesitation goes back to the previous word.
             if let mark = token.last, ".?!".contains(mark), let last = out.last, !hasPunctuation(last) {
                 out[out.count - 1] = last + String(mark)
             }
@@ -55,7 +55,7 @@ public enum TextCleanup {
         return out
     }
 
-    /// Supprime les répétitions immédiates d'un groupe de `n` mots (« ça le ça le ça le marque »).
+    /// Removes immediate repetitions of a group of `n` words ("ça le ça le ça le marque").
     private static func collapseRepeats(_ tokens: [String], n: Int) -> [String] {
         guard tokens.count >= 2 * n else { return tokens }
         var out: [String] = []
@@ -65,7 +65,7 @@ public enum TextCleanup {
                 let first = Array(tokens[i..<i + n])
                 let second = Array(tokens[i + n..<i + 2 * n])
                 let sameWords = zip(first, second).allSatisfy { key($0) == key($1) }
-                // Une ponctuation dans la première occurrence signale une vraie reprise de phrase.
+                // Punctuation in the first occurrence signals a genuine restart of the sentence.
                 let cleanFirst = !first.contains(where: hasPunctuation)
                 if sameWords, cleanFirst, isStutter(first.map(key)) {
                     i += n
@@ -83,7 +83,7 @@ public enum TextCleanup {
         return words.contains(where: functionWords.contains)
     }
 
-    /// Une majuscule au premier mot, s'il n'en a pas.
+    /// A capital on the first word, if it doesn't have one.
     public static func capitalizeFirst(_ text: String) -> String {
         guard let first = text.first, first.isLowercase else { return text }
         return first.uppercased() + text.dropFirst()

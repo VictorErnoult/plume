@@ -1,20 +1,20 @@
 import Foundation
 
-/// Un enregistrement annulé, gardé de côté quelque temps : un Échap de trop ne doit pas coûter
-/// une réunion entière.
+/// A cancelled recording, kept aside for a while: one stray Esc must not cost
+/// a whole meeting.
 public struct CancelledRecording: Codable, Sendable, Identifiable, Equatable {
-    /// Identifiant de la session, le même que celui qu'aurait eu sa transcription.
+    /// Session identifier, the same one its transcript would have had.
     public var id: String
     public var createdAt: Date
     public var cancelledAt: Date
     public var mode: RecordingMode
     public var duration: Double
-    /// Application au premier plan au moment de l'enregistrement.
+    /// Frontmost app when the recording was made.
     public var app: String?
-    /// Transcription faite en arrière-plan après l'annulation (dictées seulement), ou `nil`.
+    /// Transcript made in the background after cancelling (dictations only), or `nil`.
     public var text: String?
     public var rawText: String?
-    /// Noms de fichiers audio, relatifs au dossier des annulés.
+    /// Audio file names, relative to the cancelled folder.
     public var audioFiles: [String]
 
     public init(
@@ -32,7 +32,7 @@ public struct CancelledRecording: Codable, Sendable, Identifiable, Equatable {
         self.audioFiles = audioFiles
     }
 
-    /// Début du texte, pour les listes.
+    /// Start of the text, for lists.
     public var preview: String? {
         guard let text, !text.isEmpty else { return nil }
         let flat = text.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
@@ -40,17 +40,17 @@ public struct CancelledRecording: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
-/// Les enregistrements annulés, rangés à part dans un dossier caché de la bibliothèque
-/// (`~/Plume/.annules/`) : ils n'apparaissent ni dans l'index, ni dans `dernier.md`, ni dans
-/// `plume last`, et ils disparaissent d'eux-mêmes passé le délai choisi dans les réglages.
+/// Cancelled recordings, stored apart in a hidden folder of the library
+/// (`~/Plume/.annules/`): they appear neither in the index, nor in `dernier.md`, nor in
+/// `plume last`, and they disappear on their own after the delay chosen in the settings.
 ///
 ///     ~/Plume/.annules/
-///       2026-10-05_14-31-05.json       ce qu'on sait de l'enregistrement
-///       2026-10-05_14-31-05_mic.m4a    l'audio du micro
-///       2026-10-05_14-31-05_sys.m4a    le son de l'ordinateur (réunion)
+///       2026-10-05_14-31-05.json       what is known about the recording
+///       2026-10-05_14-31-05_mic.m4a    the microphone audio
+///       2026-10-05_14-31-05_sys.m4a    the system audio (meeting)
 public final class CancelledStore: @unchecked Sendable {
     public enum Failure: Error {
-        /// La transcription n'a rien donné.
+        /// The transcription found nothing.
         case nothingHeard
     }
 
@@ -69,9 +69,9 @@ public final class CancelledStore: @unchecked Sendable {
             .filter { fm.fileExists(atPath: $0.path) }
     }
 
-    /// Met de côté un enregistrement annulé. L'audio est écrit d'abord : un enregistrement
-    /// n'est visible qu'une fois complet.
-    /// - Parameter system: le son de l'ordinateur et son décalage par rapport au début.
+    /// Sets a cancelled recording aside. The audio is written first: a recording
+    /// is only visible once complete.
+    /// - Parameter system: the system audio and its offset from the start.
     public func keep(_ recording: CancelledRecording, mic: [Float], system: (samples: [Float], offset: Double)? = nil) throws {
         Self.lock.lock()
         defer { Self.lock.unlock() }
@@ -82,7 +82,7 @@ public final class CancelledStore: @unchecked Sendable {
         try AudioIO.writeM4A(mic, to: root.appendingPathComponent(micName))
         recording.audioFiles.append(micName)
         if let system, !AudioLevel.isSilent(system.samples) {
-            // Silence initial égal au décalage : les deux pistes restent calées l'une sur l'autre.
+            // Initial silence equal to the offset: the two tracks stay aligned with each other.
             let lead = [Float](repeating: 0, count: Int(system.offset * Double(SpeechEngine.sampleRate)))
             let name = "\(recording.id)_sys.m4a"
             if (try? AudioIO.writeM4A(lead + system.samples, to: root.appendingPathComponent(name))) != nil {
@@ -92,7 +92,7 @@ public final class CancelledStore: @unchecked Sendable {
         try write(recording)
     }
 
-    /// Réécrit la fiche d'un enregistrement encore présent (texte trouvé après coup).
+    /// Rewrites the record of a recording that is still there (text found afterwards).
     public func update(_ recording: CancelledRecording) {
         Self.lock.lock()
         defer { Self.lock.unlock() }
@@ -107,7 +107,7 @@ public final class CancelledStore: @unchecked Sendable {
         try encoder.encode(recording).write(to: jsonURL(forID: recording.id), options: .atomic)
     }
 
-    /// Du plus récemment annulé au plus ancien.
+    /// From most recently cancelled to oldest.
     public func list() -> [CancelledRecording] {
         Self.lock.lock()
         defer { Self.lock.unlock() }
@@ -135,7 +135,7 @@ public final class CancelledStore: @unchecked Sendable {
         }
     }
 
-    /// Supprime ce qui a été annulé avant `cutoff`.
+    /// Deletes what was cancelled before `cutoff`.
     @discardableResult
     public func purge(cancelledBefore cutoff: Date) -> Int {
         Self.lock.lock()
@@ -145,10 +145,10 @@ public final class CancelledStore: @unchecked Sendable {
         return expired.count
     }
 
-    /// Transcrit (si besoin) un enregistrement annulé et le range dans la bibliothèque, comme
-    /// s'il avait été terminé normalement. Il quitte alors les annulés.
-    /// - Parameter save: faux pour une dictée quand l'historique est désactivé : le texte est
-    ///   seulement rendu, rien n'est rangé.
+    /// Transcribes (if needed) a cancelled recording and files it in the library, as
+    /// if it had been finished normally. It then leaves the cancelled ones.
+    /// - Parameter save: false for a dictation when history is off: the text is
+    ///   only returned, nothing is filed.
     public func restore(
         _ recording: CancelledRecording, save: Bool = true, settings: PlumeSettings = .shared,
         engine: SpeechEngine = .shared
@@ -158,7 +158,7 @@ public final class CancelledStore: @unchecked Sendable {
         guard let micURL = urls.first(where: { $0.lastPathComponent.hasSuffix("_mic.m4a") }) else {
             throw CocoaError(.fileNoSuchFile)
         }
-        // L'identifiant d'origine, sauf si une transcription l'a pris entre-temps.
+        // The original identifier, unless a transcript took it in the meantime.
         let id = store.load(id: recording.id) == nil ? recording.id : store.makeID(for: recording.createdAt)
         var transcript: Transcript
         if recording.mode == .meeting {
@@ -190,7 +190,7 @@ public final class CancelledStore: @unchecked Sendable {
                 engine: await engine.modelName, text: text, rawText: raw, app: recording.app)
         }
 
-        // Rien d'intelligible : l'enregistrement reste parmi les annulés, on peut toujours l'écouter.
+        // Nothing intelligible: the recording stays among the cancelled, it can still be listened to.
         guard !transcript.text.isEmpty else { throw Failure.nothingHeard }
 
         if save {

@@ -27,8 +27,8 @@ public enum Language: String, CaseIterable, Codable, Sendable, Identifiable {
 }
 
 public enum L10n {
-    /// Current language. The sources are in English: it is the starting value, and the tests'
-    /// one; the app and the command line set it at launch from the settings.
+    /// Current language. The sources are in English: it is the default, also used by tests;
+    /// the app and the command line set it at launch from the settings.
     public static var current: Language {
         get { override ?? stored }
         set { stored = newValue }

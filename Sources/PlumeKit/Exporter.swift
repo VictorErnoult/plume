@@ -1,6 +1,6 @@
 import Foundation
 
-/// Formats dans lesquels une transcription peut être exportée.
+/// Formats a transcript can be exported to.
 public enum ExportFormat: String, CaseIterable, Sendable, Identifiable {
     case markdown = "md"
     case text = "txt"
@@ -20,7 +20,7 @@ public enum ExportFormat: String, CaseIterable, Sendable, Identifiable {
         }
     }
 
-    /// Les sous-titres n'ont de sens qu'avec des tours de parole horodatés.
+    /// Subtitles only make sense with timestamped speaker turns.
     public var needsSegments: Bool { self == .subtitles || self == .webSubtitles }
 }
 
@@ -51,7 +51,7 @@ public enum Exporter {
         }
     }
 
-    /// Nom de fichier proposé : `2026-10-02_14-31-05 Point lancement.srt`.
+    /// Suggested file name: `2026-10-02_14-31-05 Point lancement.srt`.
     public static func fileName(for t: Transcript, format: ExportFormat) -> String {
         var name = t.id
         if let title = t.title, !title.isEmpty {
@@ -67,8 +67,8 @@ public enum Exporter {
         var text: String
     }
 
-    /// Une réplique de sous-titre ne dépasse pas deux lignes : les longs tours de parole sont
-    /// découpés en morceaux, dont la durée est répartie au prorata des mots.
+    /// A subtitle cue never exceeds two lines: long speaker turns are
+    /// split into chunks, whose duration is shared out in proportion to the words.
     static let maxCueCharacters = 84
 
     static func cues(for t: Transcript) -> [Cue] {
@@ -93,7 +93,7 @@ public enum Exporter {
         return cues
     }
 
-    /// Découpe un texte en morceaux d'au plus `limit` caractères, aux espaces.
+    /// Splits a text into chunks of at most `limit` characters, at spaces.
     static func split(_ text: String, limit: Int) -> [String] {
         var pieces: [String] = []
         var current = ""
@@ -111,7 +111,7 @@ public enum Exporter {
         return pieces
     }
 
-    /// `00:01:05,250` (SRT) ou `00:01:05.250` (WebVTT).
+    /// `00:01:05,250` (SRT) or `00:01:05.250` (WebVTT).
     static func stamp(_ seconds: Double, decimal: String) -> String {
         let total = max(0, seconds)
         let h = Int(total) / 3600

@@ -1,23 +1,23 @@
 import Foundation
 
-/// Le journal des modifications (`CHANGELOG.md`), lu pour la fenêtre « Nouveautés ».
+/// The changelog (`CHANGELOG.md`), read for the "What's new" window.
 ///
 ///     ## 1.0.0 — 2026-10-05
 ///     ### 2026-10-05
-///     - Historique : les enregistrements annulés restent récupérables (#7)
+///     - History: cancelled recordings can be restored (#7)
 public enum Changelog {
     public struct Entry: Sendable, Equatable, Hashable {
         public var date: String?
-        /// « Historique », « Collage »… : ce qui est touché.
+        /// "History", "Pasting"…: the area that is touched.
         public var domain: String?
         public var text: String
-        /// Numéro de la pull request, le cas échéant.
+        /// Pull request number, if any.
         public var pullRequest: Int?
     }
 
     public struct Release: Sendable, Equatable, Identifiable {
         public var version: String
-        /// Date de publication ; `nil` tant que la version n'est pas publiée.
+        /// Release date; `nil` while the version is not released.
         public var date: String?
         public var entries: [Entry]
         public var id: String { version }
@@ -25,7 +25,7 @@ public enum Changelog {
 
     public static func parse(_ markdown: String) -> [Release] {
         var releases: [Release] = []
-        /// Date du `### <date>` en cours, qui vaut pour les lignes qui suivent.
+        /// Date of the current `### <date>`, which applies to the lines that follow.
         var day: String?
         for rawLine in markdown.components(separatedBy: .newlines) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
@@ -78,7 +78,7 @@ public enum Changelog {
         text.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
     }
 
-    /// Empreinte de la dernière entrée : quand elle change, il y a du nouveau à montrer.
+    /// Fingerprint of the latest entry: when it changes, there is something new to show.
     public static func signature(of releases: [Release]) -> String {
         guard let release = releases.first, let entry = release.entries.first else { return "" }
         return release.version + "|" + entry.text

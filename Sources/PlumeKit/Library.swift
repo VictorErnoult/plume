@@ -1,29 +1,29 @@
 import Foundation
 
-/// Bibliothèque de transcripts sur disque : un dossier lisible par un humain comme par une IA.
+/// On-disk transcript library: a folder readable by a human as well as by an AI.
 ///
 ///     ~/Plume/
-///       LISEZMOI.md                  mode d'emploi du dossier (pour les IA)
-///       dernier.md                   copie du transcript le plus récent
-///       index.jsonl                  une ligne JSON par transcript, du plus ancien au plus récent
+///       LISEZMOI.md                  how to use the folder (for AIs)
+///       dernier.md                   copy of the most recent transcript
+///       index.jsonl                  one JSON line per transcript, oldest to newest
 ///       2026-10/
-///         2026-10-02_14-31-05_dictee.md      texte lisible, avec en-tête
-///         2026-10-02_14-31-05_dictee.json    données complètes (segments, interlocuteurs)
+///         2026-10-02_14-31-05_dictee.md      readable text, with header
+///         2026-10-02_14-31-05_dictee.json    full data (segments, speakers)
 ///         2026-10-02_14-31-05_mic.m4a        audio
 public final class TranscriptStore: @unchecked Sendable {
     public let root: URL
     private let fm = FileManager.default
-    /// Verrou commun à toutes les instances : plusieurs peuvent viser le même dossier.
+    /// Lock shared by all instances: several may target the same folder.
     private static let sharedLock = NSRecursiveLock()
     private var lock: NSRecursiveLock { Self.sharedLock }
-    /// Identifiants déjà attribués dans ce processus, y compris ceux dont le fichier n'est pas encore écrit.
+    /// Identifiers already assigned in this process, including those whose file is not written yet.
     private static var issued = Set<String>()
 
     public init(root: URL) {
         self.root = root
     }
 
-    // MARK: - Identifiants et chemins
+    // MARK: - Identifiers and paths
 
     private static let idFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -39,7 +39,7 @@ public final class TranscriptStore: @unchecked Sendable {
         return f
     }()
 
-    /// « 2 oct. 2026 à 11:30 » ou « Oct 2, 2026 at 11:30 AM », selon la langue en vigueur.
+    /// "Oct 2, 2026 at 11:30 AM" or "2 oct. 2026 à 11:30", depending on the language in force.
     private static var titleFormatter: DateFormatter {
         let f = DateFormatter()
         f.locale = L10n.current.locale
@@ -48,15 +48,15 @@ public final class TranscriptStore: @unchecked Sendable {
         return f
     }
 
-    /// Identifiant libre pour cette date. En cas de collision dans la même seconde, une lettre
-    /// (`b`, `c`…) est ajoutée : l'ordre alphabétique des fichiers reste l'ordre chronologique.
+    /// Free identifier for this date. On a collision within the same second, a letter
+    /// (`b`, `c`…) is added: alphabetical order of the files stays chronological order.
     public func makeID(for date: Date = Date()) -> String {
         lock.lock()
         defer { lock.unlock() }
         let base = Self.idFormatter.string(from: date)
         var candidate = base
         var letter = UInt8(ascii: "b")
-        // Réservé dès maintenant : deux imports lancés dans la même seconde ne se marchent pas dessus.
+        // Reserved right away: two imports started in the same second don't step on each other.
         while Self.issued.contains(root.path + "/" + candidate) || existingJSON(forID: candidate) != nil,
             letter <= UInt8(ascii: "z")
         {
@@ -67,12 +67,12 @@ public final class TranscriptStore: @unchecked Sendable {
         return candidate
     }
 
-    /// Date portée par un identifiant (`2026-10-02_14-31-05`, éventuellement suivi d'une lettre).
+    /// Date carried by an identifier (`2026-10-02_14-31-05`, possibly followed by a letter).
     public static func date(fromID id: String) -> Date? {
         idFormatter.date(from: String(id.prefix(19)))
     }
 
-    /// Dossier mensuel d'un identifiant (`2026-10`).
+    /// Monthly folder of an identifier (`2026-10`).
     public func directory(forID id: String) -> URL {
         root.appendingPathComponent(String(id.prefix(7)), isDirectory: true)
     }
@@ -103,7 +103,7 @@ public final class TranscriptStore: @unchecked Sendable {
         return t.audioFiles.map { dir.appendingPathComponent($0) }
     }
 
-    // MARK: - Écriture
+    // MARK: - Writing
 
     public func save(_ t: Transcript) throws {
         lock.lock()
@@ -125,7 +125,7 @@ public final class TranscriptStore: @unchecked Sendable {
         try? rebuildIndexUnlocked()
     }
 
-    /// Renomme un interlocuteur dans tout le transcript (« Interlocuteur 1 » → « Victor »).
+    /// Renames a speaker throughout the transcript ("Speaker 1" → "Victor").
     @discardableResult
     public func renameSpeaker(id: String, from old: String, to new: String) throws -> Transcript? {
         let name = new.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -157,7 +157,7 @@ public final class TranscriptStore: @unchecked Sendable {
         try? rebuildIndexUnlocked()
     }
 
-    /// Crée le dossier de la bibliothèque et son mode d'emploi, s'ils n'existent pas encore.
+    /// Creates the library folder and its usage guide, if they don't exist yet.
     public func prepare() {
         lock.lock()
         defer { lock.unlock() }
@@ -172,9 +172,9 @@ public final class TranscriptStore: @unchecked Sendable {
         }
     }
 
-    // MARK: - Lecture
+    // MARK: - Reading
 
-    /// Tous les fichiers JSON de transcripts, du plus récent au plus ancien.
+    /// All transcript JSON files, from newest to oldest.
     private func allJSONFiles() -> [URL] {
         guard let months = try? fm.contentsOfDirectory(atPath: root.path) else { return [] }
         var files: [URL] = []
@@ -222,7 +222,7 @@ public final class TranscriptStore: @unchecked Sendable {
         list(limit: 1, mode: mode).first
     }
 
-    /// Recherche plein texte, insensible à la casse et aux accents ; tous les mots doivent apparaître.
+    /// Full-text search, case- and accent-insensitive; all the words must appear.
     public func search(_ query: String, limit: Int = 20) -> [Transcript] {
         let terms = Self.fold(query).split(separator: " ").map(String.init)
         guard !terms.isEmpty else { return [] }
@@ -281,10 +281,10 @@ public final class TranscriptStore: @unchecked Sendable {
         var apercu: String
     }
 
-    // MARK: - Entretien
+    // MARK: - Maintenance
 
-    /// Supprime l'audio des transcriptions plus anciennes que `cutoff` (le texte reste).
-    /// - Returns: le nombre de transcriptions allégées.
+    /// Deletes the audio of transcripts older than `cutoff` (the text stays).
+    /// - Returns: the number of transcripts slimmed down.
     @discardableResult
     public func dropAudio(olderThan cutoff: Date) -> Int {
         lock.lock()
@@ -310,9 +310,9 @@ public final class TranscriptStore: @unchecked Sendable {
         return encoder
     }
 
-    // MARK: - Rendu Markdown
+    // MARK: - Markdown rendering
 
-    /// « Point lancement », ou à défaut « Réunion du 2 oct. 2026 à 11:30 ».
+    /// "Point lancement", or by default "Meeting, Oct 2, 2026 at 11:30 AM" ("Réunion du 2 oct. 2026 à 11:30" in French).
     public static func title(for t: Transcript) -> String {
         if let title = t.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty { return title }
         return dateTitle(for: t)
@@ -356,7 +356,7 @@ public final class TranscriptStore: @unchecked Sendable {
         return lines.joined(separator: "\n")
     }
 
-    /// Corps du transcript : texte simple, ou dialogue horodaté s'il y a plusieurs tours de parole.
+    /// Transcript body: plain text, or timestamped dialogue if there are several speaker turns.
     public static func body(for t: Transcript) -> String {
         guard t.mode != .dictation, t.speakers.count > 1 else { return t.text }
         return dialogue(t.segments)

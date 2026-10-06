@@ -1,6 +1,6 @@
 import Foundation
 
-/// Remplacement appliqué au texte transcrit : « sitié » → « CTA », « super whisper » → « Superwhisper ».
+/// Replacement applied to the transcribed text: "sitié" → "CTA", "super whisper" → "Superwhisper".
 public struct Replacement: Codable, Sendable, Identifiable, Equatable {
     public var id: UUID
     public var original: String
@@ -20,7 +20,7 @@ public enum ReplacementStore {
         if let items = read(from: url) {
             return items
         }
-        // Premier lancement : on reprend les remplacements déjà réglés dans Superwhisper.
+        // First launch: take over the replacements already set up in Superwhisper.
         let imported = importFromSuperwhisper()
         if !imported.isEmpty { save(imported) }
         return imported
@@ -30,8 +30,8 @@ public enum ReplacementStore {
         try? write(items, to: url)
     }
 
-    /// Un fichier de vocabulaire, `nil` s'il manque ou ne se lit pas. Les tests y lisent les
-    /// échantillons des versions publiées sans passer par le vrai dossier.
+    /// A vocabulary file, `nil` if it is missing or unreadable. The tests read the
+    /// samples of released versions through it without going through the real folder.
     public static func read(from url: URL) -> [Replacement]? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode([Replacement].self, from: data)
@@ -60,10 +60,10 @@ public enum ReplacementStore {
         return (settings.replacements ?? []).map { Replacement(original: $0.original, with: $0.with) }
     }
 
-    /// Applique les remplacements, sans tenir compte de la casse, sur des mots entiers.
+    /// Applies the replacements, ignoring case, on whole words.
     public static func apply(_ replacements: [Replacement], to text: String) -> String {
         var result = text
-        // Les expressions les plus longues d'abord, pour qu'une courte n'en entame pas une longue.
+        // Longest expressions first, so a short one doesn't eat into a long one.
         for item in replacements.sorted(by: { $0.original.count > $1.original.count }) {
             let original = item.original.trimmingCharacters(in: .whitespaces)
             guard !original.isEmpty else { continue }

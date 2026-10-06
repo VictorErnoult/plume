@@ -2,27 +2,27 @@ import CoreML
 import FluidAudio
 import Foundation
 
-/// Modèles de transcription disponibles : toute la famille Parakeet TDT que FluidAudio sait
-/// faire tourner, plus un dossier personnalisé. Ajouter un cas ici suffit à l'exposer dans
-/// les réglages.
+/// Available transcription models: the whole Parakeet TDT family FluidAudio can
+/// run, plus a custom folder. Adding a case here is enough to expose it in
+/// the settings.
 public enum EngineModel: String, CaseIterable, Codable, Sendable {
-    /// Parakeet Ultra : ré-entraînement 2026 de Parakeet TDT v3, 25 langues européennes,
-    /// le plus précis en français parmi les modèles temps réel embarquables.
+    /// Parakeet Ultra: 2026 retraining of Parakeet TDT v3, 25 European languages,
+    /// the most accurate in French among the embeddable real-time models.
     case parakeetUltra = "parakeet-ultra"
-    /// Parakeet TDT v3 d'origine (NVIDIA), 25 langues.
+    /// Original Parakeet TDT v3 (NVIDIA), 25 languages.
     case parakeetV3 = "parakeet-v3"
-    /// Parakeet Redux : v3 compressé en 2 bits, trois fois plus petit, un peu moins précis en anglais.
+    /// Parakeet Redux: v3 compressed to 2 bits, three times smaller, slightly less accurate in English.
     case parakeetRedux = "parakeet-redux"
-    /// Parakeet TDT v2 : anglais seulement, la référence historique.
+    /// Parakeet TDT v2: English only, the historical reference.
     case parakeetV2 = "parakeet-v2"
-    /// Phonon-2 : ré-entraînement de v3 pour l'anglais, très compact.
+    /// Phonon-2: retraining of v3 for English, very compact.
     case phonon2 = "phonon-2"
-    /// Parakeet TDT-CTC 110M : petit et très rapide, anglais.
+    /// Parakeet TDT-CTC 110M: small and very fast, English.
     case parakeetTdtCtc110m = "parakeet-tdt-ctc-110m"
-    /// Parakeet japonais.
+    /// Parakeet Japanese.
     case parakeetJa = "parakeet-ja"
-    /// Un dossier choisi par l'utilisateur, au format Parakeet (quatre `.mlmodelc` et
-    /// `parakeet_vocab.json`) : modèle ré-entraîné, converti soi-même, ou communautaire.
+    /// A folder chosen by the user, in Parakeet format (four `.mlmodelc` and
+    /// `parakeet_vocab.json`): a retrained, self-converted or community model.
     case custom = "custom"
 
     public var label: String {
@@ -38,7 +38,7 @@ public enum EngineModel: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    /// Langues, taille, précision : de quoi choisir en connaissance de cause.
+    /// Languages, size, accuracy: enough to choose with full knowledge.
     public var detail: String {
         switch self {
         case .parakeetUltra:
@@ -60,7 +60,7 @@ public enum EngineModel: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    /// Le modèle est fourni par FluidAudio (téléchargé une fois depuis Hugging Face).
+    /// The model is provided by FluidAudio (downloaded once from Hugging Face).
     public var isBuiltIn: Bool { self != .custom }
 
     var version: AsrModelVersion? {
@@ -76,7 +76,7 @@ public enum EngineModel: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    /// Le modèle est déjà dans le cache (ou le dossier personnalisé est complet).
+    /// The model is already in the cache (or the custom folder is complete).
     public func isAvailableOffline(customDirectory: URL?) -> Bool {
         if let version { return AsrModels.modelsExist(at: AsrModels.defaultCacheDirectory(for: version), version: version) }
         guard let customDirectory else { return false }
@@ -91,7 +91,7 @@ public struct EngineOutput: Sendable {
     public var processing: Double
 }
 
-/// Intervalle de parole attribué à un locuteur par la diarisation.
+/// Time span attributed to a speaker by diarization.
 public struct SpeakerTurn: Sendable, Equatable {
     public var speaker: String
     public var start: Double
@@ -106,7 +106,7 @@ public struct SpeakerTurn: Sendable, Equatable {
 
 public struct DiarizationOutput: Sendable {
     public var turns: [SpeakerTurn]
-    /// Empreinte vocale moyenne par locuteur (vecteur normalisé).
+    /// Average voiceprint per speaker (normalized vector).
     public var embeddings: [String: [Float]]
 }
 
@@ -124,7 +124,7 @@ public enum EngineError: LocalizedError {
     }
 }
 
-// Les modèles CoreML du diariseur sont en lecture seule après chargement ; l'acteur sérialise le reste.
+// The diarizer's CoreML models are read-only after loading; the actor serializes the rest.
 extension OfflineDiarizerManager: @retroactive @unchecked Sendable {}
 
 public enum EngineLoadPhase: Sendable {
@@ -133,14 +133,14 @@ public enum EngineLoadPhase: Sendable {
     case ready
 }
 
-/// Moteur de reconnaissance vocale 100 % local (CoreML, Neural Engine).
+/// Fully local speech recognition engine (CoreML, Neural Engine).
 public actor SpeechEngine {
     public static let shared = SpeechEngine()
     public static let sampleRate = 16_000
 
     private var asr: AsrManager?
     private var loadedModel: EngineModel?
-    /// Dossier du modèle personnalisé chargé, pour le recharger s'il change.
+    /// Folder of the loaded custom model, to reload it if it changes.
     private var loadedDirectory: URL?
     private var loadTask: Task<Void, Error>?
     private var diarizer: OfflineDiarizerManager?
@@ -158,8 +158,8 @@ public actor SpeechEngine {
         return loadedModel.rawValue
     }
 
-    /// Charge le modèle (le télécharge au premier lancement, ~600 Mo). Un modèle personnalisé
-    /// est lu dans son dossier, celui des réglages sauf indication contraire.
+    /// Loads the model (downloads it on first launch, ~600 MB). A custom model
+    /// is read from its folder, the one in the settings unless stated otherwise.
     public func prepare(
         model: EngineModel, directory: URL? = nil, progress: (@Sendable (EngineLoadPhase) -> Void)? = nil
     ) async throws {
@@ -202,16 +202,16 @@ public actor SpeechEngine {
         loadedDirectory = directory
     }
 
-    /// Les fichiers qu'un dossier de modèle personnalisé doit contenir.
+    /// The files a custom model folder must contain.
     public static let customModelFiles = ["Preprocessor.mlmodelc", "Decoder.mlmodelc", "JointDecision.mlmodelc", "parakeet_vocab.json"]
 
-    /// Ce qui manque dans un dossier pour en faire un modèle (vide : il est complet).
+    /// What is missing from a folder to make it a model (empty: it is complete).
     public static func missingCustomFiles(in directory: URL) -> [String] {
         customModelFiles.filter { !FileManager.default.fileExists(atPath: directory.appendingPathComponent($0).path) }
     }
 
-    /// Charge un dossier au format Parakeet. La famille (v2, v3, TDT-CTC) se devine à la taille
-    /// du vocabulaire et à la présence d'un encodeur séparé.
+    /// Loads a folder in Parakeet format. The family (v2, v3, TDT-CTC) is guessed from the vocabulary
+    /// size and the presence of a separate encoder.
     static func loadCustom(at directory: URL) throws -> AsrModels {
         if let missing = missingCustomFiles(in: directory).first { throw EngineError.incompleteCustomModel(missing) }
         let vocabulary = directory.appendingPathComponent("parakeet_vocab.json")
@@ -221,8 +221,8 @@ public actor SpeechEngine {
         return try AsrModels.loadLocal(from: directory, version: version)
     }
 
-    /// Libère les modèles (plusieurs centaines de Mo). Ils se rechargent depuis le cache
-    /// disque, en une fraction de seconde, au prochain `prepare`.
+    /// Frees the models (several hundred MB). They reload from the disk cache
+    /// in a fraction of a second, on the next `prepare`.
     public func unload() {
         guard loadTask == nil, diarizerTask == nil else { return }
         asr = nil
@@ -234,13 +234,13 @@ public actor SpeechEngine {
         echoCanceller = nil
     }
 
-    // MARK: - Annulation d'écho
+    // MARK: - Echo cancellation
 
-    /// Retire du micro le son de l'ordinateur que les haut-parleurs y ont renvoyé (réunion
-    /// sans casque). `reference` est ce son, sur la même ligne de temps et de même longueur.
+    /// Removes from the microphone the system audio that the speakers played back into it (meeting
+    /// without headphones). `reference` is that audio, on the same timeline and of the same length.
     ///
-    /// Le signal nettoyé n'est utilisé que là où l'ordinateur émettait quelque chose : partout
-    /// ailleurs le micro d'origine est conservé tel quel, pour ne pas altérer la voix.
+    /// The cleaned signal is only used where the computer was playing something: everywhere
+    /// else the original microphone is kept as is, so the voice is not altered.
     public func cancelEcho(mic: [Float], reference: [Float]) async throws -> [Float] {
         guard mic.count == reference.count, !mic.isEmpty else { return mic }
         let active = Self.activityMask(reference)
@@ -252,7 +252,7 @@ public actor SpeechEngine {
         let cleaned = try await echoCanceller.process(mic: mic, reference: reference)
         guard cleaned.count == mic.count else { return mic }
 
-        // Fondu d'une trame à l'autre entre micro d'origine et micro nettoyé.
+        // Frame-to-frame crossfade between the original microphone and the cleaned one.
         let frame = Self.maskFrame
         var output = mic
         var weight: Float = 0
@@ -268,8 +268,8 @@ public actor SpeechEngine {
 
     static let maskFrame = sampleRate / 10
 
-    /// Par trames de 100 ms : vrai si la référence porte du son, avec une marge d'une demi-seconde
-    /// de part et d'autre (réverbération de la pièce, léger décalage entre les canaux).
+    /// In 100 ms frames: true if the reference carries sound, with a margin of half a second
+    /// on each side (room reverberation, slight offset between channels).
     static func activityMask(_ reference: [Float], threshold: Float = 0.002) -> [Bool] {
         let frame = maskFrame
         let count = (reference.count + frame - 1) / frame
@@ -287,11 +287,11 @@ public actor SpeechEngine {
         return mask
     }
 
-    /// Transcrit des échantillons mono 16 kHz. Gère l'audio long (découpage interne).
+    /// Transcribes mono 16 kHz samples. Handles long audio (internal chunking).
     public func transcribe(_ samples: [Float]) async throws -> EngineOutput {
         guard let asr else { throw EngineError.notReady }
         var audio = samples
-        // Le modèle refuse moins de 300 ms : on complète par du silence.
+        // The model rejects less than 300 ms: pad with silence.
         let minimum = Self.sampleRate
         if audio.count < minimum {
             audio.append(contentsOf: [Float](repeating: 0, count: minimum - audio.count))
@@ -307,8 +307,8 @@ public actor SpeechEngine {
         )
     }
 
-    /// Mots horodatés. Une ponctuation isolée (« ? », « ! », « : » à la française) est
-    /// rattachée au mot qui précède, pour ne jamais ouvrir un tour de parole.
+    /// Timestamped words. An isolated punctuation mark ("?", "!", ":" in the French style) is
+    /// attached to the preceding word, so it never opens a speaker turn.
     static func words(from timings: [TokenTiming]) -> [Word] {
         var words: [Word] = []
         for timing in buildWordTimings(from: timings) {
@@ -325,10 +325,10 @@ public actor SpeechEngine {
         return words
     }
 
-    // MARK: - Diarisation
+    // MARK: - Diarization
 
-    /// Diariseur pour un nombre de voix donné (`nil` : détection automatique). Les modèles
-    /// ne sont chargés qu'une fois ; seule la configuration du regroupement change.
+    /// Diarizer for a given number of voices (`nil`: automatic detection). The models
+    /// are loaded only once; only the clustering configuration changes.
     private func loadDiarizer(speakers: Int? = nil) async throws -> OfflineDiarizerManager {
         if speakers == nil, let diarizer { return diarizer }
         if let speakers, let manager = fixedDiarizers[speakers] { return manager }
@@ -352,17 +352,17 @@ public actor SpeechEngine {
         return manager
     }
 
-    /// Précharge les modèles de diarisation (téléchargement au premier usage).
+    /// Preloads the diarization models (downloaded on first use).
     public func prepareDiarizer() async throws {
         _ = try await loadDiarizer()
     }
 
-    /// « Qui parle quand » sur des échantillons mono 16 kHz.
-    /// - Parameter speakers: nombre de voix imposé, quand l'utilisateur le connaît.
+    /// "Who speaks when" on mono 16 kHz samples.
+    /// - Parameter speakers: forced number of voices, when the user knows it.
     public func diarize(
         _ samples: [Float], speakers: Int? = nil, mergeSimilar: Bool = true
     ) async throws -> DiarizationOutput {
-        // En dessous de deux secondes la diarisation n'a pas de sens.
+        // Below two seconds diarization makes no sense.
         guard samples.count >= Self.sampleRate * 2 else {
             return DiarizationOutput(turns: [], embeddings: [:])
         }
@@ -376,21 +376,21 @@ public actor SpeechEngine {
             .sorted { $0.start < $1.start }
         let output = Self.removingPhantomVoices(
             DiarizationOutput(turns: turns, embeddings: result.speakerDatabase ?? [:]))
-        // Quand le nombre de voix est imposé, on ne refusionne rien derrière.
+        // When the number of voices is forced, nothing is merged back afterwards.
         return mergeSimilar && speakers == nil ? Self.mergingSimilarVoices(output) : output
     }
 
-    /// Seuil de regroupement des voix (distance) : plus il est bas, plus le diariseur sépare.
+    /// Voice clustering threshold (distance): the lower it is, the more the diarizer separates.
     static let clusteringThreshold: Double =
         ProcessInfo.processInfo.environment["PLUME_DIAR_THRESHOLD"].flatMap(Double.init) ?? 0.6
 
-    /// Ressemblance au-delà de laquelle deux voix détectées sont tenues pour la même personne.
+    /// Similarity above which two detected voices are taken to be the same person.
     static let sameVoiceSimilarity: Float =
         ProcessInfo.processInfo.environment["PLUME_SAME_VOICE"].flatMap(Float.init) ?? 0.72
 
-    /// Retire les voix fantômes : un « locuteur » qui ne parle que quelques secondes sur toute
-    /// une réunion est presque toujours un bruit ou un éclat de voix mal classé. Ses mots
-    /// reviennent alors au locuteur voisin.
+    /// Removes ghost voices: a "speaker" who talks only a few seconds in a whole
+    /// meeting is almost always noise or a misclassified burst of voice. Their words
+    /// go back to the neighbouring speaker.
     static func removingPhantomVoices(_ output: DiarizationOutput) -> DiarizationOutput {
         var talk: [String: Double] = [:]
         for turn in output.turns { talk[turn.speaker, default: 0] += turn.end - turn.start }
@@ -403,9 +403,9 @@ public actor SpeechEngine {
             embeddings: output.embeddings.filter { !phantoms.contains($0.key) })
     }
 
-    /// Le regroupement automatique coupe parfois une même voix en deux. On ne refusionne que
-    /// des empreintes quasi identiques : deux personnes à la voix proche (deux frères, par
-    /// exemple) atteignent couramment 0,5 de ressemblance et doivent rester distinctes.
+    /// Automatic clustering sometimes splits one voice in two. Only near-identical
+    /// voiceprints are merged back: two people with similar voices (two brothers, for
+    /// example) commonly reach 0.5 similarity and must stay distinct.
     static func mergingSimilarVoices(_ output: DiarizationOutput) -> DiarizationOutput {
         let ids = output.embeddings.keys.sorted()
         guard ids.count > 1 else { return output }
@@ -425,7 +425,7 @@ public actor SpeechEngine {
         }
         guard ids.contains(where: { root($0) != $0 }) else { return output }
 
-        // Empreinte du groupe : moyenne des empreintes fusionnées.
+        // Group voiceprint: average of the merged voiceprints.
         var embeddings: [String: [Float]] = [:]
         var counts: [String: Float] = [:]
         for id in ids {
@@ -443,7 +443,7 @@ public actor SpeechEngine {
             embeddings[key] = embeddings[key]?.map { $0 / count }
         }
 
-        // Tours consécutifs du même locuteur recollés.
+        // Consecutive turns of the same speaker glued back together.
         var turns: [SpeakerTurn] = []
         for turn in output.turns {
             let speaker = parent[turn.speaker] == nil ? turn.speaker : root(turn.speaker)

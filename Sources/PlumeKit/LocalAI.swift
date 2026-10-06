@@ -4,10 +4,10 @@ import Foundation
     import FoundationModels
 #endif
 
-/// L'IA locale : le modèle de langage d'Apple Intelligence, qui tourne sur l'appareil
-/// (macOS 26 ou plus récent, Apple Intelligence activée). Rien ne quitte le Mac. Elle sert à
-/// mettre une dictée au propre, à résumer une réunion et à transformer un texte sur consigne.
-/// Toujours en option : sans elle, Plume fait tout de façon déterministe.
+/// Local AI: Apple Intelligence's language model, which runs on the device
+/// (macOS 26 or later, Apple Intelligence turned on). Nothing leaves the Mac. It is used to
+/// clean up a dictation, summarize a meeting and transform a text from an instruction.
+/// Always optional: without it, Plume does everything deterministically.
 public enum LocalAI {
     public enum Availability: Sendable, Equatable {
         case available
@@ -36,12 +36,12 @@ public enum LocalAI {
 
     public struct Summary: Sendable, Equatable {
         public var title: String
-        /// Markdown : points clés, décisions, actions.
+        /// Markdown: key points, decisions, actions.
         public var markdown: String
     }
 
-    /// Taille maximale d'un texte soumis d'un coup, en caractères : le modèle sur l'appareil
-    /// n'a qu'une fenêtre de 4 096 jetons, réponse comprise.
+    /// Maximum size of a text submitted at once, in characters: the on-device model
+    /// has only a 4,096-token window, response included.
     static let chunkCharacters = 5_000
 
     public static var availability: Availability {
@@ -66,7 +66,7 @@ public enum LocalAI {
         #endif
     }
 
-    /// Prépare le modèle en mémoire, pour que la première réponse ne traîne pas.
+    /// Loads the model into memory, so the first response doesn't lag.
     public static func prewarm() {
         #if canImport(FoundationModels)
             if #available(macOS 26, iOS 26, *), availability.isAvailable {
@@ -75,8 +75,9 @@ public enum LocalAI {
         #endif
     }
 
-    // MARK: - Mise au propre d'une dictée
+    // MARK: - Dictation clean-up
 
+    /// The prompts stay in French on purpose: they are tuned model inputs, and translating them needs its own evaluation.
     static let polishInstructions = """
         Tu es un correcteur discret. On te donne la transcription brute d'une dictée vocale.
         Réécris-la proprement : ponctuation, majuscules, fautes évidentes de transcription.
@@ -87,8 +88,8 @@ public enum LocalAI {
         Réponds uniquement avec le texte final, sans guillemets ni introduction.
         """
 
-    /// Met une dictée au propre. Le texte est rendu tel quel si la réponse paraît douteuse
-    /// (vide, bien plus longue ou plus courte que l'original).
+    /// Cleans up a dictation. The text is returned as is if the response looks doubtful
+    /// (empty, much longer or shorter than the original).
     public static func polish(_ text: String, instructions: String = "") async throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return text }
@@ -103,8 +104,8 @@ public enum LocalAI {
         return pieces.joined(separator: "\n\n")
     }
 
-    /// Une réponse de mise au propre doit ressembler à l'original : ni vide, ni deux fois plus
-    /// longue, ni réduite de moitié (le modèle a parfois répondu au texte au lieu de le corriger).
+    /// A clean-up response must look like the original: neither empty, nor twice as
+    /// long, nor cut in half (the model has sometimes answered the text instead of correcting it).
     static func plausible(_ answer: String, for original: String) -> Bool {
         let cleaned = answer.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return false }
@@ -113,7 +114,7 @@ public enum LocalAI {
         return ratio <= (short ? 2.5 : 1.5) && ratio >= (short ? 0.3 : 0.5)
     }
 
-    // MARK: - Transformation sur consigne
+    // MARK: - Transformation from an instruction
 
     static let transformInstructions = """
         Tu modifies un texte selon une consigne dictée à voix haute. Applique la consigne
@@ -128,24 +129,24 @@ public enum LocalAI {
         avec le texte demandé, sans explication ni formule d'accompagnement.
         """
 
-    /// Réécrit `selection` selon `instruction` ; sans sélection, rédige à partir de la consigne.
+    /// Rewrites `selection` according to `instruction`; with no selection, writes from the instruction.
     public static func transform(_ selection: String, instruction: String) async throws -> String {
-        let consigne = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        let instruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
         let text = selection.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !consigne.isEmpty else { throw Failure.empty }
+        guard !instruction.isEmpty else { throw Failure.empty }
         if text.isEmpty {
-            return try await respond(instructions: composeInstructions, prompt: consigne)
+            return try await respond(instructions: composeInstructions, prompt: instruction)
         }
         var pieces: [String] = []
         for chunk in chunks(of: text) {
-            pieces.append(try await respond(instructions: transformInstructions, prompt: "Consigne : \(consigne)\n\nTexte :\n\(chunk)"))
+            pieces.append(try await respond(instructions: transformInstructions, prompt: "Consigne : \(instruction)\n\nTexte :\n\(chunk)"))
         }
         return pieces.joined(separator: "\n\n")
     }
 
-    // MARK: - Résumé d'une réunion
+    // MARK: - Meeting summary
 
-    /// Les notes sont rédigées dans la langue de l'interface.
+    /// The notes are written in the interface language.
     static var notesInstructions: String {
         L10n.current == .french
             ? """
@@ -205,7 +206,7 @@ public enum LocalAI {
         for chunk in chunks(of: text) {
             notes.append(try await respond(instructions: notesInstructions, prompt: chunk))
         }
-        // Les notes partielles sont fusionnées, par étapes si elles sont elles-mêmes trop longues.
+        // Partial notes are merged, in stages if they are themselves too long.
         while notes.count > 1 {
             var merged: [String] = []
             for group in chunks(of: notes.joined(separator: "\n\n---\n\n")) {
@@ -221,7 +222,7 @@ public enum LocalAI {
         return Summary(title: String(title.prefix(80)), markdown: markdown)
     }
 
-    /// Le modèle met parfois les titres en puces et indente les listes : on remet d'aplomb.
+    /// The model sometimes turns headings into bullets and indents lists: set them straight.
     static func tidyMarkdown(_ text: String) -> String {
         let lines = text.components(separatedBy: "\n").map { raw -> String in
             var line = raw.trimmingCharacters(in: .whitespaces)
@@ -235,9 +236,9 @@ public enum LocalAI {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - Découpage et appel du modèle
+    // MARK: - Chunking and calling the model
 
-    /// Découpe un long texte en morceaux de taille raisonnable, aux fins de paragraphe ou de phrase.
+    /// Splits a long text into reasonably sized chunks, at paragraph or sentence ends.
     static func chunks(of text: String, limit: Int = chunkCharacters) -> [String] {
         guard text.count > limit else { return [text] }
         var chunks: [String] = []
@@ -250,7 +251,7 @@ public enum LocalAI {
             }
             if !current.isEmpty { chunks.append(current) }
             current = ""
-            // Un paragraphe trop long à lui seul : coupé aux phrases.
+            // A paragraph too long on its own: cut at sentences.
             var sentences = ""
             for sentence in paragraph.split(separator: " ", omittingEmptySubsequences: false) {
                 let next = sentences.isEmpty ? String(sentence) : sentences + " " + sentence
@@ -267,8 +268,8 @@ public enum LocalAI {
         return chunks
     }
 
-    /// Une question, une réponse. Chaque appel ouvre une session neuve : rien ne déborde d'une
-    /// dictée sur la suivante.
+    /// One question, one answer. Each call opens a fresh session: nothing spills over from one
+    /// dictation to the next.
     static func respond(instructions: String, prompt: String) async throws -> String {
         #if canImport(FoundationModels)
             if #available(macOS 26, iOS 26, *) {
@@ -291,8 +292,8 @@ public enum LocalAI {
         throw Failure.unavailable(availability.reason ?? "")
     }
 
-    /// Le modèle encadre parfois sa réponse (« Voici le texte corrigé : », guillemets, bloc de
-    /// code) : on ne garde que le contenu.
+    /// The model sometimes wraps its answer ("Voici le texte corrigé :", quotes, code
+    /// block): keep only the content.
     static func stripped(_ answer: String) -> String {
         var text = answer.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.hasPrefix("```") {

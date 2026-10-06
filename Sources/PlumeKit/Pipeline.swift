@@ -1,6 +1,6 @@
 import Foundation
 
-/// Un canal audio capté : ses échantillons mono 16 kHz et son décalage par rapport au début de session.
+/// A captured audio channel: its mono 16 kHz samples and its offset from the start of the session.
 public struct ChannelAudio: Sendable {
     public var channel: AudioChannel
     public var samples: [Float]
@@ -18,7 +18,7 @@ public struct ChannelAudio: Sendable {
 public struct ConversationResult: Sendable {
     public var segments: [Segment]
     public var speakers: [String]
-    /// Dialogue en texte brut : `Interlocuteur [mm:ss] : texte`.
+    /// Dialogue as plain text: `Speaker [mm:ss]: text`.
     public var text: String
     public var rawText: String
 }
@@ -29,8 +29,8 @@ public enum PipelineStage: Sendable {
     case separatingSpeakers
 }
 
-/// Ce qu'on fait du texte d'une dictée une fois transcrit, dans l'ordre : nettoyage des
-/// hésitations, commandes vocales, vocabulaire, puis style propre à l'application.
+/// What is done to a dictation's text once transcribed, in order: hesitation
+/// cleanup, voice commands, vocabulary, then the app's own style.
 public struct DictationOptions: Sendable {
     public var cleanup: Bool
     public var voiceCommands: Bool
@@ -49,9 +49,9 @@ public struct DictationOptions: Sendable {
 
 public struct DictationResult: Sendable, Equatable {
     public var text: String
-    /// Sortie brute du modèle.
+    /// Raw model output.
     public var raw: String
-    /// La dictée demandait d'appuyer sur Entrée à la fin.
+    /// The dictation asked to press Return at the end.
     public var pressReturn: Bool
 
     public init(text: String, raw: String, pressReturn: Bool = false) {
@@ -61,9 +61,9 @@ public struct DictationResult: Sendable, Equatable {
     }
 }
 
-/// Traitements de fin d'enregistrement, communs à l'app, à l'import et à la ligne de commande.
+/// End-of-recording processing, shared by the app, the import and the command line.
 public enum Pipeline {
-    /// Dictée : transcription de tout l'audio, puis mise en forme du texte.
+    /// Dictation: transcription of all the audio, then text formatting.
     public static func dictation(
         samples: [Float], engine: SpeechEngine, options: DictationOptions
     ) async throws -> DictationResult {
@@ -72,9 +72,9 @@ public enum Pipeline {
         return format(output.text, options: options)
     }
 
-    /// Mise en forme du texte brut d'une dictée, sans audio : la même pour l'app, la reprise,
-    /// l'import et le diagnostic `plume format`.
-    /// - Parameter final: faux pour un morceau écrit au fil de la dictée (le style n'y touche pas au point final).
+    /// Formatting of a dictation's raw text, without audio: the same for the app, recovery,
+    /// the import and the `plume format` diagnostic.
+    /// - Parameter final: false for a chunk typed as the dictation goes (style leaves the final period alone).
     public static func format(
         _ raw: String, options: DictationOptions, replacements: [Replacement]? = nil, final: Bool = true
     ) -> DictationResult {
@@ -90,9 +90,9 @@ public enum Pipeline {
         return DictationResult(text: text, raw: raw, pressReturn: pressReturn)
     }
 
-    /// Réunion ou import : transcription de chaque canal, séparation des voix, fil chronologique.
-    /// - Parameter ownerOnMic: vrai quand le micro est celui du propriétaire (réunion sur le Mac) ;
-    ///   un micro à voix unique est alors étiqueté « Moi ».
+    /// Meeting or import: transcription of each channel, diarization, chronological thread.
+    /// - Parameter ownerOnMic: true when the microphone is the owner's (meeting on the Mac);
+    ///   a single-voice microphone is then labelled "Me".
     public static func conversation(
         channels: [ChannelAudio], engine: SpeechEngine, voiceprint: Voiceprint?, ownerOnMic: Bool,
         cancelEcho: Bool = true, speakerCount: Int? = nil, stage: (@Sendable (PipelineStage) -> Void)? = nil
@@ -110,11 +110,11 @@ public enum Pipeline {
             let micIndex = channels.firstIndex(where: { $0.channel == .mic }),
             let system = channels.first(where: { $0.channel == .system })
         {
-            // Sans casque, le micro réentend le son de l'ordinateur : on l'en retire avant tout,
-            // sinon les interlocuteurs distants apparaissent deux fois et brouillent les voix.
+            // Without headphones, the microphone hears the computer's audio again: remove it first,
+            // otherwise the remote speakers appear twice and blur the voices.
             let mic = channels[micIndex]
             let reference = aligned(system, to: mic)
-            // Au casque, rien ne repasse dans le micro : inutile de le traiter.
+            // With headphones, nothing flows back into the microphone: no need to process it.
             if echoLikelihood(mic: mic.samples, reference: reference) >= 0.3 {
                 stage?(.cleaningEcho)
                 if let cleaned = try? await engine.cancelEcho(mic: mic.samples, reference: reference) {
@@ -130,8 +130,8 @@ public enum Pipeline {
             guard !output.words.isEmpty else { continue }
             rawParts.append(output.text)
 
-            // Nombre de voix attendu sur ce canal, si l'utilisateur l'a précisé : en réunion à
-            // deux canaux, le propriétaire est seul à son micro et les autres sont sur l'autre.
+            // Expected number of voices on this channel, if the user specified it: in a two-channel
+            // meeting, the owner is alone on their microphone and the others are on the other channel.
             var expected: Int?
             if let speakerCount {
                 if hasSystem {
@@ -147,7 +147,7 @@ public enum Pipeline {
             let voices = Set(diarization.turns.map(\.speaker))
             let prefix = audio.channel == .mic ? "mic" : "sys"
 
-            // Qui est « Moi » ? Une voix unique sur le micro du propriétaire, sinon l'empreinte vocale.
+            // Who is "Me"? A single voice on the owner's microphone, otherwise the voiceprint.
             if audio.channel == .mic {
                 if ownerOnMic, voices.count <= 1, hasSystem || voiceprint == nil || voices.isEmpty {
                     me.insert("\(prefix):\(voices.first ?? "seul")")
@@ -162,9 +162,9 @@ public enum Pipeline {
             let turns = diarization.turns.map {
                 SpeakerTurn(speaker: $0.speaker, start: $0.start + audio.offset, end: $0.end + audio.offset)
             }
-            // Sans aucun tour détecté, tout le canal revient à un seul locuteur.
-            // À plusieurs, une même personne garde la parole malgré ses silences ; seule, ses
-            // longues pauses ouvrent un nouveau paragraphe.
+            // With no turn detected at all, the whole channel goes to a single speaker.
+            // With several people, one person keeps the floor despite their silences; alone, their
+            // long pauses open a new paragraph.
             let several = hasSystem || voices.count > 1
             if several { turnGap = 8 }
             let channelRuns = TranscriptBuilder.runs(
@@ -180,7 +180,7 @@ public enum Pipeline {
             }
         }
 
-        // Filet de sécurité après l'annulation d'écho : ce qui répète le son système mot pour mot.
+        // Safety net after echo cancellation: what repeats the system audio word for word.
         runs.append(contentsOf: TranscriptBuilder.removingEcho(mic: micRuns, systemWords: systemWords))
         let segments = TranscriptBuilder.segments(from: TranscriptBuilder.interleave(runs, gap: turnGap), me: me).map { segment in
             var segment = segment
@@ -192,8 +192,8 @@ public enum Pipeline {
             text: TranscriptBuilder.text(for: segments), rawText: rawParts.joined(separator: "\n\n"))
     }
 
-    /// Refait la séparation des voix d'une transcription à partir de son audio conservé,
-    /// éventuellement en imposant le nombre de personnes dans la conversation.
+    /// Redoes a transcript's diarization from its kept audio,
+    /// optionally forcing the number of people in the conversation.
     public static func reprocess(
         _ transcript: Transcript, speakerCount: Int?, settings: PlumeSettings = .shared, engine: SpeechEngine = .shared
     ) async throws -> Transcript {
@@ -220,9 +220,9 @@ public enum Pipeline {
 }
 
 extension Pipeline {
-    /// Mesure à quel point le micro « suit » le son de l'ordinateur (0 : pas du tout, 1 :
-    /// parfaitement). On compare les enveloppes sonores des deux canaux, là où l'ordinateur
-    /// émet, en tolérant le retard du trajet haut-parleur → micro.
+    /// Measures how closely the microphone "follows" the system audio (0: not at all, 1:
+    /// perfectly). The sound envelopes of the two channels are compared, where the computer
+    /// is playing, tolerating the speaker → microphone travel delay.
     public static func echoLikelihood(mic: [Float], reference: [Float]) -> Float {
         let frame = SpeechEngine.sampleRate / 20  // 50 ms
         let count = min(mic.count, reference.count) / frame
@@ -260,7 +260,7 @@ extension Pipeline {
         return best
     }
 
-    /// Le canal `source` ramené sur la ligne de temps de `target` : même origine, même longueur.
+    /// The `source` channel brought onto the timeline of `target`: same origin, same length.
     static func aligned(_ source: ChannelAudio, to target: ChannelAudio) -> [Float] {
         let shift = Int(((target.offset - source.offset) * Double(SpeechEngine.sampleRate)).rounded())
         var output = [Float](repeating: 0, count: target.samples.count)
@@ -272,7 +272,7 @@ extension Pipeline {
     }
 }
 
-/// Stockage de l'empreinte vocale du propriétaire.
+/// Storage of the owner's voiceprint.
 public enum VoiceprintStore {
     public static var url: URL { PlumeSettings.supportDirectory.appendingPathComponent("empreinte-vocale.json") }
 
@@ -284,7 +284,7 @@ public enum VoiceprintStore {
         try? write(voiceprint, to: url)
     }
 
-    /// Un fichier d'empreinte, `nil` s'il manque ou ne se lit pas.
+    /// A voiceprint file, `nil` if it is missing or unreadable.
     public static func read(from url: URL) -> Voiceprint? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(Voiceprint.self, from: data)
@@ -295,8 +295,8 @@ public enum VoiceprintStore {
         try JSONEncoder().encode(voiceprint).write(to: url, options: .atomic)
     }
 
-    /// Apprend la voix du propriétaire à partir d'une dictée : par construction, c'est lui qui parle.
-    /// Ignoré si la dictée est courte ou si plusieurs voix y sont détectées.
+    /// Learns the owner's voice from a dictation: by construction, they are the one speaking.
+    /// Ignored if the dictation is short or if several voices are detected in it.
     public static func learn(from samples: [Float], engine: SpeechEngine) async {
         guard samples.count >= SpeechEngine.sampleRate * 8 else { return }
         guard let output = try? await engine.diarize(samples), output.embeddings.count == 1,

@@ -1,7 +1,7 @@
 import Foundation
 
-/// Transcrit un fichier audio existant et le range dans la bibliothèque
-/// (glisser-déposer, menu, ligne de commande).
+/// Transcribes an existing audio file and files it in the library
+/// (drag and drop, menu, command line).
 public enum Importer {
     public static let audioExtensions: Set<String> = [
         "m4a", "wav", "mp3", "caf", "aac", "aiff", "aif", "flac", "mp4", "mov", "qta", "opus", "ogg",
@@ -12,9 +12,9 @@ public enum Importer {
     }
 
     /// - Parameters:
-    ///   - mode: `.dictation` produit un texte nettoyé d'une seule voix ; les autres modes
-    ///     séparent les interlocuteurs.
-    ///   - save: écrit le transcript (et l'audio, si les réglages le demandent) dans la bibliothèque.
+    ///   - mode: `.dictation` produces a clean single-voice text; the other modes
+    ///     separate the speakers.
+    ///   - save: writes the transcript (and the audio, if the settings ask for it) to the library.
     public static func importAudio(
         at url: URL, mode: RecordingMode, device: String, date: Date = Date(), save: Bool = true,
         settings: PlumeSettings = .shared, engine: SpeechEngine = .shared

@@ -3,12 +3,12 @@ import FluidAudio
 import Foundation
 
 public enum AudioIO {
-    /// Charge n'importe quel fichier audio (wav, m4a, mp3, caf…) en mono 16 kHz.
+    /// Loads any audio file (wav, m4a, mp3, caf…) as mono 16 kHz.
     public static func loadSamples(_ url: URL) throws -> [Float] {
         try AudioConverter().resampleAudioFile(url)
     }
 
-    /// Encode des échantillons mono 16 kHz en AAC (.m4a), ~14 Mo par heure.
+    /// Encodes mono 16 kHz samples as AAC (.m4a), ~14 MB per hour.
     public static func writeM4A(_ samples: [Float], to url: URL) throws {
         let sampleRate = Double(SpeechEngine.sampleRate)
         let settings: [String: Any] = [
@@ -40,8 +40,8 @@ public enum AudioIO {
     }
 }
 
-/// Écrit un WAV mono 16 bits au fil de l'eau : en cas de plantage pendant une longue
-/// réunion, l'audio déjà capté reste lisible (l'en-tête est remis à jour régulièrement).
+/// Writes a 16-bit mono WAV as it goes: if the app crashes during a long
+/// meeting, the audio already captured stays readable (the header is refreshed regularly).
 public final class WavWriter: @unchecked Sendable {
     public let url: URL
     private let handle: FileHandle
@@ -81,7 +81,7 @@ public final class WavWriter: @unchecked Sendable {
 
     public func append(_ samples: [Float]) {
         queue.async { [self] in
-            // Un dernier tampon peut arriver après la fermeture : on l'ignore.
+            // A last buffer may arrive after closing: ignore it.
             guard !closed else { return }
             var pcm = [Int16](repeating: 0, count: samples.count)
             for i in 0..<samples.count {
@@ -91,7 +91,7 @@ public final class WavWriter: @unchecked Sendable {
             guard (try? handle.write(contentsOf: data)) != nil else { return }
             dataBytes += UInt32(data.count)
             bytesSinceHeader += UInt32(data.count)
-            // Toutes les ~5 s d'audio, on rend le fichier valide jusqu'ici.
+            // Every ~5 s of audio, make the file valid up to this point.
             if bytesSinceHeader > sampleRate * 2 * 5 {
                 patchHeader()
             }
