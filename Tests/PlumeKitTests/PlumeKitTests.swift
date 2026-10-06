@@ -60,13 +60,15 @@ struct TranscriptBuilderTests {
     }
 
     @Test func attribueLesMotsAuxLocuteurs() {
-        let w = words([("Bonjour", 0, 0.5), ("Marie.", 0.6, 1.0), ("Salut", 2.0, 2.4), ("Thomas.", 2.5, 3.0)])
-        let turns = [SpeakerTurn(speaker: "S1", start: 0, end: 1.2), SpeakerTurn(speaker: "S2", start: 1.8, end: 3.2)]
-        let names = TranscriptBuilder.names(for: turns)
-        let segments = TranscriptBuilder.segments(words: w, turns: turns, names: names, fallback: "?", channel: .mic)
-        #expect(segments.map(\.speaker) == ["Interlocuteur 1", "Interlocuteur 2"])
-        #expect(segments.map(\.text) == ["Bonjour Marie.", "Salut Thomas."])
-        #expect(segments[1].start == 2.0)
+        L10n.$override.withValue(.french) {
+            let w = words([("Bonjour", 0, 0.5), ("Marie.", 0.6, 1.0), ("Salut", 2.0, 2.4), ("Thomas.", 2.5, 3.0)])
+            let turns = [SpeakerTurn(speaker: "S1", start: 0, end: 1.2), SpeakerTurn(speaker: "S2", start: 1.8, end: 3.2)]
+            let names = TranscriptBuilder.names(for: turns)
+            let segments = TranscriptBuilder.segments(words: w, turns: turns, names: names, fallback: "?", channel: .mic)
+            #expect(segments.map(\.speaker) == ["Interlocuteur 1", "Interlocuteur 2"])
+            #expect(segments.map(\.text) == ["Bonjour Marie.", "Salut Thomas."])
+            #expect(segments[1].start == 2.0)
+        }
     }
 
     @Test func rendUnMotIsoléAuLocuteurEnvironnant() {
@@ -152,14 +154,16 @@ struct TranscriptBuilderTests {
     }
 
     @Test func numéroteDansLOrdreDIntervention() {
-        let runs = [
-            TranscriptBuilder.Run(speaker: "sys:S3", channel: .system, words: words([("Bonjour.", 0, 1)])),
-            TranscriptBuilder.Run(speaker: "mic:S1", channel: .mic, words: words([("Salut.", 1, 2)])),
-            TranscriptBuilder.Run(speaker: "sys:S1", channel: .system, words: words([("Hello.", 2, 3)])),
-            TranscriptBuilder.Run(speaker: "sys:S3", channel: .system, words: words([("Bien.", 3, 4)])),
-        ]
-        let segments = TranscriptBuilder.segments(from: runs, me: ["mic:S1"])
-        #expect(segments.map(\.speaker) == ["Interlocuteur 1", "Moi", "Interlocuteur 2", "Interlocuteur 1"])
+        L10n.$override.withValue(.french) {
+            let runs = [
+                TranscriptBuilder.Run(speaker: "sys:S3", channel: .system, words: words([("Bonjour.", 0, 1)])),
+                TranscriptBuilder.Run(speaker: "mic:S1", channel: .mic, words: words([("Salut.", 1, 2)])),
+                TranscriptBuilder.Run(speaker: "sys:S1", channel: .system, words: words([("Hello.", 2, 3)])),
+                TranscriptBuilder.Run(speaker: "sys:S3", channel: .system, words: words([("Bien.", 3, 4)])),
+            ]
+            let segments = TranscriptBuilder.segments(from: runs, me: ["mic:S1"])
+            #expect(segments.map(\.speaker) == ["Interlocuteur 1", "Moi", "Interlocuteur 2", "Interlocuteur 1"])
+        }
     }
 
     @Test func recaleLeChangementDeVoixSurLaPause() {
@@ -192,9 +196,11 @@ struct TranscriptBuilderTests {
     }
 
     @Test func nommeMoiLeLocuteurReconnu() {
-        let turns = [SpeakerTurn(speaker: "S1", start: 0, end: 1), SpeakerTurn(speaker: "S2", start: 1, end: 2)]
-        let names = TranscriptBuilder.names(for: turns, startingAt: 3, me: "S2")
-        #expect(names == ["S1": "Interlocuteur 3", "S2": "Moi"])
+        L10n.$override.withValue(.french) {
+            let turns = [SpeakerTurn(speaker: "S1", start: 0, end: 1), SpeakerTurn(speaker: "S2", start: 1, end: 2)]
+            let names = TranscriptBuilder.names(for: turns, startingAt: 3, me: "S2")
+            #expect(names == ["S1": "Interlocuteur 3", "S2": "Moi"])
+        }
     }
 }
 
@@ -668,10 +674,12 @@ struct ExportTests {
     }
 
     @Test func markdownAvecRésuméEtTitre() {
-        let md = TranscriptStore.markdown(for: meeting)
-        #expect(md.contains("# Point budget\nRéunion du"))
-        #expect(md.contains("## Résumé\n\n## Points clés\n- Budget validé\n\n## Transcription"))
-        #expect(Exporter.render(meeting, as: .text).hasPrefix("Point budget\n\n## Points clés"))
+        L10n.$override.withValue(.french) {
+            let md = TranscriptStore.markdown(for: meeting)
+            #expect(md.contains("# Point budget\nRéunion du"))
+            #expect(md.contains("## Résumé\n\n## Points clés\n- Budget validé\n\n## Transcription"))
+            #expect(Exporter.render(meeting, as: .text).hasPrefix("Point budget\n\n## Points clés"))
+        }
     }
 
     @Test func supprimeLAudioAncien() throws {
