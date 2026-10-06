@@ -20,7 +20,7 @@ One line per PR or PR stack, grouped by date, newest first. A version takes the 
 
 ### 2026-10-05
 
-- Home: a "Dictate" button that tucks the window away and starts dictation, and the last three transcriptions (copyable in one click) next to the activity (#7)
+- Home: a "Dictate" button that tucks the window away and starts dictation, and the latest three transcriptions (copyable in one click) next to the activity (#7)
 - What's new: this changelog reads in the app, from the top-right button (#7)
 - Cancel: a cancelled recording stays recoverable for a few days, and the cancel shortcut is configurable (#7)
 - Plume 1.0: voice commands, per-app rules, cursor-aware insertion, pause, call detection, local AI (Apple Intelligence), exports, English interface (#7)

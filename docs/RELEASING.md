@@ -56,7 +56,8 @@ $EDITOR notes/1.0.1.md
 
 `release.sh` publishes nothing. It produces `dist/mises-a-jour/Plume-1.0.1.dmg` and
 `appcast.xml` (the feed, signed with the keychain key). Keep the `dist/mises-a-jour` folder from
-one version to the next: the feed builds up there.
+one version to the next: the feed builds up there. It keeps its French name on purpose: it holds
+the feed history on the release Mac, and renaming it loses delta updates.
 
 Permanent download link, for the website:
 `https://github.com/<repository>/releases/latest/download/Plume.dmg`

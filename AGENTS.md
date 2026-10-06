@@ -50,7 +50,7 @@ Before saying a change works: build, run the tests, and if the interface changes
   a stack cites its first PR. The effect, not the how. Only a very minor PR (typo, a tweak with
   no effect) adds none: tests, scripts and tooling get their line. The line goes in the top
   version while it is unreleased (no `v<version>` tag); otherwise, in a new `## <next version>`
-  section. The top version is the one released, and its heading then takes the release date:
+  section. Release the top version; its heading then takes the release date:
   `## <version> — <date>`.
 
 ## Tests

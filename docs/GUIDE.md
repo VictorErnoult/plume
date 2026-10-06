@@ -53,13 +53,13 @@ In order, at the end of each dictation:
    signature.
 4. **The app's style** (Applications page): *Standard*, *Message* (no final period), *Casual*
    (no capital at the start of a sentence, no final period).
-5. **Polish by the local AI**, if requested (see below).
+5. **Clean up with the local AI**, if requested (see below).
 6. **Write as you speak** (Settings › Dictation, off by default, marked "beta"): words are
    typed into the field while you talk, five times a second, as live transcription hears them;
    when the model corrects itself, Plume erases the few characters that change and retypes. The
    last word heard waits for the next one (it is the least certain). On stop, what is left is
    typed right away. The text goes through clean-up, voice commands ("scratch that" also erases
-   what is already typed), vocabulary and the app's style; AI polish doesn't apply, and the
+   what is already typed), vocabulary and the app's style; AI clean-up doesn't apply, and the
    history keeps the full version transcribed in one block. Don't move the cursor while it
    writes.
 7. **Smart insert** (Settings › Dictation): Plume looks at what surrounds the cursor (through
@@ -112,7 +112,7 @@ returns to normal as soon as sound arrives.
 Audio is written to disk as it goes, for a meeting as for a dictation: if the app stops in the
 middle of a recording, it is transcribed at the next launch.
 
-In meeting mode, Plume also captures the computer's audio, separates the voices at the end, and
+In meeting mode, Plume also captures the system audio, separates the voices at the end, and
 files the dialogue in the history instead of pasting it. Without headphones, the speakers' sound
 leaks back into the microphone: Plume detects it and removes that echo before transcribing,
 otherwise the remote voices would appear twice and drown out yours. If the voices are still
@@ -159,8 +159,9 @@ file, to import on another Mac.
 ## Language
 
 The interface is in English by default; **Settings › General › Language** switches it to French
-(or back), regardless of the system language. The choice applies to the window, the notch, the
-menus, transcript titles ("Meeting, Oct 2, 2026 at 11:30 AM" / "Réunion du 2 oct. 2026 à
+(or back), regardless of the system language. macOS system dialogs (permission prompts, open/save
+panels, update dialogs) follow the Mac's language. The choice applies to the window, the notch,
+the menus, transcript titles ("Meeting, Oct 2, 2026 at 11:30 AM" / "Réunion du 2 oct. 2026 à
 11:30"), speaker names ("Me", "Speaker 1" / "Moi", "Interlocuteur 1") and the meeting notes
 written by the local AI. Voice commands work in both languages whatever the setting. Command-line
 messages follow the setting; `--json` keys are always French.
@@ -193,7 +194,7 @@ sounds as WAV, one subfolder per pack.
 |---|---|---|
 | Microphone | To hear you | First dictation, or from Home |
 | Accessibility | To simulate ⌘V and paste the text | From Home; without it the text is only copied |
-| System audio recording | To capture the computer's audio in a meeting | First meeting |
+| System audio recording | To capture the system audio in a meeting | First meeting |
 
 The app is signed with a stable local certificate: permissions survive updates.
 
@@ -207,7 +208,7 @@ The app is signed with a stable local certificate: permissions survive updates.
   2026-10/
     2026-10-02_14-31-05_dictee.md      text, with a header (date, duration, speakers)
     2026-10-02_14-31-05_dictee.json    full data (timestamped segments, raw text)
-    2026-10-02_14-31-05_mic.m4a        original audio (mic = microphone, sys = computer's sound)
+    2026-10-02_14-31-05_mic.m4a        original audio (mic = microphone, sys = system audio)
 ```
 
 ## Access for an AI
