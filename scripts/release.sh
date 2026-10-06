@@ -13,7 +13,7 @@ VERSION="${1:?version number, for example 1.0.1}"
 ./scripts/test.sh
 # Build number: the date, always increasing — it is what Sparkle compares.
 BUILD="${PLUME_BUILD:-$(date +%Y%m%d%H%M)}"
-REPO="${PLUME_REPO:-proprietaire/plume}"
+REPO="${PLUME_REPO:-owner/plume}"
 # The three variables PLUME_BUILD, PLUME_FEED_URL and PLUME_DOWNLOAD_PREFIX are only for
 # trying an update end to end on this Mac (see docs/RELEASING.md).
 FEED="${PLUME_FEED_URL:-https://github.com/$REPO/releases/latest/download/appcast.xml}"
@@ -28,8 +28,8 @@ TOOLS="$PLUME_SCRATCH/artifacts/sparkle/Sparkle/bin"
 # testers, kept apart so it never enters the feed of released versions.
 UPDATES=1
 [[ -z "${PLUME_REPO:-}" && -z "${PLUME_FEED_URL:-}" ]] && UPDATES=0
-OUT="$DIST/mises-a-jour"
-[[ $UPDATES == 0 ]] && OUT="$DIST/essai"
+OUT="$DIST/updates"
+[[ $UPDATES == 0 ]] && OUT="$DIST/trial"
 DMG="$OUT/Plume-$VERSION.dmg"
 mkdir -p "$OUT"
 
@@ -64,17 +64,17 @@ fi
 SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 ENTITLEMENTS="Resources/Plume.entitlements"
 if [[ -n "$PLUME_IDENTITY" ]]; then
-  ESSAI=0
+  TRIAL=0
   SIGN=(codesign --force --timestamp --options runtime --sign "$PLUME_IDENTITY")
 else
-  ESSAI=1
+  TRIAL=1
   echo "Trial mode: local signature, no notarization."
   ./scripts/signing-identity.sh
   SIGN=(codesign --force --options runtime --sign "Plume Local Signing"
     --keychain "$HOME/Library/Keychains/plume-signing.keychain-db")
   # A local certificate has no team ID: without this exception, the system would
   # refuse to load Sparkle under the hardened runtime.
-  ENTITLEMENTS="$DIST/essai.entitlements"
+  ENTITLEMENTS="$DIST/trial.entitlements"
   cp Resources/Plume.entitlements "$ENTITLEMENTS"
   /usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "$ENTITLEMENTS"
 fi
@@ -92,7 +92,7 @@ notarize() {
 }
 
 # --- Notarize the app, so it opens even offline
-if [[ $ESSAI == 0 ]]; then
+if [[ $TRIAL == 0 ]]; then
   ditto -c -k --keepParent "$APP" "$DIST/Plume.zip"
   notarize "$DIST/Plume.zip"
   xcrun stapler staple "$APP"
@@ -105,17 +105,17 @@ trap 'rm -rf "$STAGE"' EXIT
 ditto "$APP" "$STAGE/Plume.app"
 ln -s /Applications "$STAGE/Applications"
 # An unnotarized version is blocked on first launch: we say how to get past that.
-if [[ $ESSAI == 1 ]]; then
-  cp Resources/Lisez-moi-testeurs.txt "$STAGE/Lisez-moi.txt"
+if [[ $TRIAL == 1 ]]; then
+  cp Resources/README-testers.txt "$STAGE/Read-me.txt"
   if [[ $UPDATES == 1 ]]; then
-    print "\nNew versions arrive on their own: Plume offers them to you as soon as they are out." >>"$STAGE/Lisez-moi.txt"
+    print "\nNew versions arrive on their own: Plume offers them to you as soon as they are out." >>"$STAGE/Read-me.txt"
   else
-    print "\nThis version does not update itself: a new one will be sent to you." >>"$STAGE/Lisez-moi.txt"
+    print "\nThis version does not update itself: a new one will be sent to you." >>"$STAGE/Read-me.txt"
   fi
 fi
 rm -f "$DMG"
 hdiutil create -volname "Plume" -srcfolder "$STAGE" -ov -format UDZO -quiet "$DMG"
-if [[ $ESSAI == 0 ]]; then
+if [[ $TRIAL == 0 ]]; then
   codesign --force --timestamp --sign "$PLUME_IDENTITY" "$DMG"
   notarize "$DMG"
   xcrun stapler staple "$DMG"
@@ -132,5 +132,5 @@ fi
 echo
 echo "Version $VERSION ($BUILD) ready in $OUT:"
 ls -lh "$OUT" | tail -n +2
-[[ $ESSAI == 1 ]] && echo "Not notarized: macOS blocks it on first launch (see Lisez-moi.txt in the disk image)."
+[[ $TRIAL == 1 ]] && echo "Not notarized: macOS blocks it on first launch (see Read-me.txt in the disk image)."
 exit 0

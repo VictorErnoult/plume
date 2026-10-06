@@ -1344,7 +1344,7 @@ struct SettingsPage: View {
             }
             SettingRow(tr("Licenses"), detail: tr("Models, fonts, icons and libraries used by Plume.")) {
                 PlumeButton(title: tr("Show")) {
-                    if let url = Bundle.main.url(forResource: "LICENCES", withExtension: "md") { NSWorkspace.shared.open(url) }
+                    if let url = Bundle.main.url(forResource: "LICENSES", withExtension: "md") { NSWorkspace.shared.open(url) }
                 }
             }
         }

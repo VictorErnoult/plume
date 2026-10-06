@@ -137,4 +137,4 @@ What's next is in [docs/PLAN.md](docs/PLAN.md): an iOS app on the same engine, a
 
 ### License
 
-MIT — see [LICENSE](LICENSE). Do what you want with the code. The models, fonts, icons and sound packs have their own licenses (CC BY 4.0, Apache 2.0, OFL, ISC), listed with their authors in [Resources/LICENCES.md](Resources/LICENCES.md). Please give a fork its own name and icon before distributing it.
+MIT — see [LICENSE](LICENSE). Do what you want with the code. The models, fonts, icons and sound packs have their own licenses (CC BY 4.0, Apache 2.0, OFL, ISC), listed with their authors in [Resources/LICENSES.md](Resources/LICENSES.md). Please give a fork its own name and icon before distributing it.

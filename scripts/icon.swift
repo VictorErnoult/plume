@@ -1,4 +1,4 @@
-// Make the app icon sizes from Resources/Icone.jpg (square, full-bleed image). The image
+// Make the app icon sizes from Resources/Icon.jpg (square, full-bleed image). The image
 // is fitted into the macOS icon template: a continuous-corner square of 824 on a 1024
 // grid, with a light shadow.
 //   swift scripts/icon.swift <folder.iconset>
@@ -6,7 +6,7 @@ import AppKit
 import SwiftUI
 
 let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
-guard let source = NSImage(contentsOfFile: "Resources/Icone.jpg") else { fatalError("Resources/Icone.jpg not found") }
+guard let source = NSImage(contentsOfFile: "Resources/Icon.jpg") else { fatalError("Resources/Icon.jpg not found") }
 try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 
 func render(_ pixels: Int) -> Data {

@@ -23,6 +23,6 @@ SOFTWARE.
 ---
 
 This license covers the source code. Third-party assets bundled in this repository keep
-their own licenses (see Resources/LICENCES.md): the Geist fonts (SIL OFL 1.1), the Lucide
+their own licenses (see Resources/LICENSES.md): the Geist fonts (SIL OFL 1.1), the Lucide
 icons (ISC) and the sound files in Resources/Sounds (Epidemic Sound, not covered by the
 MIT license).

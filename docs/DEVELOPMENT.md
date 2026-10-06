@@ -10,7 +10,7 @@ Build, test, understand the code and release a version. To contribute, see also
 ./scripts/build.sh --install   # … then installs into /Applications and relaunches
 ./scripts/test.sh              # logic tests
 ./scripts/release.sh 1.0.1     # releasable version, or one for testers (see docs/RELEASING.md)
-./scripts/icon.sh              # rebuilds the app icon from Resources/Icone.jpg
+./scripts/icon.sh              # rebuilds the app icon from Resources/Icon.jpg
 ```
 
 No Xcode required: SwiftPM and the Command Line Tools are enough. You need an Apple Silicon Mac

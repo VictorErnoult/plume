@@ -10,13 +10,13 @@ The repository is `soyAkil/plume` (`PLUME_REPO` in `scripts/release.env`). As lo
 `PLUME_IDENTITY` is empty:
 
 ```sh
-./scripts/release.sh 0.9.1     # → dist/mises-a-jour/Plume-0.9.1.dmg and appcast.xml
+./scripts/release.sh 0.9.1     # → dist/updates/Plume-0.9.1.dmg and appcast.xml
 ./scripts/publish.sh 0.9.1     # publishes to GitHub
 ```
 
 The app is signed with the local certificate (`Plume Local Signing`, keychain
 `plume-signing.keychain-db`), not notarized, but with automatic updates. The `.dmg` contains a
-`Lisez-moi.txt` that explains how to get past macOS's block on first open (System Settings ›
+`Read-me.txt` that explains how to get past macOS's block on first open (System Settings ›
 Privacy & Security › "Open Anyway").
 
 Sparkle accepts changing *either* the update key *or* the signing certificate from one version
@@ -24,7 +24,7 @@ to the next, never both at once: so you can move to the Developer ID certificate
 losing testers. You do have to keep the update key (see below) and, until the move to
 Developer ID, the keychain `~/Library/Keychains/plume-signing.keychain-db`.
 
-Without `PLUME_REPO`, `release.sh` builds a version without updates, put in `dist/essai`.
+Without `PLUME_REPO`, `release.sh` builds a version without updates, put in `dist/trial`.
 
 ## Once and for all
 
@@ -54,8 +54,8 @@ $EDITOR notes/1.0.1.md
 ./scripts/publish.sh 1.0.1   # publishes to GitHub
 ```
 
-`release.sh` publishes nothing. It produces `dist/mises-a-jour/Plume-1.0.1.dmg` and
-`appcast.xml` (the feed, signed with the keychain key). Keep the `dist/mises-a-jour` folder from
+`release.sh` publishes nothing. It produces `dist/updates/Plume-1.0.1.dmg` and
+`appcast.xml` (the feed, signed with the keychain key). Keep the `dist/updates` folder from
 one version to the next: the feed builds up there.
 
 Permanent download link, for the website:
@@ -78,7 +78,7 @@ T=/tmp/update-trial
 export PLUME_FEED_URL=http://127.0.0.1:8765/appcast.xml PLUME_DOWNLOAD_PREFIX=http://127.0.0.1:8765/
 PLUME_DIST=$T/old PLUME_BUILD=1 ./scripts/release.sh 0.9.0
 PLUME_DIST=$T/new PLUME_BUILD=2 ./scripts/release.sh 1.0.0
-(cd $T/new/mises-a-jour && python3 -m http.server 8765 --bind 127.0.0.1 &)
+(cd $T/new/updates && python3 -m http.server 8765 --bind 127.0.0.1 &)
 PLUME_CHANNEL=trial PLUME_HEADLESS=1 PLUME_UPDATES=1 $T/old/Plume.app/Contents/MacOS/Plume &
 # a few seconds later, the trial app is at 1.0.0:
 /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" $T/old/Plume.app/Contents/Info.plist
@@ -87,6 +87,6 @@ grep "update" ~/Library/Logs/Plume/plume.log | tail -3
 
 ## Credits to display
 
-`Resources/LICENCES.md` (opened from Settings › About) lists the models, libraries, fonts and
+`Resources/LICENSES.md` (opened from Settings › About) lists the models, libraries, fonts and
 icons with their license. The models are under CC BY 4.0 or Apache 2.0: attribution is
 required, use and distribution are free. Carry these credits over to the download page.
