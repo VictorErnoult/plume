@@ -140,16 +140,24 @@ public enum AppRuleStore {
     public static var url: URL { PlumeSettings.supportDirectory.appendingPathComponent("applications.json") }
 
     public static func load() -> [AppRule] {
-        guard let data = try? Data(contentsOf: url), let items = try? JSONDecoder().decode([AppRule].self, from: data)
-        else { return [] }
-        return items
+        read(from: url) ?? []
     }
 
     public static func save(_ items: [AppRule]) {
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? write(items, to: url)
+    }
+
+    /// Un fichier de règles, `nil` s'il manque ou ne se lit pas.
+    public static func read(from url: URL) -> [AppRule]? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode([AppRule].self, from: data)
+    }
+
+    public static func write(_ items: [AppRule], to url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        try? encoder.encode(items).write(to: url, options: .atomic)
+        try encoder.encode(items).write(to: url, options: .atomic)
     }
 
     /// La règle qui s'applique à une application : la sienne, sinon celle de « toutes les autres ».

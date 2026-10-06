@@ -1,0 +1,39 @@
+{
+  "app" : "Zoom",
+  "audioFiles" : [
+    "2026-10-02_14-31-05_mic.m4a",
+    "2026-10-02_14-31-05_sys.m4a"
+  ],
+  "createdAt" : "2026-10-02T12:31:05Z",
+  "device" : "mac",
+  "duration" : 1834.5,
+  "engine" : "parakeet-ultra",
+  "id" : "2026-10-02_14-31-05",
+  "mode" : "meeting",
+  "rawText" : "on commence par le budget d'accord je partage l'écran",
+  "segments" : [
+    {
+      "channel" : "mic",
+      "end" : 3.25,
+      "id" : 0,
+      "speaker" : "Moi",
+      "start" : 0,
+      "text" : "On commence par le budget."
+    },
+    {
+      "channel" : "system",
+      "end" : 6,
+      "id" : 1,
+      "speaker" : "Inès",
+      "start" : 3.5,
+      "text" : "D'accord, je partage l'écran."
+    }
+  ],
+  "speakers" : [
+    "Moi",
+    "Inès"
+  ],
+  "summary" : "## Points clés\n- Budget validé.",
+  "text" : "**Moi** : On commence par le budget.\n\n**Inès** : D'accord, je partage l'écran.",
+  "title" : "Point budget"
+}

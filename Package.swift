@@ -27,5 +27,10 @@ let package = Package(
             dependencies: ["PlumeKit"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .testTarget(
+            name: "PlumeTests",
+            dependencies: ["Plume", "PlumeKit"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
     ]
 )

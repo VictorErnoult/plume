@@ -1,0 +1,22 @@
+{
+  "app" : "Notes",
+  "audioFiles" : [
+    "2026-10-02_09-15-00_mic.m4a"
+  ],
+  "createdAt" : "2026-10-02T07:15:00Z",
+  "device" : "mac",
+  "duration" : 4.2,
+  "engine" : "parakeet-ultra",
+  "id" : "2026-10-02_09-15-00",
+  "mode" : "dictation",
+  "rawText" : "euh le rapport trimestriel est prêt je te l'envoie ce soir",
+  "segments" : [
+
+  ],
+  "speakers" : [
+
+  ],
+  "summary" : "Rapport prêt, envoi ce soir.",
+  "text" : "Le rapport trimestriel est prêt, je te l'envoie ce soir.",
+  "title" : "Rapport trimestriel"
+}

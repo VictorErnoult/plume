@@ -765,21 +765,21 @@ struct EngineModelTests {
     }
 }
 
-@Suite("Langue de l'interface", .serialized)
+@Suite("Langue de l'interface")
 struct LocalizationTests {
     @Test func traduitEnAnglaisEtRevientAuFrançais() {
-        let before = L10n.current
-        defer { L10n.current = before }
-        L10n.current = .english
-        #expect(tr("Historique") == "History")
-        #expect(tr("Chaîne inconnue de la table") == "Chaîne inconnue de la table")
-        #expect(TranscriptBuilder.speakerName(1) == "Speaker 1")
-        #expect(TranscriptBuilder.meName == "Me")
-        #expect(RecordingMode.meeting.label == "Meeting")
-        L10n.current = .french
-        #expect(tr("Historique") == "Historique")
-        #expect(TranscriptBuilder.speakerName(1) == "Interlocuteur 1")
-        #expect(TranscriptBuilder.isMe("Me") && TranscriptBuilder.isMe("Moi") && !TranscriptBuilder.isMe("Inès"))
+        L10n.$override.withValue(.english) {
+            #expect(tr("Historique") == "History")
+            #expect(tr("Chaîne inconnue de la table") == "Chaîne inconnue de la table")
+            #expect(TranscriptBuilder.speakerName(1) == "Speaker 1")
+            #expect(TranscriptBuilder.meName == "Me")
+            #expect(RecordingMode.meeting.label == "Meeting")
+        }
+        L10n.$override.withValue(.french) {
+            #expect(tr("Historique") == "Historique")
+            #expect(TranscriptBuilder.speakerName(1) == "Interlocuteur 1")
+            #expect(TranscriptBuilder.isMe("Me") && TranscriptBuilder.isMe("Moi") && !TranscriptBuilder.isMe("Inès"))
+        }
     }
 
     @Test func aucuneTraductionVide() {

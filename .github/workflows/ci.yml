@@ -23,4 +23,10 @@ jobs:
       - name: Compiler
         run: swift build -c release
       - name: Tests
+        # Réglages, dossiers et canal à part, comme scripts/test.sh.
+        env:
+          PLUME_DEFAULTS: tests
+          PLUME_CHANNEL: tests
+          PLUME_SUPPORT: ${{ runner.temp }}/plume-support
+          PLUME_LIBRARY: ${{ runner.temp }}/plume-library
         run: swift test

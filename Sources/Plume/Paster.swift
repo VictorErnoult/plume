@@ -23,8 +23,8 @@ enum Paster {
 
     /// - Parameter transient: le texte ne fait que passer. Il est écrit avec ses marques en une
     ///   seule fois : un gestionnaire qui lirait entre les deux le garderait sans les voir.
-    static func copy(_ text: String, transient: Bool = false) {
-        let pasteboard = NSPasteboard.general
+    /// - Parameter pasteboard: le presse-papiers général, sauf dans les tests.
+    static func copy(_ text: String, transient: Bool = false, to pasteboard: NSPasteboard = .general) {
         pasteboard.clearContents()
         let item = NSPasteboardItem()
         item.setString(text, forType: .string)
@@ -32,6 +32,28 @@ enum Paster {
             for type in transientTypes { item.setData(Data(), forType: type) }
         }
         pasteboard.writeObjects([item])
+    }
+
+    /// Prépare le collage, sans rien simuler au clavier : garde ce qu'il faudra rétablir (`nil`
+    /// si rien ne le sera), puis écrit la dictée.
+    static func stage(
+        _ text: String, restoreClipboard: Bool, on pasteboard: NSPasteboard = .general
+    ) -> [NSPasteboardItem]? {
+        let saved = restoreClipboard ? snapshot(pasteboard) : nil
+        // Rétabli juste après : les gestionnaires de presse-papiers (Maccy, Raycast…) ne retiennent
+        // pas un contenu marqué éphémère, la dictée ne s'ajoute pas à leur historique.
+        copy(text, transient: saved != nil, to: pasteboard)
+        return saved
+    }
+
+    /// Remet le contenu d'avant le collage. Si l'utilisateur a copié autre chose entre-temps
+    /// (`changeCount` a bougé), on ne touche à rien.
+    static func restore(
+        _ saved: [NSPasteboardItem], to pasteboard: NSPasteboard = .general, ifUnchangedSince marker: Int
+    ) {
+        guard pasteboard.changeCount == marker else { return }
+        pasteboard.clearContents()
+        if !saved.isEmpty { pasteboard.writeObjects(saved) }
     }
 
     /// - Parameter typing: tape le texte touche par touche au lieu de passer par ⌘V, pour les
@@ -49,19 +71,13 @@ enum Paster {
             type(text)
             return true
         }
-        let saved = restoreClipboard ? snapshot(pasteboard) : nil
-        // Rétabli juste après : les gestionnaires de presse-papiers (Maccy, Raycast…) ne retiennent
-        // pas un contenu marqué éphémère, la dictée ne s'ajoute pas à leur historique.
-        copy(text, transient: saved != nil)
+        let saved = stage(text, restoreClipboard: restoreClipboard, on: pasteboard)
         let marker = pasteboard.changeCount
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             post(key: keyCode(for: "V"), flags: .maskCommand)
             guard let saved else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                // Si l'utilisateur a copié autre chose entre-temps, on ne touche à rien.
-                guard pasteboard.changeCount == marker else { return }
-                pasteboard.clearContents()
-                if !saved.isEmpty { pasteboard.writeObjects(saved) }
+                restore(saved, to: pasteboard, ifUnchangedSince: marker)
             }
         }
         return true

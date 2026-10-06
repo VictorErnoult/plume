@@ -29,7 +29,16 @@ public enum Language: String, CaseIterable, Codable, Sendable, Identifiable {
 public enum L10n {
     /// Langue en vigueur. Les sources sont en français : c'est la valeur de départ, et celle
     /// des tests ; l'app et la ligne de commande la règlent au lancement d'après les réglages.
-    nonisolated(unsafe) public static var current: Language = .french
+    public static var current: Language {
+        get { override ?? stored }
+        set { stored = newValue }
+    }
+
+    nonisolated(unsafe) private static var stored: Language = .french
+
+    /// Une langue le temps d'un bloc, pour la tâche en cours seulement : les tests s'en servent
+    /// au lieu de changer `current`, que les autres tests lisent en même temps.
+    @TaskLocal public static var override: Language?
 
     /// Traduction d'une chaîne française. Une chaîne absente de la table revient telle quelle.
     public static func translate(_ french: String) -> String {
