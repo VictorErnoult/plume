@@ -12,7 +12,7 @@ source scripts/release.env
 VERSION="${1:?version number, for example 1.0.1}"
 [[ -n "$PLUME_REPO" ]] || { echo "PLUME_REPO is empty in scripts/release.env."; exit 1; }
 
-DIR="dist/updates"
+DIR="dist/mises-a-jour"
 DMG="$DIR/Plume-$VERSION.dmg"
 [[ -f "$DMG" && -f "$DIR/appcast.xml" ]] || { echo "Run ./scripts/release.sh $VERSION first"; exit 1; }
 # Without a Developer ID certificate, the version is released unnotarized: macOS blocks it

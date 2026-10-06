@@ -10,7 +10,7 @@ The repository is `soyAkil/plume` (`PLUME_REPO` in `scripts/release.env`). As lo
 `PLUME_IDENTITY` is empty:
 
 ```sh
-./scripts/release.sh 0.9.1     # → dist/updates/Plume-0.9.1.dmg and appcast.xml
+./scripts/release.sh 0.9.1     # → dist/mises-a-jour/Plume-0.9.1.dmg and appcast.xml
 ./scripts/publish.sh 0.9.1     # publishes to GitHub
 ```
 
@@ -54,8 +54,8 @@ $EDITOR notes/1.0.1.md
 ./scripts/publish.sh 1.0.1   # publishes to GitHub
 ```
 
-`release.sh` publishes nothing. It produces `dist/updates/Plume-1.0.1.dmg` and
-`appcast.xml` (the feed, signed with the keychain key). Keep the `dist/updates` folder from
+`release.sh` publishes nothing. It produces `dist/mises-a-jour/Plume-1.0.1.dmg` and
+`appcast.xml` (the feed, signed with the keychain key). Keep the `dist/mises-a-jour` folder from
 one version to the next: the feed builds up there.
 
 Permanent download link, for the website:
@@ -78,7 +78,7 @@ T=/tmp/update-trial
 export PLUME_FEED_URL=http://127.0.0.1:8765/appcast.xml PLUME_DOWNLOAD_PREFIX=http://127.0.0.1:8765/
 PLUME_DIST=$T/old PLUME_BUILD=1 ./scripts/release.sh 0.9.0
 PLUME_DIST=$T/new PLUME_BUILD=2 ./scripts/release.sh 1.0.0
-(cd $T/new/updates && python3 -m http.server 8765 --bind 127.0.0.1 &)
+(cd $T/new/mises-a-jour && python3 -m http.server 8765 --bind 127.0.0.1 &)
 PLUME_CHANNEL=trial PLUME_HEADLESS=1 PLUME_UPDATES=1 $T/old/Plume.app/Contents/MacOS/Plume &
 # a few seconds later, the trial app is at 1.0.0:
 /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" $T/old/Plume.app/Contents/Info.plist

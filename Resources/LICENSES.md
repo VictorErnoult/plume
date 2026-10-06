@@ -54,7 +54,7 @@ License: Apache 2.0 — https://www.apache.org/licenses/LICENSE-2.0
 
 ## Fonts
 
-- **Geist** et **Geist Mono**, © 2024 The Geist Project Authors — SIL Open Font License 1.1 —
+- **Geist** and **Geist Mono**, © 2024 The Geist Project Authors — SIL Open Font License 1.1 —
   https://github.com/vercel/geist-font (license text shipped with the fonts, in the app).
 
 ## Sounds

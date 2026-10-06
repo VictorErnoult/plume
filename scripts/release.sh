@@ -28,7 +28,7 @@ TOOLS="$PLUME_SCRATCH/artifacts/sparkle/Sparkle/bin"
 # testers, kept apart so it never enters the feed of released versions.
 UPDATES=1
 [[ -z "${PLUME_REPO:-}" && -z "${PLUME_FEED_URL:-}" ]] && UPDATES=0
-OUT="$DIST/updates"
+OUT="$DIST/mises-a-jour"
 [[ $UPDATES == 0 ]] && OUT="$DIST/trial"
 DMG="$OUT/Plume-$VERSION.dmg"
 mkdir -p "$OUT"
