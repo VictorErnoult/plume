@@ -45,11 +45,12 @@ change, regarder un rendu `plume render … --demo`.
   micro ». Elles permettent de tout tester sans toucher à l'app installée, à ses réglages ni à
   la vraie bibliothèque. Toujours mettre `PLUME_DEFAULTS` pour un essai : sans lui, le binaire
   de développement écrit dans les réglages de l'app installée.
-- Chaque PR ajoute une ligne en haut de `CHANGELOG.md` :
-  `- Domaine : effet, en quelques mots (#numéro)`, sous le `### <date>` du jour (à créer s'il
-  manque). L'effet, pas la façon ; une PR sans effet notable (coquille, refacto) n'en ajoute
-  pas. La ligne va dans la version du haut tant qu'elle n'est pas publiée (pas de tag
-  `v<version>`) ; sinon, dans une nouvelle section `## <version suivante>`. On publie la
+- Chaque PR, ou chaque pile de PR fusionnées ensemble, ajoute une ligne en haut de
+  `CHANGELOG.md` : `- Domaine : effet, en quelques mots (#numéro)`, sous le `### <date>` du
+  jour (à créer s'il manque) ; une pile cite sa première PR. L'effet, pas la façon. Seule une
+  PR très mineure (coquille, retouche sans effet) n'en ajoute pas : tests, scripts et outils
+  ont leur ligne. La ligne va dans la version du haut tant qu'elle n'est pas publiée (pas de
+  tag `v<version>`) ; sinon, dans une nouvelle section `## <version suivante>`. On publie la
   version du haut, et son titre prend alors la date de publication : `## <version> — <date>`.
 
 ## Tests
