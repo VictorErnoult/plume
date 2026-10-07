@@ -1,7 +1,7 @@
 # Read the selection aloud: design
 
-Status: 2026-10-07, revision 13: the owner's review answers applied to revision 5 (which four
-independent reviews had brought to clean), then the fifth to eleventh reviews' findings.
+Status: 2026-10-07, revision 14: the owner's review answers applied to revision 5 (which four
+independent reviews had brought to clean), then the fifth to twelfth reviews' findings.
 
 ## Goal
 
@@ -503,7 +503,9 @@ protocol Voice: Sendable {
   only checks that files exist, and an interrupted bundle can leave `weight.bin.partial` behind
   and still pass. So Plume writes a `.complete` marker in the voice folder once all three calls
   succeed; "installed" requires the marker. An unmarked folder is deleted at the failure or the
-  Cancel, and before a resume when a quit left one behind.
+  Cancel, and **every voice download starts by deleting an unmarked folder** (Download, Retry,
+  an engine's Resume, the launch resume, `--download`), so a bundle left by an interrupted
+  command line can never be marked complete.
 - One lock (`flock` on `<support directory>/Models/.download.lock`) covers any download or
   deletion, so the app and the command line never write the same files at once. It is taken
   without waiting (`LOCK_NB`): a second taker fails with "A download is already running".
@@ -516,8 +518,8 @@ protocol Voice: Sendable {
   so Settings then shows "A download is already running" when the user tries.
 - **Deletion only on request.** Nothing is deleted except by the user's Delete (one item),
   Cancel (the item being downloaded), and the incomplete files of a failed download (a file
-  failing its checksum, an unmarked voice folder at the failure or before resuming after a
-  quit). Downloading an engine never deletes another.
+  failing its checksum, an unmarked voice folder at the failure or at the start of any voice
+  download, a `.mismatch` marker at Cancel). Downloading an engine never deletes another.
 - The command line's `--download` writes neither `readAloudEngine` nor
   `readAloudPendingDownload`: downloading for the quality eval never turns anything on in the
   app.
@@ -532,7 +534,8 @@ protocol Voice: Sendable {
   mismatch, which is never resumed automatically (a wrong pin would otherwise re-download
   3 GB at every launch): only the user's Resume retries it. The mismatch is remembered by a
   marker file next to the model (`<file>.mismatch`), written by `ReadAloudModels` when the
-  check fails and removed by a successful download or Delete. A read waiting for that download
+  check fails, holding the error message (so the paused item shows its reason after a
+  relaunch), and removed by a successful download, Delete or Cancel. A read waiting for that download
   moves to `failed` with the error and Retry; a shortcut pressed for a read that needs that
   pending item (see "What a read needs") goes to `failed` with Retry too. Retry, from
   the island or from Settings, restarts the download and, if a read was waiting, waits again
@@ -630,7 +633,7 @@ hardware.
 - New `HotkeyAction.readAloud`, registered when the voice is installed or pending, and
   `HotkeyAction.summarizeAloud`, registered when the voice is installed or pending **and** an
   engine is in use or pending (see "What a read needs"). A read pressed while an item it needs
-  is pending waits for that download, or goes to `failed` if that download failed. The shortcuts are
+  is pending waits for that download while it runs, or goes to `failed` if it is not running. The shortcuts are
   reloaded whenever `readAloudPendingDownload` or `readAloudEngine` changes (download start,
   completion, Cancel, Use) and on Delete and on a download failure.
 - `plume://read-aloud`, `plume://summarize-aloud`, and the Remote actions `read-aloud` and
@@ -722,8 +725,10 @@ device:
   space, cancel, the lock held by another descriptor, downloading an engine installs the voice
   first, downloading a second engine keeps the first, Delete removes only its item, nothing is
   deleted otherwise, a failure during the voice part of an engine download leaves the voice
-  absent (folder deleted) and the engine resumable; with a stub `URLProtocol` and temporary
-  folders.
+  absent (folder deleted) and the engine resumable, an unmarked voice folder left by an
+  interrupted run is deleted before the next voice download, a checksum mismatch writes the
+  `.mismatch` marker with its message (removed by success, Delete and Cancel); with a stub
+  `URLProtocol` and temporary folders.
 - "What a read needs" is a pure function of (voice installed, engine in use, pending key,
   pending download running): a table of cases, including a pending download not running at
   all (→ `failed` with Retry, never an endless wait), including a word-for-word read after an engine's voice
