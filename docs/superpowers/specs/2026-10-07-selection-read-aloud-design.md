@@ -1,7 +1,7 @@
 # Read the selection aloud: design
 
-Status: 2026-10-07, revision 9: the owner's review answers applied to revision 5 (which four
-independent reviews had brought to clean), then the fifth to seventh reviews' findings.
+Status: 2026-10-07, revision 10: the owner's review answers applied to revision 5 (which four
+independent reviews had brought to clean), then the fifth to eighth reviews' findings.
 
 ## Goal
 
@@ -135,14 +135,20 @@ the user asks, and nothing is deleted until the user asks.**
 - Every download asks for confirmation with its size: "Downloads N GB. Nothing leaves your
   Mac." For a summary model on a Mac with less than 16 GB of memory, it adds: "This Mac has
   N GB of memory: other apps may slow down while a summary is being written."
-- Download progress shows next to the item in Settings, with **Cancel download** (and Retry
-  after a failure). If the user triggers a read meanwhile, the island shows "Downloading… x%"
+- Download progress shows next to the item in Settings, with **Cancel download**. If the user triggers a read meanwhile, the island shows "Downloading… x%"
   with **stop**, which ends only that waiting read; the download goes on. **Cancel download**
   moves a waiting read back to idle. The item shows as downloading (its buttons disabled) until
   the cancelled task has finished deleting its leftovers and released the lock.
-- A download that failed or was interrupted and not resumed shows as **Paused, N MB** with
-  Resume and Delete; its `.partial` counts in the total space used.
-- **Delete** asks for confirmation. Deleting the active summary model leaves summaries off
+- A summary model whose download failed or was interrupted shows as **Paused, N MB** (and the
+  error, if it failed) with **Resume** (which continues from the `.partial`; it is the Retry
+  of a failed download) and **Delete**; its `.partial` counts in the total space used. The
+  voice cannot resume (an incomplete voice folder is deleted before any retry): it shows
+  **Failed** with **Retry**, which restarts it from zero.
+- During an engine download that brings the voice, the voice counts as installed as soon as its
+  completion marker is written: a waiting word-for-word read starts then, and the island shows
+  the voice's share of the progress meanwhile.
+- **Delete** asks for confirmation. Deleting the item named by `readAloudPendingDownload` (a
+  paused download) clears that key, so nothing resumes it at the next launch. Deleting the active summary model leaves summaries off
   until another downloaded model is chosen with **Use**. Deleting the voice turns both modes
   off; summary models are kept. Deleting the voice or the model in use unloads it if it is
   loaded (at any time, not only during a read: "Keep the models loaded" may hold it), and stops
@@ -187,8 +193,8 @@ while reading", "Keep the models loaded". Both shortcuts are unassigned by defau
    the text while reading" opens it by default.
 7. **Pressing a shortcut always starts a new read** of the current selection, replacing the one
    in progress (the other shortcut switches mode the same way). To stop: **Esc**, **stop** on
-   the island, or `plume stop` / `plume://stop` / the Remote `stop` (which stop the read when no
-   dictation is running, so Raycast, Shortcuts or a Stream Deck can stop it without the mouse).
+   the island, or `plume stop` / `plume://stop` / the Remote `stop` (which stop the read when Plume
+   is not recording, so Raycast, Shortcuts or a Stream Deck can stop it without the mouse).
    - Esc is a system-wide key: holding it for a whole read would break it in every other app
      (Plume already releases it outside dictations for that reason). So Esc stops a read only
      from "Loading the model…" until the first sound (not during a download, which can last
@@ -211,6 +217,7 @@ while reading", "Keep the models loaded". Both shortcuts are unassigned by defau
 | The voice is downloading, or no engine is in use and one is downloading (`readAloudPendingDownload`) | "Downloading… x%" | The read waits and starts when the download is ready, unless stopped. |
 | The session is busy (`session.isBusy`: recording, or processing a dictation, a transform, a restore or a meeting transcript) | Both shortcuts and the read URLs are ignored. | A read never starts without an island to show it and stop it. |
 | A dictation starts while reading | The read stops, the dictation starts. | |
+| A restore (shortcut, URL or window) while reading | The read stops, the restore runs. | Same as a dictation: the session's processing takes the island. |
 | Summary of a selection over the input budget (context minus the output reserve, ~15,000 tokens) | "Summarizing the beginning (about N words)" | The text is cut at the last sentence that fits. |
 | Word-for-word reading of a very long selection | | No limit: sentences are synthesized a few ahead of playback. |
 
@@ -505,13 +512,14 @@ protocol Voice: Sendable {
   is requested. When an engine download completes and no engine is in use, `readAloudEngine`
   takes its id; the pending value is cleared.
 - **Cancel** clears `readAloudPendingDownload` (a cancelled download is never resumed) and
-  re-registers the shortcuts. **A failure** keeps it, so Retry and the next launch resume
-  from the `.partial`; each launch tries once (no retry loop within a launch; the user's Retry
-  is always available). A read waiting for that download moves to `failed` with the error and
-  Retry; a shortcut pressed while the pending download has failed goes to `failed` with Retry
-  too. **Retry** restarts the download and, if a read was waiting, waits again with the same
-  selection (kept through `failed`).
-- Status per item: `absent`, `downloading(fraction)`, `installed`, `failed(message)`.
+  re-registers the shortcuts. **A failure** keeps it, so Resume/Retry and the next launch
+  continue; each launch tries once (no retry loop within a launch). A read waiting for that
+  download moves to `failed` with the error and Retry; a shortcut pressed for a read that
+  needs that failed item (and only such a read) goes to `failed` with Retry too. Retry, from
+  the island or from Settings, restarts the download and, if a read was waiting, waits again
+  with the same selection.
+- Status per item: `absent`, `downloading(fraction)`, `installed`, `paused(bytes, message?)`
+  (summary models), `failed(message)` (the voice).
 
 **Recommendation** (pure): `recommendedEngine(chip:memoryGB:catalog:)` returns the `.accurate`
 entry on (Pro, Max, Ultra, or M5 and later) with ≥ 16 GB, the `.fast` entry otherwise, or the
@@ -580,8 +588,9 @@ hardware.
   | `failed` | the error | Retry when the cause is a download |
 
   The selection is kept in memory from the shortcut until the "Finished" state ends (so Read
-  the full text and Replay work during those 8 s) or, after a download failure, until Retry
-  or stop; then it is dropped with the sentences. The pinned
+  the full text and Replay work during those 8 s), or, in a `failed` state caused by a
+  download, until the read is stopped or the island hides (after 8 s, like "Finished"); a Retry
+  keeps it for the new wait. Then it is dropped with the sentences. The pinned
   text panel shows the text with the highlighted sentence.
 - Shortcut routing: `onPress`/`onRelease` today send every action except open and restore to
   `session.handlePress` (AppDelegate.swift); `readAloud` and `summarizeAloud` are routed to the
@@ -600,11 +609,11 @@ hardware.
 
 - New `HotkeyAction.readAloud`, registered when the voice is installed or
   `readAloudPendingDownload` names it (or names an engine, whose download brings the voice);
-  and `HotkeyAction.summarizeAloud`, registered when an engine is in use, or when none is and
-  `readAloudPendingDownload` names an engine. A read pressed while its item is pending waits
-  for that download. The shortcuts are reloaded whenever `readAloudPendingDownload` or
-  `readAloudEngine` changes, and on Delete (download start, completion, Cancel, failure and
-  Use all go through those keys).
+  and `HotkeyAction.summarizeAloud`, registered when the voice is installed or pending **and**
+  an engine is in use (or none is and `readAloudPendingDownload` names an engine). A read
+  pressed while an item it needs is pending waits for that download. The shortcuts are
+  reloaded whenever `readAloudPendingDownload` or `readAloudEngine` changes (download start,
+  completion, Cancel, Use) and on Delete and on a download failure.
 - `plume://read-aloud`, `plume://summarize-aloud`, and the Remote actions `read-aloud` and
   `summarize-aloud` start a read of the current selection, through the app, which has the
   permissions. (Not `toggle-*`: they always start, they never stop.) No Plume command sends them: they are for
@@ -706,7 +715,7 @@ device:
   fixture of the unreleased version (1.0.2, no tag) regenerated; French translations present;
   the two new shortcuts.
 - Command line and Remote: `read-aloud` in `CLI.commands`, `read-aloud` and `summarize-aloud`
-  in `RemoteTests`; `stop` reaches the read when no session is active (routing function tested
+  in `RemoteTests`; `stop` reaches the read when the session is not recording (routing function tested
   with fakes). The "not installed" cases are tested on the
   in-process function behind the command, which takes the settings and the models folder as
   parameters (`PlumeSettings.shared` is not allowed in tests), not by launching the binary,
