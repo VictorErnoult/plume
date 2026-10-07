@@ -2,21 +2,21 @@ import Foundation
 import Testing
 @testable import PlumeKit
 
-/// Écrit `Tests/Fixtures/<version>/` à partir de `FixtureSamples`, avec le code de l'app :
-/// `FIXTURES_VERSION=1.0.1 ./scripts/test.sh --filter FixtureGenerator`. Le dossier d'une
-/// version pas encore publiée (sans tag `v<version>`) se supprime à la main puis se régénère.
-@Suite("Générateur d'échantillons")
+/// Writes `Tests/Fixtures/<version>/` from `FixtureSamples`, with the app's code:
+/// `FIXTURES_VERSION=1.0.1 ./scripts/test.sh --filter FixtureGenerator`. The folder of a
+/// version not released yet (no `v<version>` tag) is deleted by hand, then regenerated.
+@Suite("Sample generator")
 struct FixtureGenerator {
     static let version = ProcessInfo.processInfo.environment["FIXTURES_VERSION"]
 
-    @Test(.enabled(if: version != nil, "FIXTURES_VERSION=<version> pour écrire un dossier d'échantillons"))
-    func écritLesÉchantillonsDeCetteVersion() throws {
+    @Test(.enabled(if: version != nil, "FIXTURES_VERSION=<version> to write a sample folder"))
+    func writesTheSamplesOfThisVersion() throws {
         let version = try #require(Self.version)
-        try #require(Fixtures.isVersion(version), "FIXTURES_VERSION doit être un numéro de version (1.0.2), pas « \(version) »")
+        try #require(Fixtures.isVersion(version), "FIXTURES_VERSION must be a version number (1.0.2), not \"\(version)\"")
         let folder = Fixtures.root.appendingPathComponent(version, isDirectory: true)
         let fm = FileManager.default
-        try #require(!fm.fileExists(atPath: folder.path), "Tests/Fixtures/\(version) existe déjà : on n'y touche pas")
-        // Écrit à part, puis mis en place d'un coup : une erreur ne laisse pas de dossier à moitié écrit.
+        try #require(!fm.fileExists(atPath: folder.path), "Tests/Fixtures/\(version) already exists: leave it alone")
+        // Written aside, then moved into place at once: an error leaves no half-written folder.
         let draft = fm.temporaryDirectory.appendingPathComponent("plume-fixtures-\(UUID().uuidString)", isDirectory: true)
         defer { try? fm.removeItem(at: draft) }
         try FixtureSamples.write(to: draft)

@@ -21,16 +21,17 @@ Open an [issue](https://github.com/soyAkil/plume/issues/new/choose): a form guid
 
 - **Small, focused changes.** One thing per pull request, easy to read start to finish.
 - **No new dependencies** without an issue first. The whole list is FluidAudio and Sparkle, and the app compiles without Xcode because of it.
-- **Matches the existing style.** Code, comments and the interface are in French; comments explain *why*, not what the next line does. Read the file you are in before adding to it. Settings go through `PlumeSettings` (PlumeKit) and `SettingsModel` (app).
+- **Matches the existing style.** Code, comments, commit messages, pull request descriptions and docs are in English. Interface text is written in English inside `tr("…")`, with its French translation in `Sources/PlumeKit/L10nTable.swift` (French text uses the informal "tu"). Comments explain *why*, not what the next line does. Read the file you are in before adding to it. Settings go through `PlumeSettings` (PlumeKit) and `SettingsModel` (app).
 - **Nothing that phones home.** What leaves the Mac today is one model download and one update check; a change to that boundary needs a discussion, not a pull request.
 - **Nothing personal in the repository.** No recording, no transcription, nothing from `~/Plume`. Tests use invented sentences, and a `plume render` is only published with `--demo`.
+- **A changelog line.** Add `- Area: effect, in a few words (#number)` at the top of `CHANGELOG.md`, under today's date; [AGENTS.md](AGENTS.md) has the details.
 - **Builds clean, tests pass.**
 
 ## Finding your way
 
 - `Sources/PlumeKit/` is the core with no interface — engine, pipeline, formatting, library — and is what most tests cover.
 - `Sources/Plume/` is the Mac app: the island in the notch, the window, hotkeys, sounds, the CLI, the MCP server.
-- The file-by-file map is in [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) (French), with a section on testing without a microphone.
+- The file-by-file map is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), with a section on testing without a microphone.
 
 ## Ideas to start with
 

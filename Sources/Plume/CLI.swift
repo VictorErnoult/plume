@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import PlumeKit
 
-/// Ligne de commande : le même binaire que l'app, lancé avec des arguments.
+/// Command line: the same binary as the app, launched with arguments.
 enum CLI {
     static let commands: Set<String> = [
         "transcribe", "last", "list", "show", "search", "path", "mcp", "live", "render", "toggle", "stop", "cancel",
@@ -12,7 +12,7 @@ enum CLI {
         "help", "--help", "-h",
     ]
 
-    /// Descripteur de la vraie sortie standard, après redirection des traces vers stderr.
+    /// Descriptor of the real standard output, after traces are redirected to stderr.
     nonisolated(unsafe) private static var out = FileHandle.standardOutput
 
     static func isolateStandardOutput() {
@@ -23,7 +23,7 @@ enum CLI {
         out = FileHandle(fileDescriptor: saved, closeOnDealloc: false)
     }
 
-    /// Écrit une ligne sur la vraie sortie standard.
+    /// Writes a line to the real standard output.
     static func emit(_ text: String) {
         out.write((text + "\n").data(using: .utf8)!)
     }
@@ -33,33 +33,33 @@ enum CLI {
         return commands.contains(args[1])
     }
 
-    static let usage = """
-        Plume — dictée et transcription locales
+    static let usage = tr("""
+        Plume — local dictation and transcription
 
-          plume last [--mode dictee|reunion|import] [--json]   dernière transcription
-          plume list [-n 20] [--mode …] [--json]               transcriptions récentes
-          plume show <id> [--json]                             une transcription
-          plume search <mots…> [--json]                        recherche plein texte
-          plume transcribe <fichier> [--mode …] [--save]       transcrire un fichier audio
-          plume export <id> --format md|txt|srt|vtt|json [-o f]  exporter une transcription
-          plume summarize <id>                                 résumer une réunion avec l'IA locale
-          plume reprocess <id> [--speakers N]                  refaire la séparation des voix
-          plume toggle dictee|reunion                          démarrer / arrêter dans l'app ouverte
-          plume stop | plume cancel | plume pause              terminer / annuler / mettre en pause
-          plume listen [--timeout 180]                         dicter dans l'app, et recevoir le texte ici
-          plume paste                                          recoller la dernière dictée
-          plume cancelled                                      enregistrements annulés encore récupérables
-          plume restore                                        récupérer le dernier enregistrement annulé
-          plume open                                           ouvrir la fenêtre de Plume
-          plume path                                           dossier de la bibliothèque
-          plume settings export|import <fichier.json>          sauvegarder / restaurer tous les réglages
-          plume format "texte brut" [--style message]          voir la mise en forme d'une dictée
-          plume polish "texte" | plume transform "consigne"    essayer l'IA locale (texte sur l'entrée standard)
-          plume doctor                                         état des autorisations et du modèle
-          plume mcp                                            serveur MCP (stdio) pour les IA
+          plume last [--mode dictee|reunion|import] [--json]   latest transcription
+          plume list [-n 20] [--mode …] [--json]               recent transcriptions
+          plume show <id> [--json]                             one transcription
+          plume search <words…> [--json]                       full-text search
+          plume transcribe <file> [--mode …] [--save]          transcribe an audio file
+          plume export <id> --format md|txt|srt|vtt|json [-o f]  export a transcription
+          plume summarize <id>                                 summarize a meeting with the local AI
+          plume reprocess <id> [--speakers N]                  redo speaker separation
+          plume toggle dictee|reunion                          start / stop in the running app
+          plume stop | plume cancel | plume pause              finish / cancel / pause
+          plume listen [--timeout 180]                         dictate in the app, and get the text here
+          plume paste                                          paste the last dictation again
+          plume cancelled                                      cancelled recordings you can still restore
+          plume restore                                        restore the last cancelled recording
+          plume open                                           open Plume's window
+          plume path                                           library folder
+          plume settings export|import <file.json>             back up / restore all settings
+          plume format "plain text" [--style message]          see how a dictation gets formatted
+          plume polish "text" | plume transform "instruction"  try the local AI (text on standard input)
+          plume doctor                                         permissions and model status
+          plume mcp                                            MCP server (stdio) for AIs
 
-        Sans argument, lance l'application dans la barre de menus.
-        """
+        Run with no argument to start the app in the menu bar.
+        """)
 
     static func run(_ args: [String]) async -> Int32 {
         let command = args[1]
@@ -80,7 +80,7 @@ enum CLI {
 
         case "cancelled":
             let recordings = settings.cancelled.list()
-            if recordings.isEmpty { printError("Aucun enregistrement annulé.") }
+            if recordings.isEmpty { printError(tr("No cancelled recordings.")) }
             for recording in recordings {
                 emit("\(recording.id)  \(recording.mode.slug)  \(Format.clock(recording.duration))  \(recording.preview ?? "")")
             }
@@ -92,7 +92,7 @@ enum CLI {
 
         case "last":
             guard let t = store.latest(mode: mode) else {
-                printError("Aucune transcription.")
+                printError(tr("No transcriptions."))
                 return 1
             }
             output(t, json: json)
@@ -112,7 +112,7 @@ enum CLI {
 
         case "show":
             guard let id = rest.first, let t = store.load(id: id) else {
-                printError("Transcription introuvable.")
+                printError(tr("Transcript not found."))
                 return 1
             }
             output(t, json: json)
@@ -132,7 +132,7 @@ enum CLI {
         case "transcribe":
             let save = take(flag: "--save", from: &rest)
             if let systemPath = take(option: "--system", from: &rest), let micPath = rest.first {
-                // Réunion à deux canaux à partir de deux fichiers : le micro, et le son de l'ordinateur.
+                // Two-channel meeting from two files: the microphone, and the computer's sound.
                 let keepEcho = take(flag: "--no-echo-cancel", from: &rest)
                 do {
                     let engine = SpeechEngine.shared
@@ -147,12 +147,12 @@ enum CLI {
                     emit(TranscriptStore.dialogue(result.segments))
                     return 0
                 } catch {
-                    printError("Échec : \(error.localizedDescription)")
+                    printError(tr("Failed:") + " \(error.localizedDescription)")
                     return 1
                 }
             }
             guard let path = rest.first else {
-                printError("Usage : plume transcribe <fichier> [--mode dictee|reunion|import] [--save]")
+                printError(tr("Usage: plume transcribe <file> [--mode dictee|reunion|import] [--save]"))
                 return 2
             }
             do {
@@ -162,7 +162,7 @@ enum CLI {
                 output(t, json: json)
                 return 0
             } catch {
-                printError("Échec : \(error.localizedDescription)")
+                printError(tr("Failed:") + " \(error.localizedDescription)")
                 return 1
             }
 
@@ -185,18 +185,18 @@ enum CLI {
 
 
         case "listen":
-            // Dictée sans collage : l'app enregistre, le texte revient ici. Pour un script ou
-            // un agent qui veut « entendre » l'utilisateur.
+            // Dictation without pasting: the app records, the text comes back here. For a script or
+            // an agent that wants to "hear" the user.
             let timeout = take(option: "--timeout", from: &rest).flatMap(Double.init) ?? 180
             guard let text = await Listener.listen(store: store, timeout: timeout) else {
-                printError("Aucune dictée reçue (l'app est-elle lancée ?).")
+                printError(tr("No dictation received (is the app running?)."))
                 return 1
             }
             emit(text)
             return 0
 
         case "format":
-            // Diagnostic : la mise en forme d'un texte brut (nettoyage, commandes vocales, vocabulaire, style).
+            // Diagnostic: formatting of a raw text (clean-up, voice commands, vocabulary, style).
             let style = take(option: "--style", from: &rest).flatMap(DictationStyle.init(rawValue:)) ?? .standard
             let text = rest.isEmpty ? readStandardInput() : rest.joined(separator: " ")
             let result = Pipeline.format(text, options: DictationOptions(settings: settings, style: style))
@@ -207,11 +207,11 @@ enum CLI {
             let name = take(option: "--format", from: &rest) ?? "md"
             let output = take(option: "-o", from: &rest)
             guard let format = ExportFormat(rawValue: name) else {
-                printError("Formats : md, txt, srt, vtt, json.")
+                printError(tr("Formats: md, txt, srt, vtt, json."))
                 return 2
             }
             guard let id = rest.first, let t = store.load(id: id) else {
-                printError("Transcription introuvable.")
+                printError(tr("Transcript not found."))
                 return 1
             }
             let rendered = Exporter.render(t, as: format)
@@ -219,7 +219,7 @@ enum CLI {
                 do {
                     try rendered.write(toFile: (output as NSString).expandingTildeInPath, atomically: true, encoding: .utf8)
                 } catch {
-                    printError("Échec : \(error.localizedDescription)")
+                    printError(tr("Failed:") + " \(error.localizedDescription)")
                     return 1
                 }
             } else {
@@ -229,7 +229,7 @@ enum CLI {
 
         case "summarize":
             guard let id = rest.first, let t = store.load(id: id) else {
-                printError("Transcription introuvable.")
+                printError(tr("Transcript not found."))
                 return 1
             }
             do {
@@ -241,7 +241,7 @@ enum CLI {
                 emit("# \(summary.title)\n\n\(summary.markdown)")
                 return 0
             } catch {
-                printError("Échec : \(error.localizedDescription)")
+                printError(tr("Failed:") + " \(error.localizedDescription)")
                 return 1
             }
 
@@ -252,14 +252,14 @@ enum CLI {
                 emit(try await LocalAI.polish(text, instructions: instructions))
                 return 0
             } catch {
-                printError("Échec : \(error.localizedDescription)")
+                printError(tr("Failed:") + " \(error.localizedDescription)")
                 return 1
             }
 
         case "transform":
-            // plume transform "traduis en anglais" < texte.txt
+            // plume transform "translate to English" < text.txt
             guard let instruction = rest.first else {
-                printError("Usage : plume transform \"consigne\" < texte")
+                printError(tr("Usage: plume transform \"instruction\" < text"))
                 return 2
             }
             let selection = isatty(STDIN_FILENO) == 0 ? readStandardInput() : ""
@@ -267,13 +267,13 @@ enum CLI {
                 emit(try await LocalAI.transform(selection, instruction: instruction))
                 return 0
             } catch {
-                printError("Échec : \(error.localizedDescription)")
+                printError(tr("Failed:") + " \(error.localizedDescription)")
                 return 1
             }
 
         case "settings":
             guard rest.count >= 2 else {
-                printError("Usage : plume settings export|import <fichier.json>")
+                printError(tr("Usage: plume settings export|import <file.json>"))
                 return 2
             }
             let url = URL(fileURLWithPath: (rest[1] as NSString).expandingTildeInPath)
@@ -281,39 +281,39 @@ enum CLI {
                 switch rest[0] {
                 case "export":
                     try SettingsBackup.export(to: url)
-                    emit("Réglages enregistrés dans \(url.path)")
+                    emit(tr("Settings saved to") + " \(url.path)")
                 case "import":
                     try SettingsBackup.import(from: url)
-                    emit("Réglages restaurés. Relance Plume pour qu'ils soient tous pris en compte.")
+                    emit(tr("Settings restored. Restart Plume so they all take effect."))
                 default:
-                    printError("Usage : plume settings export|import <fichier.json>")
+                    printError(tr("Usage: plume settings export|import <file.json>"))
                     return 2
                 }
                 return 0
             } catch {
-                printError("Échec : \(error.localizedDescription)")
+                printError(tr("Failed:") + " \(error.localizedDescription)")
                 return 1
             }
 
         case "calls":
-            // Diagnostic : les apps qui lisent le micro en ce moment, et celles que Plume reconnaît.
+            // Diagnostic: the apps currently reading the microphone, and the ones Plume recognizes.
             let processes = MeetingDetector.processesUsingInput()
-            if processes.isEmpty { emit("Aucune autre app n'utilise le micro.") }
+            if processes.isEmpty { emit(tr("No other app is using the microphone.")) }
             for process in processes {
-                let known = MeetingDetector.apps[process.bundleID].map { " → \($0.name), proposé après \(Int($0.delay)) s" } ?? ""
+                let known = MeetingDetector.apps[process.bundleID].map { " → \($0.name), " + tr("offered after") + " \(Int($0.delay)) s" } ?? ""
                 emit("\(process.bundleID) (pid \(process.pid))\(known)")
             }
             return 0
 
         case "simulate-chord":
-            // Essai des raccourcis : simule l'accord ⌃⇧ (ou ⌃⇧⌘ avec « reunion ») tenu N millisecondes.
+            // Shortcut test: simulates the ⌃⇧ combo (or ⌃⇧⌘ with "reunion") held for N milliseconds.
             let meeting = rest.contains("reunion")
             let hold = rest.compactMap(Int.init).first ?? 120
             simulateChord(command: meeting, holdMilliseconds: hold)
             return 0
 
         case "mictest":
-            // Diagnostic : ouvre le micro choisi deux secondes et compte ce qui arrive. Rien n'est gardé.
+            // Diagnostic: opens the chosen microphone for two seconds and counts what arrives. Nothing is kept.
             let capture = MicCapture()
             let lock = NSLock()
             var count = 0
@@ -325,33 +325,33 @@ enum CLI {
                 lock.unlock()
             }
             do { try capture.start() } catch {
-                printError("Échec : \(error.localizedDescription)")
+                printError(tr("Failed:") + " \(error.localizedDescription)")
                 return 1
             }
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             capture.stop()
             let (received, level) = lock.withLock { (count, peak) }
-            emit(String(format: "%@ : %.2f s reçues en 2 s, niveau maximal %.4f", capture.deviceName, Double(received) / 16000, level))
+            emit(String(format: tr("%@: %.2f s received in 2 s, peak level %.4f"), capture.deviceName, Double(received) / 16000, level))
             return 0
 
         case "reprocess":
-            // Refait la séparation des voix d'une transcription à partir de son audio conservé.
+            // Redoes the diarization of a transcript from its kept audio.
             let count = take(option: "--speakers", from: &rest).flatMap(Int.init)
             guard let id = rest.first, let transcript = store.load(id: id) else {
-                printError("Transcription introuvable.")
+                printError(tr("Transcript not found."))
                 return 1
             }
             do {
                 let updated = try await Pipeline.reprocess(transcript, speakerCount: count)
-                emit("\(updated.id) : \(updated.speakers.count) voix, \(updated.segments.count) tours de parole")
+                emit(String(format: tr("%@: %ld voices, %ld speaker turns"), updated.id, updated.speakers.count, updated.segments.count))
                 return 0
             } catch {
-                printError("Échec : \(error.localizedDescription)")
+                printError(tr("Failed:") + " \(error.localizedDescription)")
                 return 1
             }
 
         case "words":
-            // Diagnostic : mots horodatés et voix attribuée, sur une plage de temps.
+            // Diagnostic: timestamped words and assigned voice, over a time range.
             let from = take(option: "--from", from: &rest).flatMap(Double.init) ?? 0
             let to = take(option: "--to", from: &rest).flatMap(Double.init) ?? 60
             guard let path = rest.first, let samples = try? AudioIO.loadSamples(URL(fileURLWithPath: path)) else { return 2 }
@@ -361,7 +361,7 @@ enum CLI {
                 let output = try await engine.transcribe(samples)
                 let diarization = try await engine.diarize(samples)
                 for turn in diarization.turns where turn.end >= from && turn.start <= to {
-                    emit(String(format: "TOUR %7.2f → %7.2f  %@", turn.start, turn.end, turn.speaker))
+                    emit(String(format: tr("TURN %7.2f → %7.2f  %@"), turn.start, turn.end, turn.speaker))
                 }
                 var previousEnd = 0.0
                 for word in output.words where word.end >= from && word.start <= to {
@@ -375,14 +375,14 @@ enum CLI {
             }
 
         case "aec":
-            // Diagnostic : annulation d'écho d'un fichier micro avec le son système en référence.
+            // Diagnostic: echo cancellation of a microphone file with system audio as the reference.
             guard rest.count >= 3,
                 let mic = try? AudioIO.loadSamples(URL(fileURLWithPath: rest[0])),
                 var reference = try? AudioIO.loadSamples(URL(fileURLWithPath: rest[1]))
             else { return 2 }
             if reference.count < mic.count { reference += [Float](repeating: 0, count: mic.count - reference.count) }
             reference = Array(reference.prefix(mic.count))
-            emit(String(format: "vraisemblance d'écho : %.2f", Pipeline.echoLikelihood(mic: mic, reference: reference)))
+            emit(String(format: tr("echo likelihood: %.2f"), Pipeline.echoLikelihood(mic: mic, reference: reference)))
             guard let cleaned = try? await SpeechEngine.shared.cancelEcho(mic: mic, reference: reference) else { return 1 }
             Recovery.stash(cleaned, at: URL(fileURLWithPath: rest[2]))
             return 0
@@ -393,7 +393,7 @@ enum CLI {
             return 0
 
         case "selftest":
-            // Demande à l'app ouverte de vérifier la capture du son système (résultat dans le journal).
+            // Asks the open app to check system audio capture (result in the log).
             Remote.send(rest.first == "mic" ? "selftest-mic" : "selftest-system-audio")
             return 0
 
@@ -402,7 +402,7 @@ enum CLI {
             return 0
 
         case "diarize":
-            // Diagnostic : tours de parole et ressemblance des voix détectées dans un fichier.
+            // Diagnostic: speaker turns and similarity of the voices detected in a file.
             let raw = take(flag: "--raw", from: &rest)
             let quiet = take(flag: "--summary", from: &rest)
             guard let path = rest.first, let samples = try? AudioIO.loadSamples(URL(fileURLWithPath: path)),
@@ -414,13 +414,13 @@ enum CLI {
                 if !quiet { emit(String(format: "%6.2f → %6.2f  %@", turn.start, turn.end, turn.speaker)) }
             }
             for (speaker, seconds) in talk.sorted(by: { $0.key < $1.key }) {
-                emit(String(format: "%@ : %.0f s de parole", speaker, seconds))
+                emit(String(format: tr("%@: %.0f s of speech"), speaker, seconds))
             }
             let ids = output.embeddings.keys.sorted()
             for (i, a) in ids.enumerated() {
                 for b in ids[(i + 1)...] {
                     let similarity = Voiceprint.cosine(output.embeddings[a] ?? [], output.embeddings[b] ?? [])
-                    emit(String(format: "ressemblance %@ / %@ : %.3f", a, b, similarity))
+                    emit(String(format: tr("similarity %@ / %@: %.3f"), a, b, similarity))
                 }
             }
             return 0
@@ -440,7 +440,7 @@ enum CLI {
         }
     }
 
-    /// Rejoue un fichier comme s'il arrivait du micro, pour vérifier la transcription en direct.
+    /// Replays a file as if it came from the microphone, to check live transcription.
     private static func simulateLive(path: String) async -> Int32 {
         do {
             let engine = SpeechEngine.shared
@@ -463,11 +463,11 @@ enum CLI {
                 }
             }
             let total = Double(samples.count) / Double(SpeechEngine.sampleRate)
-            emit(String(format: "\ncalcul : %.1f s pour %.0f s d'audio (%.1f %% du temps réel)", busy, total, busy / total * 100))
-            emit("\nTEXTE EN DIRECT :\n\(await live.state.full)")
+            emit(String(format: tr("\ncompute: %.1f s for %.0f s of audio (%.1f %% of real time)"), busy, total, busy / total * 100))
+            emit(tr("\nLIVE TEXT:\n") + "\(await live.state.full)")
             return 0
         } catch {
-            printError("Échec : \(error.localizedDescription)")
+            printError(tr("Failed:") + " \(error.localizedDescription)")
             return 1
         }
     }
@@ -482,12 +482,12 @@ enum CLI {
             usleep(15_000)
         }
         var flags: CGEventFlags = [.maskControl]
-        post(59, down: true, flags: flags)  // contrôle gauche
+        post(59, down: true, flags: flags)  // left control
         flags.insert(.maskShift)
-        post(56, down: true, flags: flags)  // majuscule gauche
+        post(56, down: true, flags: flags)  // left shift
         if command {
             flags.insert(.maskCommand)
-            post(55, down: true, flags: flags)  // commande gauche
+            post(55, down: true, flags: flags)  // left command
         }
         usleep(UInt32(holdMilliseconds) * 1000)
         if command {
@@ -499,7 +499,7 @@ enum CLI {
         post(59, down: false, flags: [])
     }
 
-    // MARK: - Sortie
+    // MARK: - Output
 
     struct Summary: Codable {
         var id: String
@@ -563,10 +563,10 @@ enum CLI {
     }
 }
 
-/// Fait dicter l'utilisateur dans l'app ouverte et attend que le texte arrive dans la
-/// bibliothèque : le « micro » des scripts et des agents (`plume listen`, outil MCP `listen`).
+/// Makes the user dictate in the open app and waits for the text to arrive in the
+/// library: the "microphone" for scripts and agents (`plume listen`, MCP tool `listen`).
 enum Listener {
-    /// Boîte aux lettres remplie par la notification de résultat.
+    /// Mailbox filled by the result notification.
     private final class Mailbox: @unchecked Sendable {
         private let lock = NSLock()
         private var text: String?
@@ -590,7 +590,7 @@ enum Listener {
         while Date().timeIntervalSince(started) < timeout {
             try? await Task.sleep(nanoseconds: 300_000_000)
             if let text = mailbox.take() { return text }
-            // Filet : une dictée nouvelle dans la bibliothèque, commencée après notre demande.
+            // Safety net: a new dictation in the library, started after our request.
             if let latest = store.latest(mode: .dictation), latest.id != before,
                 latest.createdAt >= started.addingTimeInterval(-2)
             {

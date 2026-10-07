@@ -1,35 +1,35 @@
 import Foundation
 
-/// Allure du texte dicté, selon l'endroit où il est collé : un mail n'a pas la même tenue
-/// qu'un message sur Slack ou qu'une commande dans le terminal.
+/// Look of the dictated text, depending on where it is pasted: an email calls for a different register
+/// than a Slack message or a command in the terminal.
 public enum DictationStyle: String, Codable, Sendable, CaseIterable {
-    /// Tel que le modèle l'écrit : majuscules et ponctuation complètes.
+    /// As the model writes it: full capitals and punctuation.
     case standard
-    /// Message instantané : pas de point final.
+    /// Instant message: no final period.
     case message
-    /// Décontracté : pas de majuscule en début de phrase, pas de point final.
+    /// Casual: no capital at the start of a sentence, no final period.
     case casual
 
     public var label: String {
         switch self {
         case .standard: return tr("Standard")
         case .message: return tr("Message")
-        case .casual: return tr("Décontracté")
+        case .casual: return tr("Casual")
         }
     }
 
     public var detail: String {
         switch self {
-        case .standard: return tr("Majuscules et ponctuation complètes.")
-        case .message: return tr("Sans point final, comme on écrit sur Slack ou Messages.")
-        case .casual: return tr("Sans majuscule en début de phrase ni point final.")
+        case .standard: return tr("Full capitals and punctuation.")
+        case .message: return tr("No final period, the way you write on Slack or Messages.")
+        case .casual: return tr("No capital at the start of a sentence, no final period.")
         }
     }
 }
 
 public enum TextStyle {
-    /// - Parameter final: faux pour un morceau écrit au fil de la dictée, dont le point n'est pas
-    ///   le dernier : il reste.
+    /// - Parameter final: false for a chunk typed as the dictation goes, whose period is not
+    ///   the last one: it stays.
     public static func apply(_ style: DictationStyle, to text: String, final: Bool = true) -> String {
         switch style {
         case .standard:
@@ -41,17 +41,17 @@ public enum TextStyle {
         }
     }
 
-    /// Retire le point final (pas les points de suspension, ni ? ni !).
+    /// Removes the final period (not ellipses, nor ? or !).
     static func droppingFinalPeriod(_ text: String) -> String {
         var result = text
         while let last = result.last, last == " " || last == "\n" { result.removeLast() }
         guard result.hasSuffix("."), !result.hasSuffix("..") else { return text }
         result.removeLast()
-        // Le saut de ligne final éventuel est conservé.
+        // The final line break, if any, is kept.
         return result + text.suffix(while: { $0 == "\n" })
     }
 
-    /// Une minuscule au début de chaque phrase, sauf pour un sigle (« URL ») et le « I » anglais.
+    /// A lowercase letter at the start of each sentence, except for an acronym ("URL") and the English "I".
     static func lowercasingSentences(_ text: String) -> String {
         var result = ""
         var atSentenceStart = true
@@ -81,7 +81,7 @@ public enum TextStyle {
 }
 
 extension StringProtocol {
-    /// Les derniers caractères qui vérifient la condition, dans l'ordre.
+    /// The last characters that satisfy the condition, in order.
     fileprivate func suffix(while predicate: (Character) -> Bool) -> String {
         var end = endIndex
         while end > startIndex, predicate(self[index(before: end)]) { end = index(before: end) }
@@ -89,20 +89,20 @@ extension StringProtocol {
     }
 }
 
-/// Réglages de dictée propres à une application : style du texte, validation avec Entrée,
-/// mise au propre par l'IA, méthode d'insertion.
+/// Per-app dictation settings: text style, validating with Return,
+/// AI clean-up, insertion method.
 public struct AppRule: Codable, Sendable, Identifiable, Equatable {
     public var id: UUID
-    /// Identifiant de l'app (`com.tinyspeck.slackmacgap`), ou `*` pour toutes les autres.
+    /// App identifier (`com.tinyspeck.slackmacgap`), or `*` for all the others.
     public var bundleID: String
     public var name: String
     public var style: DictationStyle
-    /// Appuyer sur Entrée une fois le texte collé : le message part tout seul.
+    /// Press Return once the text is pasted: the message sends itself.
     public var pressReturn: Bool
-    /// Mise au propre par l'IA locale, avec une consigne facultative.
+    /// Clean-up by the local AI, with an optional instruction.
     public var polish: Bool
     public var instructions: String
-    /// Taper le texte touche par touche plutôt que coller, pour les apps qui refusent ⌘V.
+    /// Type the text key by key rather than pasting, for apps that refuse ⌘V.
     public var typeText: Bool
 
     public init(
@@ -147,7 +147,7 @@ public enum AppRuleStore {
         try? write(items, to: url)
     }
 
-    /// Un fichier de règles, `nil` s'il manque ou ne se lit pas.
+    /// A rules file, `nil` if it is missing or unreadable.
     public static func read(from url: URL) -> [AppRule]? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode([AppRule].self, from: data)
@@ -160,7 +160,7 @@ public enum AppRuleStore {
         try encoder.encode(items).write(to: url, options: .atomic)
     }
 
-    /// La règle qui s'applique à une application : la sienne, sinon celle de « toutes les autres ».
+    /// The rule that applies to an app: its own, otherwise the one for "all the others".
     public static func rule(for bundleID: String?, in rules: [AppRule]) -> AppRule? {
         if let bundleID, let own = rules.first(where: { $0.bundleID == bundleID }) { return own }
         return rules.first { $0.bundleID == "*" }

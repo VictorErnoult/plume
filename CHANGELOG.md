@@ -1,40 +1,41 @@
-# Journal des modifications
+# Changelog
 
-Une ligne par PR ou par pile de PR, regroupées par date, les plus récentes en haut. Une version prend la date de sa publication. Le détail est dans la PR.
+One line per PR or PR stack, grouped by date, newest first. A version takes the date it was released. The detail is in the PR.
 
 ## 1.0.2
 
 ### 2026-10-06
 
-- Tests : release.sh s'arrête si un test échoue ; les tests restent à l'écart des réglages et de la bibliothèque de l'app installée, n'échouent plus au hasard, et vérifient le presse-papiers, la relecture des fichiers des versions publiées, la ligne de commande, le serveur MCP et le texte des dictées (#9)
+- Repo: code, comments and docs in English; English is the interface's source language, system dialogs follow the Mac's language (#15)
+- Tests: release.sh stops if a test fails; tests stay clear of the installed app's settings and library, no longer fail at random, and cover the clipboard, re-reading released versions' files, the command line, the MCP server and dictation text (#9)
 
 ## 1.0.1 — 2026-10-05
 
 ### 2026-10-05
 
-- Accueil : pendant une dictée, le bouton « Dicter » montre la voix qui arrive et le temps écoulé ; les dernières transcriptions affichent leurs mots et leur durée
-- Fenêtre : le coin en haut à droite s'allège (« Prêt » n'est plus affiché, Nouveautés devient une icône)
-- Publication : les mises à jour partielles sont jointes, quelques Mo au lieu de l'image entière
+- Home: during a dictation, the "Dictate" button shows the incoming voice and the elapsed time; latest transcriptions show their words and duration
+- Window: the top-right corner gets lighter ("Ready" is no longer shown, What's new becomes an icon)
+- Release: partial updates are attached, a few MB instead of the whole image
 
 ## 1.0.0 — 2026-10-05
 
 ### 2026-10-05
 
-- Accueil : un bouton « Dicter » qui range la fenêtre et lance la dictée, et les trois dernières transcriptions (copiables d'un clic) à côté de l'activité (#7)
-- Nouveautés : ce journal se lit dans l'app, depuis le bouton en haut à droite (#7)
-- Annulation : un enregistrement annulé reste récupérable quelques jours, et le raccourci d'annulation se choisit (#7)
-- Plume 1.0 : commandes vocales, règles par app, insertion selon le curseur, pause, appel détecté, IA locale (Apple Intelligence), exports, interface en anglais (#7)
-- Commande `plume` : lancée par son lien `~/.local/bin/plume`, elle retrouve les sons et les polices de l'app (#4)
-- Journal des modifications : ce fichier, une ligne par PR (#5)
-- Collage : la dictée est marquée éphémère, les gestionnaires de presse-papiers ne la gardent plus (#2)
-- Scripts : la compilation se rabat sur le SDK macOS 26 quand SwiftUI demande Xcode (#1)
+- Home: a "Dictate" button that tucks the window away and starts dictation, and the latest three transcriptions (copyable in one click) next to the activity (#7)
+- What's new: this changelog reads in the app, from the top-right button (#7)
+- Cancel: a cancelled recording stays recoverable for a few days, and the cancel shortcut is configurable (#7)
+- Plume 1.0: voice commands, per-app rules, cursor-aware insertion, pause, call detection, local AI (Apple Intelligence), exports, English interface (#7)
+- `plume` command: launched through its `~/.local/bin/plume` link, it finds the app's sounds and fonts (#4)
+- Changelog: this file, one line per PR (#5)
+- Paste: dictation is marked transient, so clipboard managers no longer keep it (#2)
+- Scripts: the build falls back to the macOS 26 SDK when SwiftUI asks for Xcode (#1)
 
 ### 2026-10-02
 
-- README : en anglais, avec un visuel d'en-tête
+- README: in English, with a header visual
 
 ## 0.9.0 — 2026-10-02
 
 ### 2026-10-02
 
-- Première version publique : dictée vocale et transcription de réunions, 100 % locales
+- First public release: voice dictation and meeting transcription, 100% local

@@ -1,14 +1,14 @@
 import AppKit
 import Sparkle
 
-/// Mises à jour automatiques de l'app distribuée (Sparkle). Le flux et la clé de signature
-/// sont inscrits dans Info.plist par `scripts/release.sh` ; une compilation locale n'en a pas
-/// et ne cherche donc jamais de mise à jour.
+/// Automatic updates for the distributed app (Sparkle). The feed and the signing key
+/// are written into Info.plist by `scripts/release.sh`; a local build has none
+/// and therefore never looks for an update.
 @MainActor
 final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate, SPUUpdaterDelegate {
     static let shared = Updates()
 
-    /// Version trouvée lors d'une vérification en arrière-plan, pas encore présentée.
+    /// Version found during a background check, not yet presented.
     @Published private(set) var pending: String?
     @Published var automatic = true {
         didSet {
@@ -24,7 +24,7 @@ final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate, 
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 
-    /// Vrai dans l'app distribuée, faux dans une compilation locale.
+    /// True in the distributed app, false in a local build.
     var isAvailable: Bool { controller != nil }
 
     func start() {
@@ -34,59 +34,59 @@ final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate, 
         let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: self)
         self.controller = controller
         automatic = controller.updater.automaticallyChecksForUpdates
-        // Essai sans interface : vérification immédiate. Le téléchargement automatique est
-        // demandé par l'Info.plist de l'app d'essai, pas par un réglage, pour ne rien
-        // écrire dans les préférences de l'app installée.
+        // Headless trial run: immediate check. Automatic download is
+        // requested by the trial app's Info.plist, not by a setting, so nothing is
+        // written to the installed app's preferences.
         if TestHooks.updates { controller.updater.checkForUpdatesInBackground() }
     }
 
-    /// Vérification demandée par l'utilisateur : Sparkle montre le résultat, quel qu'il soit.
+    /// Check requested by the user: Sparkle shows the result, whatever it is.
     func check() {
         guard let controller else { return }
         NSApp.activate(ignoringOtherApps: true)
         controller.checkForUpdates(nil)
     }
 
-    // MARK: Journal
+    // MARK: Log
 
     nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
-        Log.write("mise à jour : version \(item.displayVersionString) trouvée")
+        Log.write("update: version \(item.displayVersionString) found")
     }
 
     nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
-        Log.write("mise à jour : rien de nouveau")
+        Log.write("update: nothing new")
     }
 
     nonisolated func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
-        Log.write("mise à jour : version \(item.displayVersionString) téléchargée")
+        Log.write("update: version \(item.displayVersionString) downloaded")
     }
 
     nonisolated func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
-        Log.write("mise à jour : installation de la version \(item.displayVersionString)")
+        Log.write("update: installing version \(item.displayVersionString)")
     }
 
     nonisolated func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         let error = error as NSError
-        // 1001 : « déjà à jour », ce n'est pas un incident.
+        // 1001: "already up to date", this is not an incident.
         if error.domain == SUSparkleErrorDomain, error.code == 1001 { return }
-        Log.write("mise à jour : échec — \(error.localizedDescription)")
+        Log.write("update: failed — \(error.localizedDescription)")
     }
 
     nonisolated func updater(
         _ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem,
         immediateInstallationBlock immediateInstallHandler: @escaping () -> Void
     ) -> Bool {
-        // En usage normal, l'installation attend que l'on quitte Plume.
+        // In normal use, installation waits until Plume is quit.
         guard TestHooks.updates else { return false }
         immediateInstallHandler()
         return true
     }
 
-    // MARK: Rappels discrets
+    // MARK: Discreet reminders
 
-    // Plume vit dans la barre de menus : une fenêtre de mise à jour qui surgit pendant qu'on
-    // dicte ailleurs serait malvenue. Une mise à jour trouvée en arrière-plan s'annonce donc
-    // par un simple bouton dans la fenêtre de Plume, et ne s'ouvre que si on le demande.
+    // Plume lives in the menu bar: an update window popping up while you
+    // dictate elsewhere would be unwelcome. An update found in the background is therefore announced
+    // by a simple button in Plume's window, and only opens if asked.
 
     nonisolated var supportsGentleScheduledUpdateReminders: Bool { true }
 

@@ -32,8 +32,8 @@ extension PageHeader where Subtitle == Text? {
     }
 }
 
-/// La fenêtre de Plume : quatre pages, et une barre flottante en bas pour passer de l'une à
-/// l'autre, changer de thème et couper le son — la même que sur le portfolio.
+/// Plume's window: four pages, and a floating bar at the bottom to switch between them,
+/// change the theme and mute the sound, the same as on the portfolio.
 struct AppShell: View {
     @ObservedObject var app: AppModel
     @ObservedObject var session: SessionController
@@ -66,7 +66,7 @@ struct AppShell: View {
             .padding(.trailing, 14)
         }
         .frame(minWidth: 880, minHeight: 560)
-        // Changer de langue redessine toute la fenêtre : chaque texte est relu dans la table.
+        // Changing the language redraws the whole window: every text is read again from the table.
         .id(app.settings.language)
         .background(UI.window)
         .foregroundStyle(UI.text)
@@ -83,7 +83,7 @@ struct AppShell: View {
             }
         }
         .animation(UI.quick, value: dropTargeted)
-        // Un fichier audio déposé n'importe où dans la fenêtre est transcrit.
+        // An audio file dropped anywhere in the window is transcribed.
         .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
@@ -95,13 +95,13 @@ struct AppShell: View {
         }
     }
 
-    /// La page qui arrive monte légèrement en se dévoilant ; celle qui part s'efface.
+    /// The incoming page rises slightly as it appears; the outgoing one fades out.
     private var pageTransition: AnyTransition {
         .asymmetric(insertion: .opacity.combined(with: .offset(y: 12)), removal: .opacity)
     }
 }
 
-// MARK: - Barre flottante
+// MARK: - Floating bar
 
 private struct Dock: View {
     @ObservedObject var app: AppModel
@@ -120,16 +120,16 @@ private struct Dock: View {
                 }
             }
             Rectangle().fill(UI.active).frame(width: 1, height: 18).padding(.horizontal, 7)
-            // Le soleil entre et sort par la gauche, la lune par la droite, comme sur le portfolio.
+            // The sun enters and leaves on the left, the moon on the right, as on the portfolio.
             DockItem(
-                glyph: scheme == .dark ? .sun : .moon, label: scheme == .dark ? tr("Thème clair") : tr("Thème sombre"),
+                glyph: scheme == .dark ? .sun : .moon, label: scheme == .dark ? tr("Light theme") : tr("Dark theme"),
                 key: "T", slide: scheme == .dark ? -1 : 1, namespace: selection
             ) {
                 Sounds.play(.tab)
                 settings.appearance = scheme == .dark ? "clair" : "sombre"
             }
             DockItem(
-                glyph: settings.sounds ? .speakerOn : .speakerOff, label: settings.sounds ? tr("Couper le son") : tr("Activer le son"),
+                glyph: settings.sounds ? .speakerOn : .speakerOff, label: settings.sounds ? tr("Mute") : tr("Unmute"),
                 key: "S", namespace: selection
             ) {
                 settings.sounds.toggle()
@@ -143,7 +143,7 @@ private struct Dock: View {
     }
 }
 
-/// Glissement flou d'une icône qui en remplace une autre.
+/// Blurred slide of an icon that replaces another.
 private struct SlideBlur: ViewModifier {
     var offset: CGFloat
     var hidden: Bool
@@ -161,7 +161,7 @@ private struct DockItem: View {
     var label: String
     var key: String
     var selected = false
-    /// Sens du glissement quand l'icône change (0 : simple fondu).
+    /// Direction of the slide when the icon changes (0: plain fade).
     var slide: CGFloat = 0
     var namespace: Namespace.ID
     var action: () -> Void
@@ -186,13 +186,13 @@ private struct DockItem: View {
                             identity: SlideBlur(offset: 0, hidden: false)))
             }
             .foregroundStyle(selected || hovering ? UI.text : UI.text2)
-            // Au survol, l'icône grossit un peu, comme sur le portfolio.
+            // On hover, the icon grows a little, as on the portfolio.
             .scaleEffect(hovering && !selected ? 1.12 : 1)
             .frame(width: Self.side, height: Self.side)
             .clipped()
             .background {
                 if selected {
-                    // Le fond de l'entrée active glisse d'une page à l'autre.
+                    // The active entry's background slides from one page to the other.
                     RoundedRectangle(cornerRadius: UI.radius, style: .continuous)
                         .fill(UI.active)
                         .matchedGeometryEffect(id: "selection", in: namespace)
@@ -209,7 +209,7 @@ private struct DockItem: View {
             if inside { Sounds.hover(.hoverNav) }
             showTip(inside)
         }
-        // L'étiquette et sa touche sortent au-dessus de la barre, une fois le pointeur posé.
+        // The label and its key come out above the bar, once the pointer has settled.
         .overlay(alignment: .top) {
             if tip {
                 HStack(spacing: 6) {
@@ -244,9 +244,9 @@ private struct DockItem: View {
     }
 }
 
-/// Une mise à jour trouvée en arrière-plan : un bouton discret, qui ouvre le détail.
-/// « Nouveautés » : le journal des modifications (`CHANGELOG.md`), avec un point tant qu'il y a
-/// du nouveau qu'on n'a pas ouvert.
+/// An update found in the background: a discreet button that opens the details.
+/// "What's new": the changelog (`CHANGELOG.md`), with a dot while there is something
+/// new that hasn't been opened.
 private struct ChangelogButton: View {
     @State private var open = false
     @State private var seen = PlumeSettings.shared.changelogSeen
@@ -263,7 +263,7 @@ private struct ChangelogButton: View {
                 seen = Changelog.signature(of: releases)
                 PlumeSettings.shared.changelogSeen = seen
             } label: {
-                // Une simple icône ; un point tant qu'il y a du nouveau.
+                // A plain icon; a dot while there is something new.
                 Icon(.sparkles, size: 13)
                     .foregroundStyle(hovering || open ? UI.text : UI.text2)
                     .frame(width: 26, height: 24)
@@ -278,7 +278,7 @@ private struct ChangelogButton: View {
             }
             .buttonStyle(PressStyle())
             .onHover { hovering = $0 }
-            .help(tr("Nouveautés"))
+            .help(tr("What's new"))
             .animation(UI.quick, value: hovering)
             .animation(UI.spring, value: unseen)
             .popover(isPresented: $open, arrowEdge: .bottom) { ChangelogView(releases: releases) }
@@ -286,19 +286,19 @@ private struct ChangelogButton: View {
     }
 }
 
-/// Le journal des modifications, version par version.
+/// The changelog, version by version.
 struct ChangelogView: View {
     var releases: [Changelog.Release]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(tr("Nouveautés")).font(UI.sans(18, .medium)).tracking(-0.3)
+                Text(tr("What's new")).font(UI.sans(18, .medium)).tracking(-0.3)
                 ForEach(releases) { release in
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text("Plume \(release.version)").font(UI.sans(14, .semibold))
-                            Text(release.date.map(ChangelogFile.format) ?? tr("en cours"))
+                            Text(release.date.map(ChangelogFile.format) ?? tr("in progress"))
                                 .font(UI.sans(12))
                                 .foregroundStyle(UI.text3)
                         }
@@ -323,7 +323,7 @@ struct ChangelogView: View {
     }
 }
 
-/// Le `CHANGELOG.md` livré avec l'app (ou celui du dépôt, pour un binaire de développement).
+/// The `CHANGELOG.md` shipped with the app (or the repo's, for a development binary).
 enum ChangelogFile {
     static let releases: [Changelog.Release] = {
         let bundled = Bundle.main.url(forResource: "CHANGELOG", withExtension: "md")
@@ -334,7 +334,7 @@ enum ChangelogFile {
         return Changelog.parse(text)
     }()
 
-    /// « 5 oct. 2026 » à partir de « 2026-10-05 ».
+    /// "Oct 5, 2026" from "2026-10-05".
     static func format(_ date: String) -> String {
         let input = DateFormatter()
         input.locale = Locale(identifier: "en_US_POSIX")
@@ -355,7 +355,7 @@ private struct UpdatePill: View {
             Button(action: { updates.check() }) {
                 HStack(spacing: 6) {
                     Icon(.download, size: 12)
-                    Text("Plume \(version) " + tr("est disponible")).font(UI.sans(12, .medium))
+                    Text("Plume \(version) " + tr("is available")).font(UI.sans(12, .medium))
                 }
                 .foregroundStyle(UI.onText)
                 .padding(.horizontal, 9)
@@ -370,8 +370,8 @@ private struct UpdatePill: View {
     }
 }
 
-/// Le modèle de transcription se télécharge une seule fois, au premier lancement : on dit
-/// ce qui se passe, combien ça pèse, et où ça en est.
+/// The transcription model is downloaded just once, at first launch: we say what is
+/// happening, how big it is, and how far along it is.
 private struct ModelCard: View {
     @ObservedObject var session: SessionController
 
@@ -379,11 +379,11 @@ private struct ModelCard: View {
         switch session.modelStatus {
         case .loading(let fraction?) where fraction < 1:
             return (
-                tr("Téléchargement du modèle de transcription"),
-                tr("Une seule fois, environ 600 Mo. Ensuite tout se passe sur ce Mac, sans connexion."), fraction, false
+                tr("Downloading the transcription model"),
+                tr("Just once, about 600 MB. After that everything happens on this Mac, offline."), fraction, false
             )
         case .failed(let reason):
-            return (tr("Le modèle de transcription n'a pas pu être chargé"), reason, nil, true)
+            return (tr("The transcription model could not be loaded"), reason, nil, true)
         default:
             return nil
         }
@@ -402,7 +402,7 @@ private struct ModelCard: View {
                         if let fraction = state.fraction {
                             Text("\(Int(fraction * 100)) %").font(UI.mono(13)).foregroundStyle(UI.text2)
                         } else if state.failed {
-                            PlumeButton(title: tr("Réessayer"), kind: .primary) { session.loadModel() }
+                            PlumeButton(title: tr("Retry"), kind: .primary) { session.loadModel() }
                         }
                     }
                     if let fraction = state.fraction {
@@ -422,29 +422,29 @@ private struct ModelCard: View {
     }
 }
 
-/// État du moteur et rappel du raccourci, en haut à droite de la fenêtre.
+/// Engine state and shortcut reminder, at the top right of the window.
 private struct StatusPill: View {
     @ObservedObject var session: SessionController
     @ObservedObject var settings: SettingsModel
 
     private var state: (color: Color, text: String, ready: Bool) {
         switch session.phase {
-        case .recording: return (Theme.recording, session.mode == .meeting ? tr("Réunion en cours") : tr("Dictée en cours"), false)
-        case .processing: return (UI.text, tr("Transcription…"), false)
+        case .recording: return (Theme.recording, session.mode == .meeting ? tr("Recording a meeting") : tr("Dictating"), false)
+        case .processing: return (UI.text, tr("Transcribing…"), false)
         default:
             switch session.modelStatus {
-            case .loading(let fraction?) where fraction < 1: return (UI.text, tr("Modèle :") + " \(Int(fraction * 100)) %", false)
-            case .loading: return (UI.text, tr("Chargement du modèle…"), false)
-            case .failed: return (Theme.recording, tr("Modèle indisponible"), false)
-            case .ready: return (UI.success, tr("Prêt"), true)
+            case .loading(let fraction?) where fraction < 1: return (UI.text, tr("Model:") + " \(Int(fraction * 100)) %", false)
+            case .loading: return (UI.text, tr("Loading the model…"), false)
+            case .failed: return (Theme.recording, tr("Model unavailable"), false)
+            case .ready: return (UI.success, tr("Ready"), true)
             }
         }
     }
 
     var body: some View {
         let state = state
-        // Prêt, c'est l'état normal : rien à signaler. La pastille n'apparaît que quand il se
-        // passe quelque chose (chargement du modèle, dictée, transcription).
+        // Ready is the normal state: nothing to report. The pill only appears when something is
+        // going on (model loading, dictation, transcription).
         if !state.ready {
         HStack(spacing: 7) {
             Circle()
@@ -461,7 +461,7 @@ private struct StatusPill: View {
     }
 }
 
-// MARK: - Accueil
+// MARK: - Home
 
 struct HomePage: View {
     @ObservedObject var app: AppModel
@@ -470,7 +470,7 @@ struct HomePage: View {
     private let refresh = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
 
     private var firstName: String {
-        // PLUME_FIRST_NAME : prénom imposé, pour les captures de démonstration.
+        // PLUME_FIRST_NAME: forced first name, for demo screenshots.
         let name = ProcessInfo.processInfo.environment["PLUME_FIRST_NAME"] ?? NSFullUserName()
         return name.split(separator: " ").first.map(String.init) ?? ""
     }
@@ -480,16 +480,16 @@ struct HomePage: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                PageHeader(title: firstName.isEmpty ? tr("Bonjour") : tr("Bonjour") + " \(firstName)") {
+                PageHeader(title: firstName.isEmpty ? tr("Hello") : tr("Hello") + " \(firstName)") {
                     HStack(spacing: 6) {
-                        Text(tr("Appuie sur"))
+                        Text(tr("Press"))
                         Keycaps(shortcut: HotkeyManager.describe(settings.dictationShortcut))
-                        Text(tr("pour dicter, le texte se colle là où est ton curseur."))
+                        Text(tr("to dictate; the text is pasted where your cursor is."))
                     }
                 } trailing: {
                     HStack(spacing: 8) {
-                        PlumeButton(title: tr("Transcrire un fichier"), icon: .download) { app.chooseFiles() }
-                        // Sans raccourci : la fenêtre se range et la dictée démarre dans l'encoche.
+                        PlumeButton(title: tr("Transcribe a file"), icon: .download) { app.chooseFiles() }
+                        // With no shortcut: the window steps aside and dictation starts in the notch.
                         DictateButton(session: session) { app.onStartFromWindow() }
                     }
                 }
@@ -505,23 +505,23 @@ struct HomePage: View {
                     TodayTile(stats: stats).rise(2)
                     StreakTile(stats: stats).rise(3)
                     StatTile(
-                        value: stats.timeSaved / 60, format: HomePage.span, label: tr("gagnés sur le clavier"),
-                        detail: "\(HomePage.number(Double(stats.words))) " + tr("mots au total")
+                        value: stats.timeSaved / 60, format: HomePage.span, label: tr("saved over typing"),
+                        detail: "\(HomePage.number(Double(stats.words))) " + tr("words in total")
                     ).rise(4)
                     StatTile(
                         value: Double(stats.wordsPerMinute), format: { $0 < 1 ? "—" : HomePage.number($0) },
-                        label: tr("mots par minute"), detail: tr("au clavier : 40")
+                        label: tr("words per minute"), detail: tr("typing: 40")
                     ).rise(5)
                 }
                 .fixedSize(horizontal: false, vertical: true)
 
-                // L'activité et les dernières transcriptions côte à côte, à la même hauteur.
+                // Activity and latest transcriptions side by side, at the same height.
                 HStack(alignment: .top, spacing: 10) {
                     Card {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(tr("Activité")).font(UI.sans(14, .medium))
-                                Text(tr("mots dictés par jour")).font(UI.sans(13)).foregroundStyle(UI.text2)
+                                Text(tr("Activity")).font(UI.sans(14, .medium))
+                                Text(tr("words dictated per day")).font(UI.sans(13)).foregroundStyle(UI.text2)
                             }
                             ActivityHeatmap(days: stats.days)
                         }
@@ -551,7 +551,7 @@ struct HomePage: View {
         return formatter.string(from: NSNumber(value: value.rounded())) ?? "\(Int(value))"
     }
 
-    /// Durée en minutes, écrite `12 min` ou `3 h 20`.
+    /// Duration in minutes, written `12 min` or `3 h 20`.
     static func span(_ minutes: Double) -> String {
         let whole = Int(minutes.rounded())
         if whole < 60 { return "\(whole) min" }
@@ -559,8 +559,8 @@ struct HomePage: View {
     }
 }
 
-/// « Dicter », à côté de « Transcrire un fichier ». Pendant une dictée, le bouton montre la
-/// voix qui arrive (la même onde que dans l'encoche) et un carré pour terminer.
+/// "Dictate", next to "Transcribe a file". During a dictation, the button shows the
+/// incoming voice (the same wave as in the notch) and a square to finish.
 private struct DictateButton: View {
     @ObservedObject var session: SessionController
     var action: () -> Void
@@ -585,7 +585,7 @@ private struct DictateButton: View {
                         .monospacedDigit()
                 } else {
                     Icon(.mic, size: 14)
-                    Text(tr("Dicter")).font(UI.sans(13, .medium))
+                    Text(tr("Dictate")).font(UI.sans(13, .medium))
                 }
             }
             .foregroundStyle(recording ? Color.white : UI.onText)
@@ -604,12 +604,12 @@ private struct DictateButton: View {
         }
         .animation(UI.quick, value: hovering)
         .animation(UI.spring, value: recording)
-        .help(recording ? tr("Terminer la dictée") : tr("La fenêtre se range, l'encoche t'écoute ; le texte se colle là où était ton curseur."))
+        .help(recording ? tr("Finish the dictation") : tr("The window steps aside and the notch listens; the text is pasted where your cursor was."))
         .disabled(session.modelStatus != .ready && !recording)
     }
 }
 
-/// Les trois dernières transcriptions, à côté de l'activité.
+/// The three latest transcriptions, next to the activity.
 private struct RecentCard: View {
     @ObservedObject var app: AppModel
 
@@ -617,17 +617,17 @@ private struct RecentCard: View {
         Card {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(tr("Dernières transcriptions")).font(UI.sans(14, .medium))
+                    Text(tr("Latest transcriptions")).font(UI.sans(14, .medium))
                     Spacer()
                     Button {
                         withAnimation(UI.spring) { app.page = .history }
                     } label: {
-                        Text(tr("Tout voir")).font(UI.sans(13)).foregroundStyle(UI.text2)
+                        Text(tr("See all")).font(UI.sans(13)).foregroundStyle(UI.text2)
                     }
                     .buttonStyle(PressStyle())
                 }
                 if app.recent.isEmpty {
-                    Text(tr("Rien pour l'instant : ta première dictée apparaîtra ici."))
+                    Text(tr("Nothing yet: your first dictation will show up here."))
                         .font(UI.sans(13))
                         .foregroundStyle(UI.text2)
                         .padding(.top, 6)
@@ -650,10 +650,10 @@ private struct RecentRow: View {
     @State private var hovering = false
     @State private var copied = false
 
-    /// « 42 mots · 18 s ».
+    /// "42 words · 18 s".
     private var summary: String {
         let words = LibraryStats.wordCount(transcript.text)
-        return "\(HomePage.number(Double(words))) " + tr(words > 1 ? "mots" : "mot") + " · " + Format.duration(transcript.duration)
+        return "\(HomePage.number(Double(words))) " + tr(words > 1 ? "words" : "word") + " · " + Format.duration(transcript.duration)
     }
 
     private var when: String {
@@ -675,8 +675,8 @@ private struct RecentRow: View {
                         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(UI.hover))
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            // Ce qui parle : combien de mots, combien de temps de parole (et le
-                            // titre, s'il y en a un).
+                            // What is spoken: how many words, how much speaking time (and the
+                            // title, if there is one).
                             if let title = transcript.title {
                                 Text(title).font(UI.sans(13, .medium)).lineLimit(1)
                                 Text(summary).font(UI.sans(12)).foregroundStyle(UI.text3).lineLimit(1).fixedSize()
@@ -696,7 +696,7 @@ private struct RecentRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(PressStyle(scale: 0.985))
-            // Copier en un clic, sans ouvrir la transcription.
+            // Copy in one click, without opening the transcription.
             Button {
                 Sounds.play(.confirm)
                 Paster.copy(transcript.text)
@@ -710,7 +710,7 @@ private struct RecentRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(PressStyle())
-            .help(tr("Copier le texte"))
+            .help(tr("Copy the text"))
         }
         .padding(.leading, 8)
         .padding(.trailing, 6)
@@ -724,8 +724,8 @@ private struct RecentRow: View {
     }
 }
 
-/// Gabarit commun des tuiles de l'accueil : elles se soulèvent légèrement au survol, avec
-/// un liseré plus clair et une note.
+/// Common template for the home tiles: they lift slightly on hover, with
+/// a lighter edge and a note.
 private struct Tile<Content: View>: View {
     @ViewBuilder var content: () -> Content
     @State private var hovering = false
@@ -763,7 +763,7 @@ private struct TileFigure: View {
     }
 }
 
-/// Un chiffre clé : la valeur en grand (elle défile à l'apparition), ce qu'elle mesure, une précision.
+/// A key figure: the value in large type (it scrolls in on appearance), what it measures, a detail.
 private struct StatTile: View {
     var value: Double
     var format: (Double) -> String
@@ -784,7 +784,7 @@ private struct StatTile: View {
     }
 }
 
-/// Les mots du jour, avec un anneau qui se remplit vers la meilleure journée.
+/// Today's words, with a ring that fills toward the best day.
 private struct TodayTile: View {
     var stats: LibraryStats
     @State private var shown: Double = 0
@@ -798,8 +798,8 @@ private struct TodayTile: View {
         Tile {
             VStack(alignment: .leading, spacing: 4) {
                 TileFigure(value: shown, format: HomePage.number)
-                Text(tr("mots aujourd'hui")).font(UI.sans(13, .medium)).lineLimit(1)
-                Text(isRecord ? tr("Meilleure journée") : tr("record :") + " \(HomePage.number(Double(record)))")
+                Text(tr("words today")).font(UI.sans(13, .medium)).lineLimit(1)
+                Text(isRecord ? tr("Best day") : tr("record:") + " \(HomePage.number(Double(record)))")
                     .font(UI.sans(12))
                     .foregroundStyle(isRecord ? UI.text : UI.text2)
                     .lineLimit(1)
@@ -827,7 +827,7 @@ private struct TodayTile: View {
     }
 }
 
-/// La série de jours consécutifs, flamme allumée quand elle est en cours.
+/// The run of consecutive days, flame lit while it is ongoing.
 private struct StreakTile: View {
     var stats: LibraryStats
     @State private var shown: Double = 0
@@ -837,8 +837,8 @@ private struct StreakTile: View {
         Tile {
             VStack(alignment: .leading, spacing: 4) {
                 TileFigure(value: shown, format: HomePage.number)
-                Text(stats.streak > 1 ? tr("jours d'affilée") : tr("jour d'affilée")).font(UI.sans(13, .medium)).lineLimit(1)
-                Text(tr("record :") + " \(stats.bestStreak) " + tr(stats.bestStreak > 1 ? "jours" : "jour"))
+                Text(stats.streak > 1 ? tr("days in a row") : tr("day in a row")).font(UI.sans(13, .medium)).lineLimit(1)
+                Text(tr("record:") + " \(stats.bestStreak) " + tr(stats.bestStreak > 1 ? "days" : "day"))
                     .font(UI.sans(12))
                     .foregroundStyle(UI.text2)
                     .lineLimit(1)
@@ -861,7 +861,7 @@ private struct StreakTile: View {
     }
 }
 
-/// Calendrier d'activité : une case par jour, d'autant plus vive que la journée a été bavarde.
+/// Activity calendar: one cell per day, the brighter the chattier the day was.
 private struct ActivityHeatmap: View {
     var days: [LibraryStats.Day]
     @State private var hovered: Date?
@@ -874,14 +874,14 @@ private struct ActivityHeatmap: View {
         return f
     }
 
-    /// Semaines du lundi au dimanche, la dernière pouvant être incomplète.
+    /// Weeks from Monday to Sunday, the last one possibly incomplete.
     private var weeks: [[LibraryStats.Day?]] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.firstWeekday = 2
         var columns: [[LibraryStats.Day?]] = []
         var current: [LibraryStats.Day?] = []
         for day in days {
-            let weekday = (calendar.component(.weekday, from: day.date) + 5) % 7  // lundi = 0
+            let weekday = (calendar.component(.weekday, from: day.date) + 5) % 7  // Monday = 0
             if current.isEmpty, weekday > 0 { current = Array(repeating: nil, count: weekday) }
             current.append(day)
             if current.count == 7 {
@@ -908,7 +908,7 @@ private struct ActivityHeatmap: View {
         let all = weeks
         VStack(alignment: .leading, spacing: 10) {
             GeometryReader { proxy in
-                // On montre autant de semaines que la carte peut en contenir, les plus récentes.
+                // We show as many weeks as the card can hold, the most recent ones.
                 let fit = max(1, Int((proxy.size.width + Self.gap) / (Self.cell + Self.gap)))
                 let columns = Array(all.suffix(fit))
                 HStack(alignment: .top, spacing: Self.gap) {
@@ -929,7 +929,7 @@ private struct ActivityHeatmap: View {
                                     }
                             }
                         }
-                        // Les colonnes apparaissent en cascade, de la plus ancienne à la plus récente.
+                        // Columns appear in a cascade, from the oldest to the most recent.
                         .opacity(revealed ? 1 : 0)
                         .offset(y: revealed ? 0 : 6)
                         .animation(UI.ease.delay(Double(index) * 0.012), value: revealed)
@@ -943,16 +943,16 @@ private struct ActivityHeatmap: View {
                 if let hovered, let day = days.first(where: { $0.date == hovered }) {
                     Text(Self.dayFormatter.string(from: day.date).capitalizedFirst)
                         .foregroundStyle(UI.text)
-                    Text(day.words == 0 ? tr("rien dicté") : "\(HomePage.number(Double(day.words))) " + tr("mots"))
+                    Text(day.words == 0 ? tr("nothing dictated") : "\(HomePage.number(Double(day.words))) " + tr("words"))
                 } else {
-                    Text(tr("Survole une case pour voir le détail d'une journée."))
+                    Text(tr("Hover a cell to see a day's details."))
                 }
                 Spacer()
-                Text(tr("Moins"))
+                Text(tr("Less"))
                 ForEach(0..<4, id: \.self) { step in
                     RoundedRectangle(cornerRadius: 3, style: .continuous).fill(UI.activity[step]).frame(width: 11, height: 11)
                 }
-                Text(tr("Plus"))
+                Text(tr("More"))
             }
             .font(UI.sans(12))
             .foregroundStyle(UI.text2)
@@ -966,7 +966,7 @@ extension String {
     var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }
 
-/// Bouton « Copier » qui confirme d'une coche et d'une note.
+/// "Copy" button that confirms with a check mark and a note.
 struct CopyButton: View {
     var text: String
     var prominent = false
@@ -974,7 +974,7 @@ struct CopyButton: View {
 
     var body: some View {
         PlumeButton(
-            title: copied ? tr("Copié") : tr("Copier"), icon: copied ? .check : .copy,
+            title: copied ? tr("Copied") : tr("Copy"), icon: copied ? .check : .copy,
             kind: prominent ? .primary : .secondary, sound: .confirm
         ) {
             Paster.copy(text)
@@ -984,20 +984,20 @@ struct CopyButton: View {
     }
 }
 
-/// Les deux autorisations indispensables, tant qu'elles ne sont pas accordées.
+/// The two essential permissions, until they are granted.
 struct PermissionsCard: View {
     @ObservedObject var settings: SettingsModel
 
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                Text(tr("Deux autorisations pour commencer")).font(UI.sans(14, .medium))
+                Text(tr("Two permissions to get started")).font(UI.sans(14, .medium))
                 PermissionRow(
-                    title: tr("Microphone"), detail: tr("Pour entendre ta voix."), granted: settings.microphoneGranted,
+                    title: tr("Microphone access"), detail: tr("To hear your voice."), granted: settings.microphoneGranted,
                     action: settings.requestMicrophone)
                 Rectangle().fill(UI.line).frame(height: 1)
                 PermissionRow(
-                    title: tr("Accessibilité"), detail: tr("Pour coller le texte dans le champ actif."),
+                    title: tr("Accessibility"), detail: tr("To paste the text into the active field."),
                     granted: settings.accessibilityGranted, action: settings.requestAccessibility)
             }
         }
@@ -1020,12 +1020,12 @@ struct PermissionRow: View {
             if granted {
                 HStack(spacing: 6) {
                     Icon(.circleCheck, size: 15)
-                    Text(tr("Accordée")).font(UI.sans(13, .medium))
+                    Text(tr("Granted")).font(UI.sans(13, .medium))
                 }
                 .foregroundStyle(UI.success)
                 .transition(.scale.combined(with: .opacity))
             } else {
-                PlumeButton(title: tr("Autoriser"), kind: .primary, action: action)
+                PlumeButton(title: tr("Allow"), kind: .primary, action: action)
             }
         }
         .animation(UI.spring, value: granted)

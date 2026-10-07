@@ -1,11 +1,11 @@
 import Foundation
 
-/// Reprise des enregistrements interrompus.
+/// Recovery of interrupted recordings.
 ///
-/// Pendant une réunion, l'audio est écrit au fil de l'eau dans des fichiers `.wav` ; une
-/// dictée dont la transcription échoue est elle aussi mise de côté. Si l'app s'arrête avant
-/// d'avoir produit le transcript (plantage, extinction, modèle indisponible), ces fichiers
-/// restent seuls dans la bibliothèque : on les retrouve ici pour terminer le travail.
+/// During a meeting, the audio is written as it goes to `.wav` files; a
+/// dictation whose transcription fails is also set aside. If the app stops before
+/// producing the transcript (crash, shutdown, model unavailable), these files
+/// are left alone in the library: they are found here to finish the job.
 public enum Recovery {
     public struct Pending: Sendable, Equatable {
         public var id: String
@@ -18,19 +18,19 @@ public enum Recovery {
     static let micSuffix = "_mic.wav"
     static let systemSuffix = "_sys.wav"
 
-    /// Fichier où mettre de côté l'audio d'une dictée non transcrite.
+    /// File where the audio of an untranscribed dictation is set aside.
     public static func dictationURL(id: String, store: TranscriptStore) throws -> URL {
         try store.ensureDirectory(forID: id).appendingPathComponent(id + dictationSuffix)
     }
 
-    /// Écrit des échantillons dans un fichier de reprise.
+    /// Writes samples to a recovery file.
     public static func stash(_ samples: [Float], at url: URL) {
         guard let writer = try? WavWriter(url: url) else { return }
         writer.append(samples)
         writer.close()
     }
 
-    /// Enregistrements audio sans transcript, hors session en cours.
+    /// Audio recordings without a transcript, outside the current session.
     public static func pending(in store: TranscriptStore, excluding active: Set<String> = []) -> [Pending] {
         let fm = FileManager.default
         guard let months = try? fm.contentsOfDirectory(atPath: store.root.path) else { return [] }
@@ -61,8 +61,8 @@ public enum Recovery {
         return found
     }
 
-    /// Transcrit un enregistrement interrompu et le range dans la bibliothèque.
-    /// Les fichiers de reprise sont supprimés une fois le transcript écrit.
+    /// Transcribes an interrupted recording and files it in the library.
+    /// The recovery files are deleted once the transcript is written.
     public static func recover(
         _ pending: Pending, settings: PlumeSettings = .shared, engine: SpeechEngine = .shared
     ) async throws -> Transcript? {

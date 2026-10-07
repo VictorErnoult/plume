@@ -6,14 +6,14 @@ enum Theme {
     static let textPrimary = Color.white.opacity(0.95)
     static let textSecondary = Color.white.opacity(0.52)
     static let recording = Color(red: 1.0, green: 0.33, blue: 0.29)
-    /// Pas de couleur d'accent : le mode réunion s'allume en blanc.
+    /// No accent color: meeting mode lights up in white.
     static let meeting = Color.white
     static let success = Color(red: 0.36, green: 0.86, blue: 0.56)
     static let warning = Color(red: 1.0, green: 0.76, blue: 0.3)
-    /// Micro qui ne capte rien : un bleu calme, pas une alerte.
+    /// Microphone picking up nothing: a calm blue, not an alert.
     static let quiet = Color(red: 0.55, green: 0.72, blue: 1.0)
 
-    /// Couleurs des interlocuteurs dans l'historique.
+    /// Speaker colors in history.
     static let speakers: [Color] = [
         Color(red: 0.42, green: 0.62, blue: 1.0),
         Color(red: 0.98, green: 0.58, blue: 0.36),
@@ -24,11 +24,11 @@ enum Theme {
     ]
 }
 
-/// Dimensions de l'encoche de l'écran, ou d'une encoche fictive sur un écran qui n'en a pas.
+/// Dimensions of the screen's notch, or of a fictitious notch on a screen that has none.
 struct NotchGeometry: Equatable {
-    /// Largeur de l'encoche physique (0 sans encoche).
+    /// Width of the physical notch (0 without a notch).
     var notchWidth: CGFloat
-    /// Hauteur de la barre du haut : celle de l'encoche, sinon celle de la barre de menus.
+    /// Height of the top bar: the notch's, otherwise the menu bar's.
     var topHeight: CGFloat
 
     var hasNotch: Bool { notchWidth > 0 }
@@ -55,15 +55,15 @@ struct NotchGeometry: Equatable {
     static let earWidth: CGFloat = 82
     static let flare: CGFloat = 8
 
-    /// Largeur du corps noir quand seules les « oreilles » dépassent de l'encoche.
+    /// Width of the black body when only the "ears" stick out of the notch.
     var compactWidth: CGFloat { hasNotch ? notchWidth + 2 * Self.earWidth : 204 }
-    /// Largeur au repos : exactement l'encoche, donc invisible.
+    /// Width at rest: exactly the notch, so invisible.
     var restWidth: CGFloat { hasNotch ? notchWidth : 120 }
     var expandedWidth: CGFloat { max(compactWidth, 448) }
 }
 
-/// Silhouette de l'île : collée au bord haut de l'écran, avec des congés concaves qui la font
-/// naître de l'encoche comme une goutte, et des coins bas arrondis.
+/// Silhouette of the island: stuck to the top edge of the screen, with concave fillets that make it
+/// grow out of the notch like a drop, and rounded bottom corners.
 struct NotchShape: Shape {
     var topRadius: CGFloat
     var bottomRadius: CGFloat
@@ -97,21 +97,21 @@ struct NotchShape: Shape {
 
 @MainActor
 final class IslandModel: ObservableObject {
-    /// Piloté par le contrôleur, une fois la fenêtre à l'écran, pour que la sortie soit animée.
+    /// Driven by the controller, once the window is on screen, so that the exit is animated.
     @Published var shown = false
     @Published var hovering = false
     @Published var geometry = NotchGeometry.fallback
-    /// Force l'affichage des commandes (rendu des maquettes).
+    /// Forces the controls to show (mockup rendering).
     @Published var pinnedControls = false
-    /// Taille actuelle de l'île, congés compris : le contrôleur s'en sert pour savoir si la
-    /// souris la survole.
+    /// Current size of the island, fillets included: the controller uses it to know whether
+    /// the mouse is over it.
     var size = CGSize.zero
-    /// Rendu hors écran d'une étape de l'ouverture du tiroir (0 : fermé, 1 : ouvert), pour en
-    /// contrôler le mouvement image par image.
+    /// Off-screen rendering of a step of the drawer opening (0: closed, 1: open), to
+    /// check the motion frame by frame.
     var openFraction: CGFloat = 1
 }
 
-/// Apparition et disparition du contenu de l'île : fondu, léger flou, légère mise à l'échelle.
+/// Appearance and disappearance of the island's content: fade, slight blur, slight scaling.
 private struct BlurFade: ViewModifier {
     var hidden: Bool
 
@@ -129,7 +129,7 @@ extension AnyTransition {
     }
 }
 
-/// L'île : ce qui sort de l'encoche pendant qu'on parle.
+/// The island: what comes out of the notch while you speak.
 struct IslandView: View {
     @ObservedObject var session: SessionController
     @ObservedObject var model: IslandModel
@@ -138,7 +138,7 @@ struct IslandView: View {
     private let settings = PlumeSettings.shared
     private var geometry: NotchGeometry { model.geometry }
 
-    // MARK: Ce qui est affiché
+    // MARK: What is shown
 
     private var phase: SessionController.Phase { session.displayPhase }
     private var recording: Bool { phase == .recording }
@@ -148,7 +148,7 @@ struct IslandView: View {
         let committed = session.liveCommitted
         let volatile = session.liveVolatile
         guard !(committed.isEmpty && volatile.isEmpty) else { return nil }
-        // On ne montre que la fin : ce qui vient d'être dit.
+        // We only show the end: what was just said.
         let budget = 150
         if volatile.count >= budget { return ("", "…" + Self.tail(volatile, budget)) }
         let room = budget - volatile.count
@@ -156,7 +156,7 @@ struct IslandView: View {
         return (head, volatile)
     }
 
-    /// Les `count` derniers caractères, coupés proprement au début d'un mot.
+    /// The last `count` characters, cut cleanly at the start of a word.
     static func tail(_ text: String, _ count: Int) -> String {
         guard text.count > count else { return text }
         let suffix = text.suffix(count)
@@ -166,35 +166,35 @@ struct IslandView: View {
         return String(suffix)
     }
 
-    /// Les commandes (dictée / réunion, annuler, terminer) apparaissent au survol, et d'office
-    /// pendant les premières secondes pour pouvoir passer en réunion tout de suite.
+    /// The controls (dictation / meeting, cancel, finish) appear on hover, and automatically
+    /// during the first seconds so you can switch to a meeting right away.
     private var showsControls: Bool {
         guard recording else { return false }
         if model.hovering || model.pinnedControls { return true }
         return settings.modeSwitchAtStart && session.elapsed < 6
     }
 
-    /// Message affiché sous l'encoche quand il ne tient pas dans une oreille.
+    /// Message shown under the notch when it doesn't fit in an ear.
     private var statusLine: (symbol: String?, tint: Color, text: String)? {
         switch phase {
         case .processing(let label):
             switch session.modelStatus {
             case .loading(let fraction?) where fraction < 1:
-                return (nil, .white, tr("Téléchargement du modèle") + " \(Int(fraction * 100)) %")
+                return (nil, .white, tr("Downloading the model") + " \(Int(fraction * 100)) %")
             case .loading:
-                return (nil, .white, tr("Chargement du modèle…"))
+                return (nil, .white, tr("Loading the model…"))
             default:
-                return session.mode == .meeting || label != tr("Transcription") ? (nil, .white, label + "…") : nil
+                return session.mode == .meeting || label != tr("Transcript") ? (nil, .white, label + "…") : nil
             }
-        // Un message court (« Collé », « Rien entendu ») tient dans l'oreille droite ; seul un
-        // message long ouvre une ligne sous l'encoche. La coche ou l'alerte est à gauche.
+        // A short message ("Pasted", "Nothing heard") fits in the right ear; only a
+        // long message opens a line under the notch. The check mark or alert is on the left.
         case .done(let label), .failed(let label):
             return earLabel == nil ? (nil, .white, label) : nil
         case .suggestion(let app):
-            return (nil, .white, "\(app) " + tr("utilise le micro"))
+            return (nil, .white, "\(app) " + tr("is using the microphone"))
         case .recording:
             if session.intent == .transform, session.elapsed < 4 {
-                return (nil, .white, session.hasSelection ? tr("Dicte ce qu'il faut faire du texte sélectionné") : tr("Dicte ce qu'il faut écrire"))
+                return (nil, .white, session.hasSelection ? tr("Say what to do with the selected text") : tr("Say what to write"))
             }
             return nil
         default:
@@ -202,7 +202,7 @@ struct IslandView: View {
         }
     }
 
-    /// Message assez court pour s'écrire à hauteur d'encoche, à droite.
+    /// Message short enough to be written at notch height, on the right.
     private var earLabel: String? {
         switch phase {
         case .done(let label), .failed(let label): return label.count <= 14 ? label : nil
@@ -213,15 +213,15 @@ struct IslandView: View {
     private static let labelFont: NSFont =
         NSFont(descriptor: NSFontDescriptor(fontAttributes: [.family: "Geist"]), size: 13) ?? NSFont.systemFont(ofSize: 13)
 
-    /// Largeur qu'il faut à l'île pour loger le message court dans son oreille.
+    /// Width the island needs to fit the short message in its ear.
     private var earLabelWidth: CGFloat {
         guard let label = earLabel else { return 0 }
         let text = ceil((label as NSString).size(withAttributes: [.font: Self.labelFont]).width) + 4
-        // Avec encoche, les deux oreilles ont la même largeur ; sans, le texte suit l'icône.
+        // With a notch, both ears have the same width; without one, the text follows the icon.
         return geometry.hasNotch ? geometry.notchWidth + 2 * (text + 18 + 6) : text + 16 + 2 * 18 + 22
     }
 
-    /// Ce que contient le tiroir qui descend sous l'encoche.
+    /// What the drawer that comes down under the notch contains.
     private struct Drawer: Equatable {
         enum Action: Equatable {
             case openTranscript
@@ -229,7 +229,7 @@ struct IslandView: View {
         }
 
         var status: String?
-        /// Bouton à droite de la ligne d'état : « Ouvrir », « Enregistrer ».
+        /// Button to the right of the status line: "Open", "Record".
         var action: Action?
         var committed = ""
         var volatile = ""
@@ -254,13 +254,13 @@ struct IslandView: View {
         return drawer
     }
 
-    /// Dernier contenu non vide : il reste dessiné pendant que le tiroir se referme, au lieu de
-    /// disparaître d'un coup.
+    /// Last non-empty content: it stays drawn while the drawer closes, instead of
+    /// disappearing at once.
     @State private var retained = Drawer()
-    /// Valeur de `model.shown` au rendu précédent, pour reconnaître une sortie ou une rentrée.
+    /// Value of `model.shown` at the previous render, to recognize an exit or a re-entry.
     @State private var wasShown = false
 
-    /// Tout ce dont dépend la silhouette de l'île.
+    /// Everything the island's silhouette depends on.
     private struct Motion: Equatable {
         var shown: Bool
         var width: CGFloat
@@ -278,8 +278,8 @@ struct IslandView: View {
     private var drawerTop: CGFloat { geometry.hasNotch ? 8 : 5 }
     private static let drawerBottom: CGFloat = 15
 
-    /// Hauteur du texte en direct, trois lignes au plus, calculée d'avance pour que la
-    /// silhouette et son contenu s'animent ensemble.
+    /// Height of the live text, three lines at most, computed in advance so that the
+    /// silhouette and its content animate together.
     private func textHeight(_ drawer: Drawer, width: CGFloat) -> CGFloat {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = Self.lineSpacing
@@ -301,7 +301,7 @@ struct IslandView: View {
         return drawerTop + rows.reduce(0, +) + Self.rowSpacing * CGFloat(rows.count - 1) + Self.drawerBottom
     }
 
-    /// Largeur du corps noir, hors congés.
+    /// Width of the black body, fillets excluded.
     private func width(for drawer: Drawer) -> CGFloat {
         guard model.shown else { return geometry.restWidth }
         if drawer.hasText { return geometry.expandedWidth }
@@ -325,7 +325,7 @@ struct IslandView: View {
         }
     }
 
-    // MARK: Vue
+    // MARK: View
 
     var body: some View {
         island
@@ -335,7 +335,7 @@ struct IslandView: View {
     private var island: some View {
         let current = drawer
         let open = model.shown && !current.isEmpty
-        // Pendant la fermeture, on continue de dessiner ce qui était affiché.
+        // While closing, we keep drawing what was shown.
         let content = current.isEmpty ? retained : current
         let width = width(for: current)
         let contentWidth = open ? width : max(width, self.width(for: content))
@@ -344,14 +344,14 @@ struct IslandView: View {
         let shape = NotchShape(topRadius: model.shown ? NotchGeometry.flare : 4, bottomRadius: open ? 26 : 13)
 
         return ZStack(alignment: .top) {
-            // Le tiroir est accroché au bord bas de l'île : quand elle s'allonge, il glisse de
-            // derrière l'encoche vers le bas, au lieu d'apparaître sur place.
+            // The drawer is attached to the island's bottom edge: when it lengthens, it slides down from
+            // behind the notch, instead of appearing in place.
             drawerView(content)
                 .frame(width: contentWidth, height: drawerHeight, alignment: .top)
                 .frame(height: max(height, 0), alignment: .bottom)
-                // Le tiroir n'existe que sous la barre du haut. Sans ce masque, refermé, il
-                // dépassait derrière elle : sur un écran sans encoche, où il est plus large que
-                // l'île, un bout de ses commandes se voyait dans l'arrondi gauche.
+                // The drawer only exists under the top bar. Without this mask, once closed, it
+                // stuck out behind it: on a screen without a notch, where it is wider than
+                // the island, a bit of its controls showed in the left curve.
                 .mask(alignment: .bottom) { Rectangle().frame(height: max(height - topHeight, 0)) }
                 .opacity(model.shown ? 1 : 0)
             topBar
@@ -369,35 +369,35 @@ struct IslandView: View {
             if !new.isEmpty { retained = new }
         }
         .onChange(of: model.shown) { _, new in wasShown = new }
-        // Un seul ressort à la fois pour toute la silhouette, taille et position ensemble :
-        // les deux bords de l'île bougent ainsi exactement de la même façon.
+        // A single spring at a time for the whole silhouette, size and position together:
+        // the two edges of the island thus move in exactly the same way.
         .animation(motion, value: Motion(shown: model.shown, width: width, height: height, phase: phaseKind))
     }
 
     private var motion: Animation {
-        // Sortie de l'encoche : ressort peu amorti, l'île dépasse sa taille puis se pose.
-        // Rentrée : plus sèche.
+        // Exit from the notch: lightly damped spring, the island overshoots its size then settles.
+        // Re-entry: drier.
         if model.shown != wasShown {
             return model.shown ? .spring(duration: 0.46, bounce: 0.36) : .spring(duration: 0.34, bounce: 0.05)
         }
-        // Tiroir et changements d'état : un mouvement net, à peine rebondi.
+        // Drawer and state changes: a clean motion, barely bouncy.
         return .spring(duration: 0.36, bounce: 0.16)
     }
 
-    /// « Annuler (⇧⎋) », ou « Annuler » quand aucun raccourci n'est attribué.
+    /// "Cancel (⇧⎋)", or "Cancel" when no shortcut is assigned.
     private var cancelHelp: String {
         let shortcut = settings.cancelShortcut
-        return shortcut.isEmpty ? tr("Annuler") : tr("Annuler") + " (" + HotkeyManager.describe(shortcut) + ")"
+        return shortcut.isEmpty ? tr("Cancel") : tr("Cancel") + " (" + HotkeyManager.describe(shortcut) + ")"
     }
 
     private func label(for action: Drawer.Action) -> String {
         switch action {
-        case .openTranscript: return tr("Ouvrir")
-        case .startMeeting: return tr("Enregistrer")
+        case .openTranscript: return tr("Open")
+        case .startMeeting: return tr("Record")
         }
     }
 
-    /// Contenu du tiroir, à hauteurs fixes : rien ne bouge à l'intérieur pendant qu'il glisse.
+    /// Drawer content, at fixed heights: nothing moves inside while it slides.
     private func drawerView(_ drawer: Drawer) -> some View {
         VStack(alignment: .leading, spacing: Self.rowSpacing) {
             if let status = drawer.status {
@@ -451,12 +451,12 @@ struct IslandView: View {
         .animation(.easeOut(duration: 0.18), value: drawer.status)
     }
 
-    /// La ligne à hauteur d'encoche : onde à gauche, durée à droite, calées sur les bords.
+    /// The notch-height row: wave on the left, duration on the right, set against the edges.
     private var topBar: some View {
-        // Les deux conteneurs existent en permanence : ils partent du bord de l'encoche et
-        // glissent vers l'extérieur avec la silhouette, du même pas à gauche et à droite.
-        // Leur contenu, lui, n'existe que lorsque l'île est sortie : à la sortie suivante,
-        // il ne reste rien de l'état précédent (l'ancienne coche ne réapparaît pas).
+        // The two containers always exist: they start from the notch edge and
+        // slide outward with the silhouette, in step on the left and on the right.
+        // Their content, though, only exists while the island is out: at the next exit,
+        // nothing is left of the previous state (the old check mark doesn't reappear).
         HStack(spacing: 0) {
             ZStack(alignment: .leading) {
                 if model.shown {
@@ -486,8 +486,8 @@ struct IslandView: View {
             Icon(.pause, size: 13, filled: true)
                 .foregroundColor(Color.white.opacity(0.8))
         case .recording:
-            // Rien capté depuis un moment : l'onde s'éteint et un « zZ » bleuté se pose dessus.
-            // Pas de message, c'est l'image qui le dit.
+            // Nothing picked up for a while: the wave fades and a bluish "zZ" settles on it.
+            // No message, the image says it.
             ZStack {
                 Waveform(levels: session.levels, tint: session.mode == .meeting ? Theme.meeting : .white)
                     .opacity(session.quietMic ? 0.22 : 1)
@@ -520,15 +520,15 @@ struct IslandView: View {
         case .recording:
             HStack(spacing: 5) {
                 if session.mode == .meeting {
-                    // S'allume quand le son de l'ordinateur porte de la parole.
+                    // Lights up when the system audio carries speech.
                     Icon(.users, size: 12)
                         .foregroundColor(session.systemActive ? Theme.meeting : Theme.meeting.opacity(0.45))
                 } else if session.intent == .transform {
-                    // Une consigne pour l'IA, pas une dictée.
+                    // An instruction for the AI, not a dictation.
                     Icon(.sparkles, size: 12)
                         .foregroundColor(Theme.textPrimary)
                 }
-                Text(session.paused ? tr("Pause") : Format.clock(session.elapsed))
+                Text(session.paused ? tr("Paused") : Format.clock(session.elapsed))
                     .font(UI.mono(12.5, .medium))
                     .foregroundColor(session.paused ? Theme.textSecondary : Theme.textPrimary)
             }
@@ -541,7 +541,7 @@ struct IslandView: View {
                     .fixedSize()
             }
         case .suggestion:
-            Text(tr("Réunion ?"))
+            Text(tr("Meeting?"))
                 .font(UI.sans(13, .medium))
                 .foregroundColor(Theme.textPrimary)
                 .lineLimit(1)
@@ -555,13 +555,13 @@ struct IslandView: View {
         HStack(spacing: 6) {
             MeetingKey(on: mode == .meeting) { session.switchMode(to: mode == .meeting ? .dictation : .meeting) }
             Spacer(minLength: 0)
-            IslandButton(help: paused ? tr("Reprendre") : tr("Mettre en pause"), action: { session.togglePause() }) {
+            IslandButton(help: paused ? tr("Resume") : tr("Pause"), action: { session.togglePause() }) {
                 Icon(paused ? .play : .pause, size: 11, filled: true)
             }
             IslandButton(help: cancelHelp, action: { session.cancel() }) {
                 Icon(.x, size: 12)
             }
-            IslandButton(help: tr("Terminer"), prominent: true, action: { session.stop() }) {
+            IslandButton(help: tr("Finish"), prominent: true, action: { session.stop() }) {
                 RoundedRectangle(cornerRadius: 2.5, style: .continuous)
                     .frame(width: 9.5, height: 9.5)
             }
@@ -569,8 +569,8 @@ struct IslandView: View {
     }
 }
 
-/// Le mode réunion s'enclenche comme une touche qui reste enfoncée : éteinte en dictée,
-/// pleine et blanche tant que la réunion est captée.
+/// Meeting mode engages like a key that stays pressed: off in dictation,
+/// full and white while the meeting is captured.
 private struct MeetingKey: View {
     var on: Bool
     var action: () -> Void
@@ -581,9 +581,9 @@ private struct MeetingKey: View {
             HStack(spacing: 7) {
                 Icon(.users, size: 13)
                     .frame(width: 16)
-                Text(tr("Réunion"))
+                Text(tr("Meeting"))
                     .font(UI.sans(12.5, .medium))
-                // Voyant : il s'allume avec le mode.
+                // Indicator: it lights up with the mode.
                 Circle()
                     .fill(on ? Color.black : Color.white.opacity(0.22))
                     .frame(width: 5, height: 5)
@@ -603,11 +603,11 @@ private struct MeetingKey: View {
         .onHover { hovering = $0 }
         .animation(.spring(duration: 0.3, bounce: 0.25), value: on)
         .animation(.easeOut(duration: 0.15), value: hovering)
-        .help(on ? tr("Revenir à une simple dictée") : tr("Capter aussi le son de l'ordinateur et séparer les interlocuteurs"))
+        .help(on ? tr("Back to a plain dictation") : tr("Also capture the computer's audio and separate the speakers"))
     }
 }
 
-/// Bouton carré du tiroir, aux coins de 8 comme ceux de la barre de la fenêtre.
+/// Square drawer button, with corners of 8 like those of the window bar.
 private struct IslandButton<Label: View>: View {
     var help: String
     var prominent = false
@@ -635,7 +635,7 @@ private struct IslandButton<Label: View>: View {
     }
 }
 
-/// Barres qui suivent le niveau de la voix, les plus récentes à droite.
+/// Bars that follow the voice level, the most recent on the right.
 struct Waveform: View {
     var levels: [Float]
     var tint: Color = .white
@@ -668,9 +668,9 @@ private struct Spinner: View {
     }
 }
 
-// MARK: - Fenêtre
+// MARK: - Window
 
-/// Vue hôte qui accepte le premier clic : l'île réagit sans que Plume prenne le focus.
+/// Host view that accepts the first click: the island reacts without Plume taking focus.
 private final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
@@ -680,8 +680,8 @@ private final class IslandPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-/// Place l'île sur l'encoche de l'écran où se trouve la souris, au-dessus de la barre de
-/// menus, sans jamais prendre le focus à l'application dans laquelle on dicte.
+/// Places the island on the notch of the screen where the mouse is, above the
+/// menu bar, without ever taking focus from the app you are dictating in.
 @MainActor
 final class IslandController {
     private let session: SessionController
@@ -702,7 +702,7 @@ final class IslandController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
-        // Au-dessus de la barre de menus, pour recouvrir la zone de l'encoche.
+        // Above the menu bar, to cover the notch area.
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 3)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.hidesOnDeactivate = false
@@ -719,7 +719,7 @@ final class IslandController {
         hideWork?.cancel()
         if phase == .idle {
             model.shown = false
-            // On laisse l'île se rétracter dans l'encoche avant de retirer la fenêtre.
+            // Let the island retract into the notch before removing the window.
             let work = DispatchWorkItem { [weak self] in
                 guard let self, self.session.phase == .idle else { return }
                 self.stopTracking()
@@ -733,8 +733,8 @@ final class IslandController {
             let mouse = NSEvent.mouseLocation
             var screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main
                 ?? NSScreen.screens.first
-            // Diagnostic : forcer l'écran à encoche, où que soit la souris, ou alterner entre
-            // les écrans à chaque sortie.
+            // Diagnostic: force the notched screen, wherever the mouse is, or alternate between
+            // the screens at each exit.
             switch ProcessInfo.processInfo.environment["PLUME_SCREEN"] {
             case "encoche":
                 screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? screen
@@ -753,15 +753,15 @@ final class IslandController {
             panel.orderFrontRegardless()
             startTracking()
         }
-        // Un tour de boucle plus tard : la fenêtre est à l'écran, la sortie peut s'animer.
+        // One loop turn later: the window is on screen, the exit can animate.
         DispatchQueue.main.async { [weak self] in
             guard let self, self.session.phase != .idle else { return }
             self.model.shown = true
         }
     }
 
-    /// Fenêtre de taille fixe, assez grande pour l'île déployée : elle ne bouge plus pendant
-    /// l'enregistrement, ce qui évite tout à-coup dans l'animation.
+    /// Fixed-size window, large enough for the unfolded island: it no longer moves during
+    /// recording, which avoids any jerk in the animation.
     private func applyFrame() {
         guard let screen = screen ?? NSScreen.main else { return }
         let geometry = model.geometry
@@ -772,28 +772,28 @@ final class IslandController {
                 height: size.height), display: true)
     }
 
-    /// Diagnostic : ouvre ou referme le tiroir des commandes, comme le ferait un survol.
+    /// Diagnostic: opens or closes the controls drawer, as a hover would.
     func debugPin(_ pinned: Bool) {
         model.pinnedControls = pinned
     }
 
-    /// Diagnostic : enregistre ce que la fenêtre de l'île dessine réellement, et sa géométrie.
+    /// Diagnostic: records what the island window actually draws, and its geometry.
     func debugSnapshot(to url: URL) {
         guard let view = panel.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: url)
         let screenFrame = screen?.frame ?? .zero
         Log.write(
-            "île : fenêtre \(panel.frame), écran \(screenFrame), vue \(view.frame), île \(model.size), "
-                + "encoche \(model.geometry.notchWidth)×\(model.geometry.topHeight), "
-                + "zones hautes gauche \(screen?.auxiliaryTopLeftArea ?? .zero) droite \(screen?.auxiliaryTopRightArea ?? .zero)")
+            "island: window \(panel.frame), screen \(screenFrame), view \(view.frame), island \(model.size), "
+                + "notch \(model.geometry.notchWidth)×\(model.geometry.topHeight), "
+                + "top areas left \(screen?.auxiliaryTopLeftArea ?? .zero) right \(screen?.auxiliaryTopRightArea ?? .zero)")
     }
 
-    // MARK: Survol
+    // MARK: Hover
 
-    /// La fenêtre est transparente autour de l'île et ne doit rien intercepter : elle n'accepte
-    /// les clics que lorsque la souris est sur l'île. On suit donc la position de la souris,
-    /// ce qui donne aussi un survol fiable alors que Plume n'est jamais l'app active.
+    /// The window is transparent around the island and must intercept nothing: it only accepts
+    /// clicks when the mouse is on the island. So we track the mouse position,
+    /// which also gives a reliable hover while Plume is never the active app.
     private func startTracking() {
         tracker?.invalidate()
         let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
@@ -823,8 +823,8 @@ final class IslandController {
         if panel.ignoresMouseEvents == inside { panel.ignoresMouseEvents = !inside }
         if inside {
             leaveDeadline = nil
-            // On n'ouvre que si la souris s'attarde : la traverser pour atteindre la barre de
-            // menus ne doit rien déclencher.
+            // We only open if the mouse lingers: crossing it to reach the
+            // menu bar must trigger nothing.
             if !model.hovering {
                 if let entered = enterDate {
                     if Date().timeIntervalSince(entered) >= 0.12 { model.hovering = true }
@@ -836,7 +836,7 @@ final class IslandController {
             enterDate = nil
         } else {
             enterDate = nil
-            // Un court délai avant de refermer : la souris peut frôler le bord.
+            // A short delay before closing: the mouse may brush the edge.
             if let deadline = leaveDeadline {
                 if Date() >= deadline {
                     model.hovering = false

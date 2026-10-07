@@ -1,20 +1,20 @@
 #!/bin/zsh
-# Lance les tests. Sans Xcode, le framework Testing des Command Line Tools n'est pas
-# trouvé tout seul : on indique son emplacement. Son extension de macros non plus : SwiftPM
-# ne l'indique qu'une fois sur deux (« plugin for module 'TestingMacros' not found »).
+# Run the tests. Without Xcode, the Testing framework of the Command Line Tools is not
+# found on its own: we give its location. Neither is its macro extension: SwiftPM only
+# passes it every other time ("plugin for module 'TestingMacros' not found").
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/sdk.sh
-# Les tests ne touchent ni aux réglages de l'app installée, ni à sa bibliothèque, ni à son
-# dossier de support, ni à son canal de commande. Les variables d'un essai en cours
-# (PLUME_SAME_VOICE…) ne s'en mêlent pas non plus.
-# unset -m renvoie 1 quand rien ne correspond : sans || true, set -e arrêterait le script sans un mot.
+# The tests touch neither the installed app's settings, nor its library, nor its support
+# folder, nor its command channel. Variables from a trial run in progress
+# (PLUME_SAME_VOICE...) stay out of it too.
+# unset -m returns 1 when nothing matches: without || true, set -e would stop the script silently.
 unset -m 'PLUME_*' || true
 TESTS_DIR="$(mktemp -d)"
 trap 'rm -rf "$TESTS_DIR"' EXIT
 export PLUME_DEFAULTS=tests PLUME_CHANNEL=tests
 export PLUME_SUPPORT="$TESTS_DIR/support" PLUME_LIBRARY="$TESTS_DIR/library"
-# Le jeu de réglages des tests repart de zéro (il peut ne pas exister).
+# The tests' settings suite starts from scratch (it may not exist).
 defaults delete studio.brigode.plume.tests >/dev/null 2>&1 || true
 DEV=/Library/Developer/CommandLineTools/Library/Developer
 swift test \

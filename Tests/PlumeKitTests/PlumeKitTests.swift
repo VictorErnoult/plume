@@ -3,107 +3,109 @@ import Testing
 
 @testable import PlumeKit
 
-@Suite("Nettoyage de dictée")
+@Suite("Dictation cleanup")
 struct TextCleanupTests {
-    @Test func retireLesMotsOutilsBégayés() {
+    @Test func removesStutteredFunctionWords() {
         #expect(TextCleanup.clean("et sur mon mon laptop") == "Et sur mon laptop")
         #expect(TextCleanup.clean("c'est c'est toujours le même") == "C'est toujours le même")
         #expect(TextCleanup.clean("sinon pas pas nécessaire") == "Sinon pas nécessaire")
     }
 
-    @Test func retireLesGroupesRépétés() {
+    @Test func removesRepeatedGroups() {
         #expect(TextCleanup.clean("ça le ça le ça le marque") == "Ça le marque")
         #expect(TextCleanup.clean("que quand que quand c'est bon") == "Que quand c'est bon")
         #expect(TextCleanup.clean("tout ça c'est tout ça c'est fait") == "Tout ça c'est fait")
     }
 
-    @Test func gardeLesRépétitionsLégitimes() {
+    @Test func keepsLegitimateRepetitions() {
         #expect(TextCleanup.clean("Nous nous sommes vus hier.") == "Nous nous sommes vus hier.")
         #expect(TextCleanup.clean("C'est très très bien.") == "C'est très très bien.")
         #expect(TextCleanup.clean("Oui oui, d'accord.") == "Oui oui, d'accord.")
     }
 
-    @Test func neFusionnePasDeuxPhrases() {
-        // Une ponctuation entre les deux occurrences signale une vraie reprise.
+    @Test func doesNotMergeTwoSentences() {
+        // Punctuation between the two occurrences signals a real restart.
         #expect(TextCleanup.clean("Je pense à ça. À ça aussi.") == "Je pense à ça. À ça aussi.")
     }
 
-    @Test func retireLesHésitations() {
+    @Test func removesHesitations() {
         #expect(TextCleanup.clean("Alors euh je voulais dire") == "Alors je voulais dire")
         #expect(TextCleanup.clean("Bon, euh. Voilà.") == "Bon, Voilà.")
         #expect(TextCleanup.clean("euh, bonjour") == "Bonjour")
     }
 }
 
-@Suite("Remplacements")
+@Suite("Replacements")
 struct ReplacementTests {
     let rules = [
         Replacement(original: "super whisper", with: "Superwhisper"),
         Replacement(original: "sitié", with: "CTA"),
     ]
 
-    @Test func insensibleÀLaCasseSurMotsEntiers() {
+    @Test func matchesWholeWordsCaseInsensitively() {
         #expect(ReplacementStore.apply(rules, to: "J'utilise Super Whisper.") == "J'utilise Superwhisper.")
         #expect(ReplacementStore.apply(rules, to: "Le sitié est rouge") == "Le CTA est rouge")
         #expect(ReplacementStore.apply(rules, to: "la densitié") == "la densitié")
     }
 
-    @Test func ignoreLesRèglesVides() {
+    @Test func ignoresEmptyRules() {
         #expect(ReplacementStore.apply([Replacement(original: " ", with: "x")], to: "a b") == "a b")
     }
 }
 
-@Suite("Tours de parole")
+@Suite("Speaker turns")
 struct TranscriptBuilderTests {
     func words(_ items: [(String, Double, Double)]) -> [Word] {
         items.map { Word(text: $0.0, start: $0.1, end: $0.2) }
     }
 
-    @Test func attribueLesMotsAuxLocuteurs() {
-        let w = words([("Bonjour", 0, 0.5), ("Marie.", 0.6, 1.0), ("Salut", 2.0, 2.4), ("Thomas.", 2.5, 3.0)])
-        let turns = [SpeakerTurn(speaker: "S1", start: 0, end: 1.2), SpeakerTurn(speaker: "S2", start: 1.8, end: 3.2)]
-        let names = TranscriptBuilder.names(for: turns)
-        let segments = TranscriptBuilder.segments(words: w, turns: turns, names: names, fallback: "?", channel: .mic)
-        #expect(segments.map(\.speaker) == ["Interlocuteur 1", "Interlocuteur 2"])
-        #expect(segments.map(\.text) == ["Bonjour Marie.", "Salut Thomas."])
-        #expect(segments[1].start == 2.0)
+    @Test func assignsWordsToSpeakers() {
+        L10n.$override.withValue(.french) {
+            let w = words([("Bonjour", 0, 0.5), ("Marie.", 0.6, 1.0), ("Salut", 2.0, 2.4), ("Thomas.", 2.5, 3.0)])
+            let turns = [SpeakerTurn(speaker: "S1", start: 0, end: 1.2), SpeakerTurn(speaker: "S2", start: 1.8, end: 3.2)]
+            let names = TranscriptBuilder.names(for: turns)
+            let segments = TranscriptBuilder.segments(words: w, turns: turns, names: names, fallback: "?", channel: .mic)
+            #expect(segments.map(\.speaker) == ["Interlocuteur 1", "Interlocuteur 2"])
+            #expect(segments.map(\.text) == ["Bonjour Marie.", "Salut Thomas."])
+            #expect(segments[1].start == 2.0)
+        }
     }
 
-    @Test func rendUnMotIsoléAuLocuteurEnvironnant() {
+    @Test func givesAnIsolatedWordToTheSurroundingSpeaker() {
         let w = words([("je", 0, 0.2), ("pense", 0.3, 0.6), ("que", 0.7, 0.8), ("oui", 0.9, 1.1), ("vraiment", 1.2, 1.6)])
         var labels = ["A", "A", "B", "A", "A"]
         TranscriptBuilder.smooth(&labels, words: w)
         #expect(labels == ["A", "A", "A", "A", "A"])
     }
 
-    @Test func gardeUneRéponseCourteEnFinDePhrase() {
+    @Test func keepsAShortReplyAtSentenceEnd() {
         let w = words([("D'accord", 0, 0.4), ("?", 0.4, 0.5), ("Oui.", 1.0, 1.3), ("Parfait", 2.0, 2.5)])
         var labels = ["A", "A", "B", "A"]
         TranscriptBuilder.smooth(&labels, words: [w[0], Word(text: "d'accord ?", start: 0.4, end: 0.5), w[2], w[3]])
         #expect(labels == ["A", "A", "B", "A"])
     }
 
-    @Test func sansDiarisationToutRevientAuLocuteurParDéfaut() {
+    @Test func withoutDiarizationEverythingGoesToTheDefaultSpeaker() {
         let w = words([("Un", 0, 0.2), ("test.", 0.3, 0.6)])
         let segments = TranscriptBuilder.segments(words: w, turns: [], names: [:], fallback: "Moi", channel: .mic)
         #expect(segments.count == 1)
         #expect(segments[0].speaker == "Moi")
     }
 
-    @Test func ouvreUnParagrapheAprèsUneLonguePause() {
+    @Test func startsAParagraphAfterALongPause() {
         let w = words([("Premier.", 0, 0.5), ("Second.", 5.0, 5.5)])
         let segments = TranscriptBuilder.segments(words: w, turns: [], names: [:], fallback: "Moi", channel: .mic)
         #expect(segments.count == 2)
     }
 
-    /// Mots système étalés régulièrement à partir de `start`.
+    /// System-audio words spread evenly from `start`.
     func spread(_ text: String, from start: Double, step: Double = 0.4) -> [Word] {
         text.split(separator: " ").enumerated().map { index, word in
             Word(text: String(word), start: start + Double(index) * step, end: start + Double(index) * step + 0.3)
         }
     }
 
-    @Test func retireLÉchoDuSonSystèmeDansLeMicro() {
+    @Test func removesSystemAudioEchoFromTheMic() {
         let system = spread("On se retrouve demain à dix heures au bureau.", from: 10)
         let mic = [
             Segment(id: 0, speaker: "Moi", channel: .mic, start: 10.2, end: 14.1, text: "on se retrouve demain à dix heures au bureau"),
@@ -113,8 +115,8 @@ struct TranscriptBuilderTests {
         #expect(kept.map(\.id) == [1])
     }
 
-    @Test func gardeUneVraieRéponsePendantUnLongMonologue() {
-        // L'autre parle longuement avec des mots courants ; ma réponse les réutilise sans le répéter.
+    @Test func keepsARealReplyDuringALongMonologue() {
+        // The other person talks at length with common words; my reply reuses them without repeating it.
         let monologue = "alors oui je vois ce que tu veux dire mais d'accord on en parle maintenant parce que ça me va"
         let system = spread(monologue, from: 0, step: 0.5)
         let mic = [
@@ -125,7 +127,7 @@ struct TranscriptBuilderTests {
         #expect(kept.map(\.id) == [0, 1])
     }
 
-    @Test func fusionneLesCanauxDansLOrdreChronologique() {
+    @Test func mergesChannelsInChronologicalOrder() {
         let a = [Segment(id: 0, speaker: "Moi", channel: .mic, start: 5, end: 6, text: "b")]
         let b = [Segment(id: 0, speaker: "Interlocuteur 1", channel: .system, start: 1, end: 2, text: "a")]
         let merged = TranscriptBuilder.merge([a, b])
@@ -133,8 +135,8 @@ struct TranscriptBuilderTests {
         #expect(merged.map(\.id) == [0, 1])
     }
 
-    @Test func intercaleUneInterventionAuMilieuDUnLongTour() {
-        // L'autre parle 12 s en trois phrases ; j'interviens à 5 s.
+    @Test func interleavesAnInterruptionInALongTurn() {
+        // The other person talks for 12 s in three sentences; I cut in at 5 s.
         let long = spread("Première phrase assez longue. Deuxième phrase tout aussi longue. Troisième phrase pour finir.", from: 0, step: 1.0)
         let other = TranscriptBuilder.Run(speaker: "sys:S1", channel: .system, words: long)
         let mine = TranscriptBuilder.Run(
@@ -145,25 +147,27 @@ struct TranscriptBuilderTests {
         #expect(result[2].text.hasPrefix("Deuxième phrase"))
     }
 
-    @Test func neCoupePasSansIntervention() {
+    @Test func doesNotSplitWithoutInterruption() {
         let long = spread("Une phrase. Puis une autre. Et une dernière.", from: 0, step: 0.5)
         let result = TranscriptBuilder.interleave([TranscriptBuilder.Run(speaker: "a", channel: .system, words: long)])
         #expect(result.count == 1)
     }
 
-    @Test func numéroteDansLOrdreDIntervention() {
-        let runs = [
-            TranscriptBuilder.Run(speaker: "sys:S3", channel: .system, words: words([("Bonjour.", 0, 1)])),
-            TranscriptBuilder.Run(speaker: "mic:S1", channel: .mic, words: words([("Salut.", 1, 2)])),
-            TranscriptBuilder.Run(speaker: "sys:S1", channel: .system, words: words([("Hello.", 2, 3)])),
-            TranscriptBuilder.Run(speaker: "sys:S3", channel: .system, words: words([("Bien.", 3, 4)])),
-        ]
-        let segments = TranscriptBuilder.segments(from: runs, me: ["mic:S1"])
-        #expect(segments.map(\.speaker) == ["Interlocuteur 1", "Moi", "Interlocuteur 2", "Interlocuteur 1"])
+    @Test func numbersSpeakersInOrderOfAppearance() {
+        L10n.$override.withValue(.french) {
+            let runs = [
+                TranscriptBuilder.Run(speaker: "sys:S3", channel: .system, words: words([("Bonjour.", 0, 1)])),
+                TranscriptBuilder.Run(speaker: "mic:S1", channel: .mic, words: words([("Salut.", 1, 2)])),
+                TranscriptBuilder.Run(speaker: "sys:S1", channel: .system, words: words([("Hello.", 2, 3)])),
+                TranscriptBuilder.Run(speaker: "sys:S3", channel: .system, words: words([("Bien.", 3, 4)])),
+            ]
+            let segments = TranscriptBuilder.segments(from: runs, me: ["mic:S1"])
+            #expect(segments.map(\.speaker) == ["Interlocuteur 1", "Moi", "Interlocuteur 2", "Interlocuteur 1"])
+        }
     }
 
-    @Test func recaleLeChangementDeVoixSurLaPause() {
-        // « … pour performer encore plus | c'est le bouche à oreille » : la diarisation a coupé un mot trop tôt.
+    @Test func snapsVoiceChangeToThePause() {
+        // "… pour performer encore plus | c'est le bouche à oreille": diarization cut one word too early.
         let w = words([
             ("pour", 0.0, 0.2), ("performer", 0.2, 0.7), ("encore", 0.7, 1.0), ("plus", 1.0, 1.2),
             ("c'est", 1.9, 2.1), ("le", 2.1, 2.2), ("bouche", 2.2, 2.5), ("à", 2.5, 2.6), ("oreille", 2.6, 3.0),
@@ -173,8 +177,8 @@ struct TranscriptBuilderTests {
         #expect(labels == ["A", "A", "A", "A", "B", "B", "B", "B", "B"])
     }
 
-    @Test func recaleLeChangementDeVoixSurLaFinDePhrase() {
-        // « … à la monnaie. Là on a | sorti quelques leviers » : les trois mots vont avec la suite.
+    @Test func snapsVoiceChangeToTheSentenceEnd() {
+        // "… à la monnaie. Là on a | sorti quelques leviers": the three words go with what follows.
         let w = words([
             ("à", 0.0, 0.1), ("la", 0.1, 0.2), ("monnaie.", 0.2, 0.7), ("Là", 0.75, 0.9), ("on", 0.9, 1.0),
             ("a", 1.0, 1.1), ("sorti", 1.1, 1.4), ("quelques", 1.4, 1.7), ("leviers", 1.7, 2.1),
@@ -184,37 +188,39 @@ struct TranscriptBuilderTests {
         #expect(labels == ["A", "A", "A", "B", "B", "B", "B", "B", "B"])
     }
 
-    @Test func laisseUneFrontièreDéjàBienPlacée() {
+    @Test func leavesAWellPlacedBoundaryAlone() {
         let w = words([("Tu", 0, 0.2), ("viens", 0.2, 0.5), ("demain", 0.5, 0.9), ("?", 0.9, 1.0), ("Oui,", 1.6, 1.8), ("bien", 1.8, 2.0), ("sûr.", 2.0, 2.3)])
         var labels = ["A", "A", "A", "A", "B", "B", "B"]
         TranscriptBuilder.snap(&labels, words: w)
         #expect(labels == ["A", "A", "A", "A", "B", "B", "B"])
     }
 
-    @Test func nommeMoiLeLocuteurReconnu() {
-        let turns = [SpeakerTurn(speaker: "S1", start: 0, end: 1), SpeakerTurn(speaker: "S2", start: 1, end: 2)]
-        let names = TranscriptBuilder.names(for: turns, startingAt: 3, me: "S2")
-        #expect(names == ["S1": "Interlocuteur 3", "S2": "Moi"])
+    @Test func namesTheRecognizedSpeakerMe() {
+        L10n.$override.withValue(.french) {
+            let turns = [SpeakerTurn(speaker: "S1", start: 0, end: 1), SpeakerTurn(speaker: "S2", start: 1, end: 2)]
+            let names = TranscriptBuilder.names(for: turns, startingAt: 3, me: "S2")
+            #expect(names == ["S1": "Interlocuteur 3", "S2": "Moi"])
+        }
     }
 }
 
-@Suite("Empreinte vocale et fusion des voix")
+@Suite("Voiceprint and voice merging")
 struct VoiceTests {
-    @Test func reconnaîtLaVoixLaPlusProche() {
+    @Test func recognizesTheClosestVoice() {
         let print = Voiceprint(embedding: [1, 0, 0], samples: 3)
         #expect(print.match(in: ["S1": [0, 1, 0], "S2": [0.9, 0.1, 0]]) == "S2")
         #expect(print.match(in: ["S1": [0, 1, 0]]) == nil)
     }
 
-    @Test func gardeDistinctesDeuxVoixSeulementProches() {
-        // Ressemblance d'environ 0,5 : deux personnes à la voix proche, pas la même personne.
+    @Test func keepsTwoMerelySimilarVoicesApart() {
+        // Similarity of about 0.5: two people with close voices, not the same person.
         let output = DiarizationOutput(
             turns: [SpeakerTurn(speaker: "S1", start: 0, end: 1), SpeakerTurn(speaker: "S2", start: 1, end: 2)],
             embeddings: ["S1": [1, 0, 0], "S2": [0.5, 0.866, 0]])
         #expect(SpeechEngine.mergingSimilarVoices(output).embeddings.count == 2)
     }
 
-    @Test func retireUneVoixFantôme() {
+    @Test func removesAPhantomVoice() {
         let output = DiarizationOutput(
             turns: [
                 SpeakerTurn(speaker: "S1", start: 0, end: 300), SpeakerTurn(speaker: "S4", start: 300, end: 302),
@@ -226,7 +232,7 @@ struct VoiceTests {
         #expect(cleaned.embeddings["S4"] == nil)
     }
 
-    @Test func fusionneDeuxVoixQuasiIdentiques() {
+    @Test func mergesTwoNearlyIdenticalVoices() {
         let output = DiarizationOutput(
             turns: [
                 SpeakerTurn(speaker: "S1", start: 0, end: 1), SpeakerTurn(speaker: "S2", start: 1.1, end: 2),
@@ -239,7 +245,7 @@ struct VoiceTests {
         #expect(merged.turns[0].end == 2)
     }
 
-    @Test func laisseDeuxVoixDistinctes() {
+    @Test func leavesTwoDistinctVoicesAlone() {
         let output = DiarizationOutput(
             turns: [SpeakerTurn(speaker: "S1", start: 0, end: 1), SpeakerTurn(speaker: "S2", start: 1, end: 2)],
             embeddings: ["S1": [1, 0], "S2": [0.2, 1]])
@@ -247,7 +253,7 @@ struct VoiceTests {
     }
 }
 
-@Suite("Bibliothèque")
+@Suite("Library")
 struct LibraryTests {
     func makeStore() -> TranscriptStore {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
@@ -261,7 +267,7 @@ struct LibraryTests {
         return formatter.date(from: string)!
     }
 
-    @Test func enregistreListeEtRecherche() throws {
+    @Test func savesListsAndSearches() throws {
         let store = makeStore()
         defer { try? FileManager.default.removeItem(at: store.root) }
         let first = date("2026-10-01 09:00:00")
@@ -293,14 +299,14 @@ struct LibraryTests {
         #expect(index.split(separator: "\n").count == 2)
     }
 
-    @Test func deuxIdentifiantsRéservésAvantÉcritureSontDistincts() {
+    @Test func twoIDsReservedBeforeWritingAreDistinct() {
         let store = makeStore()
         let moment = date("2026-10-02 12:00:00")
         let ids = (0..<3).map { _ in store.makeID(for: moment) }
         #expect(Set(ids).count == 3)
     }
 
-    @Test func deuxIdentifiantsDansLaMêmeSecondeRestentOrdonnés() throws {
+    @Test func twoIDsInTheSameSecondStayOrdered() throws {
         let store = makeStore()
         defer { try? FileManager.default.removeItem(at: store.root) }
         let moment = date("2026-10-02 10:00:00")
@@ -312,7 +318,7 @@ struct LibraryTests {
         #expect(store.list().map(\.text) == ["deux", "un"])
     }
 
-    @Test func renommeUnInterlocuteur() throws {
+    @Test func renamesASpeaker() throws {
         let store = makeStore()
         defer { try? FileManager.default.removeItem(at: store.root) }
         let moment = date("2026-10-02 11:00:00")
@@ -332,9 +338,9 @@ struct LibraryTests {
     }
 }
 
-@Suite("Reprise des enregistrements interrompus")
+@Suite("Recovery of interrupted recordings")
 struct RecoveryTests {
-    @Test func repèreLAudioSansTranscript() throws {
+    @Test func findsAudioWithoutTranscript() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
         let store = TranscriptStore(root: root)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -343,7 +349,7 @@ struct RecoveryTests {
         Recovery.stash(silence, at: directory.appendingPathComponent("2026-10-02_10-00-00_mic.wav"))
         Recovery.stash(silence, at: directory.appendingPathComponent("2026-10-02_10-00-00_sys.wav"))
         Recovery.stash(silence, at: try Recovery.dictationURL(id: "2026-10-02_11-00-00", store: store))
-        // Celui-ci a déjà son transcript : il ne doit pas être repris.
+        // This one already has its transcript: it must not be recovered.
         Recovery.stash(silence, at: directory.appendingPathComponent("2026-10-02_12-00-00_mic.wav"))
         try store.save(
             Transcript(
@@ -360,12 +366,12 @@ struct RecoveryTests {
     }
 }
 
-@Suite("Enregistrements annulés")
+@Suite("Cancelled recordings")
 struct CancelledTests {
-    /// Une seconde de la a 440, assez fort pour ne pas passer pour du silence.
+    /// One second of a 440 Hz A, loud enough not to pass for silence.
     let tone = (0..<16_000).map { Float(sin(Double($0) * 2 * .pi * 440 / 16_000)) * 0.3 }
 
-    @Test func gardeListeEtSupprime() throws {
+    @Test func keepsListsAndDeletes() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }
         let store = CancelledStore(library: root)
@@ -383,7 +389,7 @@ struct CancelledTests {
         #expect(store.audioURLs(for: list[0]).count == 2)
         #expect(list[0].app == "Zoom")
 
-        // Le texte trouvé après coup s'ajoute à la fiche.
+        // Text found afterwards is added to the record.
         var dictation = list[1]
         dictation.text = "Bonjour à tous."
         store.update(dictation)
@@ -392,12 +398,12 @@ struct CancelledTests {
         store.delete(id: "2026-10-05_11-00-00")
         #expect(store.list().map(\.id) == ["2026-10-05_10-00-00"])
         #expect(!FileManager.default.fileExists(atPath: store.root.appendingPathComponent("2026-10-05_11-00-00_mic.m4a").path))
-        // Une fiche supprimée n'est pas recréée par une mise à jour tardive.
+        // A deleted record is not recreated by a late update.
         store.update(CancelledRecording(id: "2026-10-05_11-00-00", createdAt: now, mode: .meeting, duration: 1))
         #expect(store.list().count == 1)
     }
 
-    @Test func purgeCeQuiADépasséLeDélai() throws {
+    @Test func purgesWhatIsPastTheDeadline() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }
         let store = CancelledStore(library: root)
@@ -408,7 +414,7 @@ struct CancelledTests {
         #expect(store.list().map(\.id) == ["recent"])
     }
 
-    @Test func horsDeLIndexDeLaBibliothèque() throws {
+    @Test func staysOutOfTheLibraryIndex() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }
         try CancelledStore(library: root).keep(
@@ -418,8 +424,8 @@ struct CancelledTests {
         #expect(Recovery.pending(in: library).isEmpty)
     }
 
-    @Test func raccourciDAnnulationParDéfautEtSauvegarde() {
-        // Échap seul par défaut, comme avant ; modifiable dans les réglages.
+    @Test func cancelShortcutDefaultAndBackup() {
+        // Escape alone by default, as before; changeable in settings.
         #expect(PlumeSettings.defaultCancelShortcut == Shortcut(keyCode: 53, modifiers: 0))
         #expect(SettingsBackup.shortcutKeys.contains(PlumeSettings.Key.cancelShortcut))
         #expect(SettingsBackup.shortcutKeys.contains(PlumeSettings.Key.restoreShortcut))
@@ -427,9 +433,9 @@ struct CancelledTests {
     }
 }
 
-@Suite("Journal des modifications")
+@Suite("Changelog")
 struct ChangelogTests {
-    @Test func litVersionsEtEntrées() {
+    @Test func readsVersionsAndEntries() {
         let releases = Changelog.parse("""
             # Journal des modifications
 
@@ -462,9 +468,27 @@ struct ChangelogTests {
         #expect(releases[0].entries[1].text == "README en anglais")
         #expect(Changelog.signature(of: releases) == "1.0.0|Les enregistrements annulés restent récupérables")
     }
+
+    @Test func splitsTheAreaInBothFormats() {
+        let releases = Changelog.parse("""
+            ## 1.0.3
+            ### 2026-10-06
+            - Repo: code in English (#15)
+            - Historique : les annulés restent récupérables (#7)
+            - No area here, just text
+            - Première version publique : Plume 1.0
+            - Fixed a crash when the text says: hello world again
+            """)
+        #expect(releases[0].entries[0] == Changelog.Entry(date: "2026-10-06", domain: "Repo", text: "Code in English", pullRequest: 15))
+        #expect(releases[0].entries[1].domain == "Historique")
+        #expect(releases[0].entries[1].text == "Les annulés restent récupérables")
+        #expect(releases[0].entries[2].domain == nil)
+        #expect(releases[0].entries[3].domain == "Première version publique")
+        #expect(releases[0].entries[4].domain == nil)
+    }
 }
 
-@Suite("Statistiques")
+@Suite("Statistics")
 struct StatsTests {
     func date(_ string: String) -> Date {
         let formatter = DateFormatter()
@@ -479,7 +503,7 @@ struct StatsTests {
             text: Array(repeating: "mot", count: words).joined(separator: " "), rawText: "")
     }
 
-    @Test func totauxDébitEtTempsGagné() {
+    @Test func totalsRateAndTimeSaved() {
         let now = date("2026-10-02 18:00")
         let stats = LibraryStats(
             transcripts: [
@@ -490,9 +514,9 @@ struct StatsTests {
         #expect(stats.transcripts == 3)
         #expect(stats.words == 450)
         #expect(stats.wordsThisWeek == 400)
-        // 450 mots en 210 s : 129 mots par minute.
+        // 450 words in 210 s: 129 words per minute.
         #expect(stats.wordsPerMinute == 129)
-        // À 40 mots par minute, 450 mots demandent 675 s de frappe ; 210 s de parole.
+        // At 40 words per minute, 450 words take 675 s of typing; 210 s of speech.
         #expect(stats.timeSaved == 465)
         #expect(stats.streak == 2)
         #expect(stats.days.count == 371)
@@ -503,7 +527,7 @@ struct StatsTests {
         #expect(stats.days.reduce(0) { $0 + $1.words } == 450)
     }
 
-    @Test func laSérieTientSiRienNAÉtéDictéAujourdHui() {
+    @Test func streakHoldsIfNothingWasDictatedToday() {
         let stats = LibraryStats(
             transcripts: [dictation("2026-10-01 09:00", words: 10, seconds: 5), dictation("2026-09-30 09:00", words: 10, seconds: 5)],
             now: date("2026-10-02 08:00"))
@@ -513,7 +537,7 @@ struct StatsTests {
         #expect(broken.streak == 0)
     }
 
-    @Test func enRéunionSeulsMesMotsComptent() {
+    @Test func inMeetingsOnlyMyWordsCount() {
         let segments = [
             Segment(id: 0, speaker: "Moi", channel: .mic, start: 0, end: 1, text: "un deux trois"),
             Segment(id: 1, speaker: "Interlocuteur 1", channel: .system, start: 1, end: 2, text: "quatre cinq six sept"),
@@ -531,7 +555,7 @@ struct StatsTests {
 
 @Suite("Formats")
 struct FormatTests {
-    @Test func durées() {
+    @Test func durations() {
         #expect(Format.clock(65) == "1:05")
         #expect(Format.clock(3723) == "1:02:03")
         #expect(Format.duration(45) == "45 s")
@@ -539,18 +563,18 @@ struct FormatTests {
         #expect(Format.duration(3720) == "1 h 02 min")
     }
 
-    @Test func modesDepuisLeurNom() {
+    @Test func modesFromTheirSlug() {
         #expect(RecordingMode(slug: "reunion") == .meeting)
         #expect(RecordingMode(slug: "Dictée") == .dictation)
         #expect(RecordingMode(slug: "autre") == nil)
     }
 }
 
-@Suite("Commandes vocales")
+@Suite("Voice commands")
 struct VoiceCommandsTests {
     func run(_ text: String) -> String { VoiceCommands.apply(to: text).text }
 
-    @Test func sautsDeLigneEtParagraphes() {
+    @Test func lineBreaksAndParagraphs() {
         #expect(run("Bonjour Marc, à la ligne, je voulais te dire que c'est validé.") == "Bonjour Marc,\nJe voulais te dire que c'est validé.")
         #expect(run("C'est validé. Nouveau paragraphe. On se voit jeudi.") == "C'est validé.\n\nOn se voit jeudi.")
         #expect(run("Merci à la ligne bonne journée") == "Merci\nBonne journée")
@@ -558,7 +582,7 @@ struct VoiceCommandsTests {
         #expect(run("c'est fini point à la ligne et voilà") == "c'est fini.\nEt voilà")
     }
 
-    @Test func neConfondPasAvecLeLangageCourant() {
+    @Test func doesNotConfuseWithEverydayLanguage() {
         #expect(run("Il adore la pêche à la ligne.") == "Il adore la pêche à la ligne.")
         #expect(run("Regarde à la ligne 42 du fichier.") == "Regarde à la ligne 42 du fichier.")
         #expect(run("On passe à la ligne suivante.") == "On passe à la ligne suivante.")
@@ -567,7 +591,7 @@ struct VoiceCommandsTests {
         #expect(run("J'ai deux points de vue là-dessus.") == "J'ai deux points de vue là-dessus.")
     }
 
-    @Test func ponctuationDictée() {
+    @Test func dictatedPunctuation() {
         #expect(run("Tu viens demain point d'interrogation") == "Tu viens demain ?")
         #expect(run("Génial point d'exclamation on y va") == "Génial ! on y va")
         #expect(run("Liste de courses, deux points, à la ligne, tiret, des pâtes, à la ligne, tiret, des tomates") == "Liste de courses :\n- des pâtes\n- des tomates")
@@ -575,7 +599,7 @@ struct VoiceCommandsTests {
         #expect(run("Nouvelle puce premier point nouvelle puce deuxième point") == "\n- premier point\n- deuxième point")
     }
 
-    @Test func effaceÇa() {
+    @Test func scratchThat() {
         #expect(run("Je passe demain matin. Non en fait je passe demain soir. Efface ça. Je passe jeudi.") == "Je passe demain matin. Je passe jeudi.")
         #expect(run("Première idée. Efface ça.") == "")
         #expect(run("Bonjour. Deuxième phrase, efface ça, troisième phrase.") == "Bonjour. Troisième phrase.")
@@ -584,7 +608,7 @@ struct VoiceCommandsTests {
         #expect(run("Hello there. Scratch that. Hi.") == "Hi.")
     }
 
-    @Test func appuieSurEntrée() {
+    @Test func pressEnter() {
         let result = VoiceCommands.apply(to: "On se voit demain. Appuie sur Entrée.")
         #expect(result.text == "On se voit demain.")
         #expect(result.pressReturn)
@@ -593,7 +617,7 @@ struct VoiceCommandsTests {
     }
 }
 
-@Suite("Styles et insertion")
+@Suite("Styles and insertion")
 struct StyleTests {
     @Test func styles() {
         #expect(TextStyle.apply(.message, to: "Salut, on se voit demain.") == "Salut, on se voit demain")
@@ -603,7 +627,7 @@ struct StyleTests {
         #expect(TextStyle.apply(.standard, to: "Tel quel.") == "Tel quel.")
     }
 
-    @Test func règleParApplication() {
+    @Test func rulePerApp() {
         let rules = [
             AppRule(bundleID: "com.tinyspeck.slackmacgap", name: "Slack", style: .message),
             AppRule(bundleID: "*", name: "Autres", style: .casual),
@@ -614,7 +638,7 @@ struct StyleTests {
         #expect(AppRuleStore.rule(for: "x", in: [rules[0]]) == nil)
     }
 
-    @Test func insertionIntelligente() {
+    @Test func smartInsertion() {
         let text = "Je passe demain."
         #expect(SmartInsert.adapt(text, context: .empty) == text)
         #expect(SmartInsert.adapt(text, context: InsertionContext(before: "Bonjour.")) == " Je passe demain.")
@@ -627,7 +651,7 @@ struct StyleTests {
         #expect(SmartInsert.adapt(text, context: InsertionContext(before: "donc", after: "\nSuite")) == " je passe demain.")
     }
 
-    @Test func miseEnFormeComplète() {
+    @Test func fullFormatting() {
         let options = DictationOptions(cleanup: true, voiceCommands: true, style: .message)
         let result = Pipeline.format("euh bonjour Marc, à la ligne, c'est c'est validé. Appuie sur entrée.", options: options, replacements: [])
         #expect(result.text == "Bonjour Marc,\nC'est validé")
@@ -635,7 +659,7 @@ struct StyleTests {
     }
 }
 
-@Suite("Export et entretien")
+@Suite("Export and maintenance")
 struct ExportTests {
     let meeting: Transcript = {
         let segments = [
@@ -648,7 +672,7 @@ struct ExportTests {
             title: "Point budget", summary: "## Points clés\n- Budget validé")
     }()
 
-    @Test func sousTitres() {
+    @Test func subtitles() {
         let srt = Exporter.render(meeting, as: .subtitles)
         #expect(srt.hasPrefix("1\n00:00:00,000 --> 00:00:02,500\nMoi : On valide le budget ?\n"))
         #expect(srt.contains("2\n00:00:02,500 --> 00:00:04,000\nInès : Oui, validé."))
@@ -657,7 +681,7 @@ struct ExportTests {
         #expect(Exporter.fileName(for: meeting, format: .subtitles) == "2026-10-02_11-30-00 Point budget.srt")
     }
 
-    @Test func découpeLesLonguesRépliques() {
+    @Test func splitsLongLines() {
         let long = Transcript(
             id: "x", createdAt: Date(), mode: .imported, duration: 20, engine: "t",
             text: String(repeating: "mot ", count: 60).trimmingCharacters(in: .whitespaces), rawText: "")
@@ -667,14 +691,16 @@ struct ExportTests {
         #expect(abs((cues.last?.end ?? 0) - 20) < 0.001)
     }
 
-    @Test func markdownAvecRésuméEtTitre() {
-        let md = TranscriptStore.markdown(for: meeting)
-        #expect(md.contains("# Point budget\nRéunion du"))
-        #expect(md.contains("## Résumé\n\n## Points clés\n- Budget validé\n\n## Transcription"))
-        #expect(Exporter.render(meeting, as: .text).hasPrefix("Point budget\n\n## Points clés"))
+    @Test func markdownWithSummaryAndTitle() {
+        L10n.$override.withValue(.french) {
+            let md = TranscriptStore.markdown(for: meeting)
+            #expect(md.contains("# Point budget\nRéunion du"))
+            #expect(md.contains("## Résumé\n\n## Points clés\n- Budget validé\n\n## Transcription"))
+            #expect(Exporter.render(meeting, as: .text).hasPrefix("Point budget\n\n## Points clés"))
+        }
     }
 
-    @Test func supprimeLAudioAncien() throws {
+    @Test func deletesOldAudio() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
         let store = TranscriptStore(root: root)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -697,9 +723,9 @@ struct ExportTests {
     }
 }
 
-@Suite("Sauvegarde des réglages")
+@Suite("Settings backup")
 struct SettingsBackupTests {
-    @Test func allerRetour() throws {
+    @Test func roundTrip() throws {
         let file = SettingsBackup.File(
             date: Date(), shortcuts: ["dictationShortcut": Shortcut(keyCode: 49, modifiers: ModifierMask.option)],
             booleans: ["voiceCommands": false, "pasInconnu": true], numbers: ["audioRetentionDays": 30], strings: ["soundPack": "bips"],
@@ -715,9 +741,9 @@ struct SettingsBackupTests {
     }
 }
 
-@Suite("IA locale, sans modèle")
+@Suite("Local AI, without a model")
 struct LocalAITests {
-    @Test func découpeAuxParagraphes() {
+    @Test func splitsAtParagraphs() {
         let paragraph = String(repeating: "Une phrase courte. ", count: 20)
         let text = (0..<12).map { _ in paragraph }.joined(separator: "\n")
         let chunks = LocalAI.chunks(of: text, limit: 1_000)
@@ -727,7 +753,7 @@ struct LocalAITests {
         #expect(LocalAI.chunks(of: "court") == ["court"])
     }
 
-    @Test func nettoieLaRéponse() {
+    @Test func cleansTheReply() {
         #expect(LocalAI.stripped("Voici le texte corrigé : Bonjour.") == "Bonjour.")
         #expect(LocalAI.stripped("```\nBonjour.\n```") == "Bonjour.")
         #expect(LocalAI.stripped("« Bonjour. »") == "Bonjour.")
@@ -738,22 +764,22 @@ struct LocalAITests {
 }
 
 extension LocalAITests {
-    @Test func remetLeMarkdownDAplomb() {
+    @Test func tidiesMarkdown() {
         let raw = "- ## Points clés\n  - La page est prête.\n  * Annonce jeudi.\n\n\n- ## Actions\n  - Thomas : captures."
         #expect(LocalAI.tidyMarkdown(raw) == "## Points clés\n- La page est prête.\n- Annonce jeudi.\n\n## Actions\n- Thomas : captures.")
     }
 }
 
-@Suite("Modèles de transcription")
+@Suite("Transcription models")
 struct EngineModelTests {
-    @Test func tousDécritsEtLePersonnaliséEnDernier() {
+    @Test func allDescribedAndCustomLast() {
         #expect(EngineModel.allCases.allSatisfy { !$0.label.isEmpty && !$0.detail.isEmpty })
         #expect(EngineModel.allCases.last == .custom)
         #expect(EngineModel.allCases.filter { !$0.isBuiltIn } == [.custom])
         #expect(EngineModel(rawValue: "parakeet-ultra") == .parakeetUltra)
     }
 
-    @Test func dossierPersonnaliséIncomplet() throws {
+    @Test func incompleteCustomFolder() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("plume-modele-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -765,25 +791,57 @@ struct EngineModelTests {
     }
 }
 
-@Suite("Langue de l'interface")
+@Suite("Interface language")
 struct LocalizationTests {
-    @Test func traduitEnAnglaisEtRevientAuFrançais() {
+    @Test func translatesToEnglishAndBackToFrench() {
         L10n.$override.withValue(.english) {
-            #expect(tr("Historique") == "History")
-            #expect(tr("Chaîne inconnue de la table") == "Chaîne inconnue de la table")
+            #expect(tr("History") == "History")
+            #expect(tr("String missing from the table") == "String missing from the table")
             #expect(TranscriptBuilder.speakerName(1) == "Speaker 1")
             #expect(TranscriptBuilder.meName == "Me")
             #expect(RecordingMode.meeting.label == "Meeting")
         }
         L10n.$override.withValue(.french) {
-            #expect(tr("Historique") == "Historique")
+            #expect(tr("History") == "Historique")
+            #expect(tr("String missing from the table") == "String missing from the table")
+            #expect(tr("Microphone") == "Micro")
+            #expect(tr("Microphone access") == "Microphone")
+            #expect(tr("Import") == "Import")
+            #expect(tr("Import file") == "Importer")
             #expect(TranscriptBuilder.speakerName(1) == "Interlocuteur 1")
             #expect(TranscriptBuilder.isMe("Me") && TranscriptBuilder.isMe("Moi") && !TranscriptBuilder.isMe("Inès"))
         }
     }
 
-    @Test func aucuneTraductionVide() {
+    @Test func noEmptyTranslation() {
         #expect(L10n.missing.isEmpty)
         #expect(Language.english.locale.identifier == "en_US")
+    }
+
+    /// Every single-line `tr("…")` literal in Sources must be a key of the French table.
+    /// Multi-line `tr("""…""")` literals and calls with interpolation are skipped.
+    @Test func everyTrLiteralHasAFrenchEntry() throws {
+        let sources = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources")
+        let call = try NSRegularExpression(pattern: #"(?<![A-Za-z0-9_.])tr\("((?:[^"\\]|\\.)*)"\)"#)
+        let files = try #require(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+        var checked = 0
+        var missing: [String] = []
+        for case let file as URL in files where file.pathExtension == "swift" {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            for match in call.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+                let raw = String(text[Range(match.range(at: 1), in: text)!])
+                guard !raw.contains("\\("), raw.contains(where: \.isLetter), raw != "Plume" else { continue }
+                let key = raw
+                    .replacingOccurrences(of: "\\n", with: "\n")
+                    .replacingOccurrences(of: "\\\"", with: "\"")
+                    .replacingOccurrences(of: "\\\\", with: "\\")
+                checked += 1
+                if L10nTable.french[key] == nil { missing.append("\(file.lastPathComponent): \(raw.prefix(60))") }
+            }
+        }
+        #expect(checked > 100)
+        #expect(missing.isEmpty, "Keys missing from L10nTable.french: \(missing)")
     }
 }

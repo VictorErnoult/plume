@@ -1,8 +1,8 @@
 #!/bin/zsh
-# Compile Plume et assemble build/Plume.app, signée avec l'identité locale.
-#   ./scripts/build.sh            compile et assemble
-#   ./scripts/build.sh --install  … puis installe dans /Applications et relance l'app
-# Pour publier une version destinée à d'autres Mac : ./scripts/release.sh
+# Build Plume and assemble build/Plume.app, signed with the local identity.
+#   ./scripts/build.sh            build and assemble
+#   ./scripts/build.sh --install  ... then install into /Applications and relaunch the app
+# To release a version for other Macs: ./scripts/release.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,7 +21,7 @@ if [[ "${1:-}" == "--install" ]]; then
   mkdir -p "$HOME/.local/bin"
   ln -sf /Applications/Plume.app/Contents/MacOS/Plume "$HOME/.local/bin/plume"
   open /Applications/Plume.app
-  echo "Installée : /Applications/Plume.app (commande : plume)"
+  echo "Installed: /Applications/Plume.app (command: plume)"
 else
-  echo "Assemblée : $APP"
+  echo "Assembled: $APP"
 fi

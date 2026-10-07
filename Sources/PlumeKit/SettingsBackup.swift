@@ -1,9 +1,9 @@
 import Foundation
 
-/// Sauvegarde et restauration de tous les réglages dans un seul fichier JSON : raccourcis,
-/// options, vocabulaire, règles par application. Pour retrouver son Plume sur un autre Mac,
-/// ou partager sa configuration. Le dossier de bibliothèque et le micro, propres à chaque
-/// machine, n'en font pas partie.
+/// Backup and restore of all the settings in a single JSON file: shortcuts,
+/// options, vocabulary, per-app rules. To get your Plume back on another Mac,
+/// or share your configuration. The library folder and the microphone, specific to each
+/// machine, are not part of it.
 public enum SettingsBackup {
     public struct File: Codable, Sendable, Equatable {
         public var version = 1
@@ -68,7 +68,7 @@ public enum SettingsBackup {
 
     public static func restore(_ file: File, settings: PlumeSettings = .shared) {
         let defaults = settings.defaults
-        // Seules les clés connues sont relues : un fichier bricolé ne peut rien écrire d'autre.
+        // Only known keys are read back: a tampered file can't write anything else.
         for (key, value) in file.booleans where booleanKeys.contains(key) { defaults.set(value, forKey: key) }
         for (key, value) in file.numbers where numberKeys.contains(key) {
             let integer = key == PlumeSettings.Key.audioRetentionDays || key == PlumeSettings.Key.cancelledRetentionHours

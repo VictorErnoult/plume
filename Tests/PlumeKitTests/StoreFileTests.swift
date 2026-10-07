@@ -2,9 +2,9 @@ import Foundation
 import Testing
 @testable import PlumeKit
 
-/// Les fichiers de réglages annexes se lisent et s'écrivent à un endroit donné : les tests et le
-/// générateur d'échantillons passent par le même code que l'app, sans toucher au vrai dossier.
-@Suite("Fichiers de réglages")
+/// The side settings files are read and written at a given location: the tests and the sample
+/// generator go through the same code as the app, without touching the real folder.
+@Suite("Settings files")
 struct StoreFileTests {
     private func temporaryFile(_ name: String) -> URL {
         FileManager.default.temporaryDirectory
@@ -12,7 +12,7 @@ struct StoreFileTests {
             .appendingPathComponent(name)
     }
 
-    @Test func leVocabulaireSeRelitTelQuel() throws {
+    @Test func vocabularyReadsBackAsWritten() throws {
         let url = temporaryFile("remplacements.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let items = [Replacement(original: "sitié", with: "CTA"), Replacement(original: "ma signature", with: "Paul\nÉquipe")]
@@ -20,7 +20,7 @@ struct StoreFileTests {
         #expect(ReplacementStore.read(from: url) == items)
     }
 
-    @Test func lesRèglesSeRelisentTellesQuelles() throws {
+    @Test func rulesReadBackAsWritten() throws {
         let url = temporaryFile("applications.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let rules = [AppRule(bundleID: "com.apple.mail", name: "Mail", style: .message, pressReturn: true)]
@@ -28,7 +28,7 @@ struct StoreFileTests {
         #expect(AppRuleStore.read(from: url) == rules)
     }
 
-    @Test func lEmpreinteVocaleSeRelitTelleQuelle() throws {
+    @Test func voiceprintReadsBackAsWritten() throws {
         let url = temporaryFile("empreinte-vocale.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         try VoiceprintStore.write(Voiceprint(embedding: [0.125, -0.5], samples: 2), to: url)
@@ -37,10 +37,10 @@ struct StoreFileTests {
         #expect(read.samples == 2)
     }
 
-    @Test func laSauvegardeDesRéglagesSeRelitTelleQuelle() throws {
+    @Test func settingsBackupReadsBackAsWritten() throws {
         let url = temporaryFile("reglages.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        // Comme `export`, `write` écrit dans un dossier qui existe.
+        // Like `export`, `write` writes into a folder that exists.
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let file = SettingsBackup.File(
             date: Date(timeIntervalSince1970: 1_790_000_000),
@@ -51,7 +51,7 @@ struct StoreFileTests {
         #expect(try SettingsBackup.read(from: url) == file)
     }
 
-    @Test func unFichierAbsentOuIllisibleNeSeLitPas() throws {
+    @Test func aMissingOrUnreadableFileIsNotRead() throws {
         let url = temporaryFile("remplacements.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         #expect(ReplacementStore.read(from: url) == nil)

@@ -1,0 +1,3 @@
+NSMicrophoneUsageDescription = "Plume écoute le micro pour transcrire ce que tu dictes. Tout reste sur ce Mac.";
+NSAudioCaptureUsageDescription = "Plume capte le son de l'ordinateur pendant une réunion pour transcrire les autres participants. Tout reste sur ce Mac.";
+NSLocalNetworkUsageDescription = "Plume reçoit les enregistrements envoyés par ton iPhone sur le réseau local.";

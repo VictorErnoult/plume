@@ -2,9 +2,9 @@ import AppKit
 import PlumeKit
 import SwiftUI
 
-/// La page « Applications » : pour chaque app, l'allure du texte dicté, l'envoi avec Entrée,
-/// la mise au propre par l'IA et la méthode d'insertion. Une seule liste, sans « modes » à
-/// configurer : Plume reconnaît l'app au premier plan et applique sa règle.
+/// The "Applications" page: for each app, the style of the dictated text, sending with Return,
+/// the AI clean-up and the insertion method. A single list, with no "modes" to
+/// configure: Plume recognizes the frontmost app and applies its rule.
 struct ApplicationsPage: View {
     @ObservedObject var settings: SettingsModel
 
@@ -13,15 +13,15 @@ struct ApplicationsPage: View {
             VStack(alignment: .leading, spacing: 18) {
                 PageHeader(
                     title: tr("Applications"),
-                    subtitle: tr("Plume adapte la dictée à l'app dans laquelle tu parles : un message sur Slack n'a pas la tenue d'un mail.")
+                    subtitle: tr("Plume adapts the dictation to the app you are talking in: a Slack message doesn't have the polish of an email.")
                 ) {
                     HStack(spacing: 6) {
                         if !settings.rules.contains(where: { $0.bundleID == "*" }) {
-                            PlumeButton(title: tr("Toutes les autres"), icon: .layoutGrid) {
+                            PlumeButton(title: tr("All others"), icon: .layoutGrid) {
                                 withAnimation(UI.spring) { settings.addDefaultRule() }
                             }
                         }
-                        PlumeButton(title: tr("Ajouter une app"), icon: .plus, kind: .primary) { settings.addRule() }
+                        PlumeButton(title: tr("Add an app"), icon: .plus, kind: .primary) { settings.addRule() }
                     }
                 }
                 .rise(0)
@@ -29,10 +29,10 @@ struct ApplicationsPage: View {
                 if settings.rules.isEmpty {
                     Card {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(tr("Aucune règle pour l'instant")).font(UI.sans(14, .medium))
+                            Text(tr("No rules yet")).font(UI.sans(14, .medium))
                             Text(
-                                tr("Sans règle, chaque dictée est collée telle quelle. Ajoute Slack ou Messages pour écrire sans point final, ")
-                                    + tr("ton app de mail pour une mise au propre par l'IA, ou ton terminal pour valider avec Entrée.")
+                                tr("Without a rule, each dictation is pasted as is. Add Slack or Messages to write without a final period, ")
+                                    + tr("your mail app for an AI clean-up, or your terminal to confirm with Return.")
                             )
                             .font(UI.sans(13))
                             .foregroundStyle(UI.text2)
@@ -51,7 +51,7 @@ struct ApplicationsPage: View {
                     .transition(.opacity.combined(with: .offset(y: -6)))
                 }
 
-                Text(tr("Les styles : Standard garde majuscules et ponctuation ; Message retire le point final ; Décontracté retire aussi la majuscule de début de phrase. « Toutes les autres » s'applique aux apps sans règle."))
+                Text(tr("Styles: Standard keeps capitals and punctuation; Message drops the final period; Casual also drops the capital at the start of a sentence. “All others” applies to apps without a rule."))
                     .font(UI.sans(13))
                     .foregroundStyle(UI.text2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -67,7 +67,7 @@ struct ApplicationsPage: View {
     }
 }
 
-/// Une règle : l'app en tête, ses quatre réglages en dessous.
+/// A rule: the app on top, its four settings below.
 private struct RuleCard: View {
     @Binding var rule: AppRule
     var icon: NSImage?
@@ -107,7 +107,7 @@ private struct RuleCard: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(PressStyle())
-                    .help(tr("Retirer cette règle"))
+                    .help(tr("Remove this rule"))
                     .opacity(hovering ? 1 : 0.5)
                 }
                 .padding(.horizontal, 14)
@@ -115,18 +115,18 @@ private struct RuleCard: View {
 
                 Rectangle().fill(UI.line).frame(height: 1).padding(.leading, 14)
                 RuleToggle(
-                    "Valider avec Entrée", detail: tr("Le message part dès que le texte est collé."), isOn: $rule.pressReturn)
+                    tr("Send with Return"), detail: tr("The message is sent as soon as the text is pasted."), isOn: $rule.pressReturn)
                 Rectangle().fill(UI.line).frame(height: 1).padding(.leading, 14)
                 RuleToggle(
-                    tr("Mettre au propre par l'IA locale"),
-                    detail: ai.isAvailable ? tr("Ponctuation, faux départs et auto-corrections repris par Apple Intelligence.") : (ai.reason ?? ""),
+                    tr("Clean up with the local AI"),
+                    detail: ai.isAvailable ? tr("Punctuation, false starts and self-corrections fixed by Apple Intelligence.") : (ai.reason ?? ""),
                     isOn: $rule.polish
                 )
                 .disabled(!ai.isAvailable)
                 if rule.polish, ai.isAvailable {
                     HStack(spacing: 10) {
-                        Text(tr("Consignes")).font(UI.sans(13)).foregroundStyle(UI.text2)
-                        TextField(tr("tutoie, pas d'émojis, ton direct…"), text: $rule.instructions)
+                        Text(tr("Instructions")).font(UI.sans(13)).foregroundStyle(UI.text2)
+                        TextField(tr("informal tone, no emojis, be direct…"), text: $rule.instructions)
                             .textFieldStyle(.plain)
                             .font(UI.sans(13))
                     }
@@ -136,8 +136,8 @@ private struct RuleCard: View {
                 }
                 Rectangle().fill(UI.line).frame(height: 1).padding(.leading, 14)
                 RuleToggle(
-                    tr("Taper le texte au lieu de le coller"),
-                    detail: tr("Pour les apps qui refusent ⌘V (bureau à distance, certains terminaux)."), isOn: $rule.typeText)
+                    tr("Type the text instead of pasting it"),
+                    detail: tr("For apps that refuse ⌘V (remote desktop, some terminals)."), isOn: $rule.typeText)
             }
         }
         .onHover { hovering = $0 }

@@ -1,114 +1,111 @@
-# Plume — consignes pour les assistants IA
+# Plume — instructions for AI assistants
 
-Ce fichier s'adresse aux agents de code (Claude Code, Codex, Cursor…). Les humains trouveront
-l'essentiel dans le README.
+This file is for coding agents (Claude Code, Codex, Cursor…). Humans will find the essentials in
+the README.
 
-## Le projet
+## The project
 
-App macOS (barre de menus + « île » dans l'encoche) de dictée vocale et de transcription de
-réunions, entièrement locale. Swift 6 (mode de langage 5), SwiftPM seul : **pas de projet
-Xcode**, tout se compile avec les Command Line Tools. Mac Apple Silicon, macOS 15+.
+macOS app (menu bar + an "island" in the notch) for voice dictation and meeting transcription,
+fully local. Swift 6 (language mode 5), SwiftPM only: **no Xcode project**, everything builds
+with the Command Line Tools. Apple Silicon Mac, macOS 15+.
 
-- `Sources/PlumeKit/` : cœur sans interface (moteur FluidAudio/CoreML, pipeline, bibliothèque,
-  réglages). Testé dans `Tests/PlumeKitTests`.
-- `Sources/Plume/` : l'app (interface SwiftUI/AppKit, raccourcis, capture audio, sons, CLI,
-  serveur MCP, mises à jour Sparkle). Ce qui s'en isole se teste dans `Tests/PlumeTests`.
-- Carte fichier par fichier : `docs/DEVELOPPEMENT.md` ; choix techniques : `docs/PLAN.md` ;
-  fonctionnalités : `docs/GUIDE.md` ; publication : `docs/PUBLIER.md`.
+- `Sources/PlumeKit/`: core with no interface (FluidAudio/CoreML engine, pipeline, library,
+  settings). Tested in `Tests/PlumeKitTests`.
+- `Sources/Plume/`: the app (SwiftUI/AppKit interface, shortcuts, audio capture, sounds, CLI,
+  MCP server, Sparkle updates). Whatever can be isolated from it is tested in `Tests/PlumeTests`.
+- File-by-file map: `docs/DEVELOPMENT.md`; technical choices: `docs/PLAN.md`; features:
+  `docs/GUIDE.md`; releasing: `docs/RELEASING.md`.
 
-## Commandes
+## Commands
 
 ```sh
-swift build -c release          # compile (sans Xcode, SDK macOS 27 : voir docs/DEVELOPPEMENT.md)
-./scripts/test.sh               # tests (Swift Testing ; le script règle les chemins sans Xcode)
-./scripts/build.sh --install    # app complète dans /Applications, relancée
-.build/release/Plume doctor     # état des autorisations, du modèle, des écrans
-.build/release/Plume render <dossier> --demo   # captures de l'interface, données inventées
+swift build -c release          # build (without Xcode, macOS 27 SDK: see docs/DEVELOPMENT.md)
+./scripts/test.sh               # tests (Swift Testing; the script sets the paths without Xcode)
+./scripts/build.sh --install    # full app into /Applications, relaunched
+.build/release/Plume doctor     # state of permissions, model, screens
+.build/release/Plume render <folder> --demo   # interface screenshots, invented data
 ```
 
-Avant de dire qu'une modification marche : compiler, lancer les tests, et si l'interface
-change, regarder un rendu `plume render … --demo`.
+Before saying a change works: build, run the tests, and if the interface changes, look at a
+`plume render … --demo` output.
 
 ## Conventions
 
-- Code, commentaires et messages **en français**. Les textes de l'interface s'écrivent en
-  français dans le code, enveloppés dans `tr("…")`, avec leur traduction anglaise dans
-  `PlumeKit/L10nTable.swift` : l'anglais est la langue par défaut de l'app, le français se
-  choisit dans les réglages. Tutoiement en français. Commentaires en `///`, qui expliquent
-  le pourquoi. Calque-toi sur le style du fichier.
-- Pas de nouvelle dépendance sans en discuter dans une issue.
-- Les réglages passent par `PlumeSettings` (PlumeKit) et `SettingsModel` (app).
-- Les sons : `Sounds.swift` (synthèse) et `SoundPack` (packs enregistrés, `Resources/Sounds`).
-- Variables d'environnement d'essai (`PLUME_LIBRARY`, `PLUME_DEFAULTS`, `PLUME_SUPPORT`,
+- Code, comments, commit messages, PR descriptions and docs **in English**. UI strings are
+  written in English in the code, wrapped in `tr("…")`, with their French translation in
+  `PlumeKit/L10nTable.swift`: English is the app's default language, French is chosen in
+  Settings. French UI text uses the informal "tu". Comments are `///` and explain why. Match the
+  style of the file you are in.
+- No new dependency without discussing it in an issue first.
+- Settings go through `PlumeSettings` (PlumeKit) and `SettingsModel` (app).
+- Sounds: `Sounds.swift` (synthesis) and `SoundPack` (recorded packs, `Resources/Sounds`).
+- Trial environment variables (`PLUME_LIBRARY`, `PLUME_DEFAULTS`, `PLUME_SUPPORT`,
   `PLUME_CHANNEL`, `PLUME_HEADLESS`, `PLUME_FAKE_MIC`, `PLUME_FAKE_SYSTEM`, `PLUME_FAKE_CALL`,
-  `PLUME_NO_PASTE`, `PLUME_VERBOSE`…) : voir `docs/DEVELOPPEMENT.md`, section « Essais sans
-  micro ». Elles permettent de tout tester sans toucher à l'app installée, à ses réglages ni à
-  la vraie bibliothèque. Toujours mettre `PLUME_DEFAULTS` pour un essai : sans lui, le binaire
-  de développement écrit dans les réglages de l'app installée.
-- Chaque PR, ou chaque pile de PR fusionnées ensemble, ajoute une ligne en haut de
-  `CHANGELOG.md` : `- Domaine : effet, en quelques mots (#numéro)`, sous le `### <date>` du
-  jour (à créer s'il manque) ; une pile cite sa première PR. L'effet, pas la façon. Seule une
-  PR très mineure (coquille, retouche sans effet) n'en ajoute pas : tests, scripts et outils
-  ont leur ligne. La ligne va dans la version du haut tant qu'elle n'est pas publiée (pas de
-  tag `v<version>`) ; sinon, dans une nouvelle section `## <version suivante>`. On publie la
-  version du haut, et son titre prend alors la date de publication : `## <version> — <date>`.
+  `PLUME_NO_PASTE`, `PLUME_VERBOSE`…): see `docs/DEVELOPMENT.md`, section "Testing without a
+  microphone". They let you test everything without touching the installed app, its settings or
+  the real library. Always set `PLUME_DEFAULTS` for a trial: without it, the development binary
+  writes to the installed app's settings.
+- Each PR, or each stack of PRs merged together, adds a line at the top of `CHANGELOG.md`:
+  `- Area: effect, in a few words (#number)`, under today's `### <date>` (create it if missing);
+  a stack cites its first PR. The effect, not the how. Only a very minor PR (typo, a tweak with
+  no effect) adds none: tests, scripts and tooling get their line. The line goes in the top
+  version while it is unreleased (no `v<version>` tag); otherwise, in a new `## <next version>`
+  section. Release the top version; its heading then takes the release date:
+  `## <version> — <date>`.
 
 ## Tests
 
-Toujours `./scripts/test.sh`, jamais `swift test` seul (la CI lance `swift test` avec les mêmes
-variables) : le script met à part réglages, bibliothèque, dossier de support et canal de
-commande. Tout passe en quelques secondes, sans modèle ni micro ; la CI fait de même à chaque
-push et à chaque PR, et `scripts/release.sh` s'arrête si un test échoue. Un changement de
-comportement ajoute ou adapte un test ; une correction de bug commence par un test qui échoue.
+Always `./scripts/test.sh`, never bare `swift test` (CI runs `swift test` with the same
+variables): the script keeps settings, library, support folder and command channel apart.
+Everything passes in a few seconds, with no model and no microphone; CI does the same on every
+push and every PR, and `scripts/release.sh` stops if a test fails. A change in behavior adds or
+adapts a test; a bug fix starts with a failing test.
 
-Ce qu'on teste :
-- Ce dont dépendent l'utilisateur et les scripts (fichiers enregistrés, sorties de la ligne de
-  commande et du serveur MCP, texte d'une dictée, presse-papiers), pas la mise en page.
-- La logique se teste seule : dans PlumeKit, ou dans une fonction qui reçoit ses dépendances ;
-  les vues restent minces. Le code de l'app se teste dans `Tests/PlumeTests`
-  (`@testable import Plume`). Quand un changement de comportement touche une logique de l'app
-  qui s'isole en une fonction sans déplacer le reste, on l'isole avec son test ; sinon, on ne
-  force pas.
-- Fichiers enregistrés (transcriptions, annulés, vocabulaire, règles, empreinte vocale,
-  sauvegarde des réglages) : un fichier écrit par une version publiée doit se relire sans rien
-  perdre. Un nouveau champ est optionnel (`T?`), ou lu par `decodeIfPresent(…) ?? valeur` dans
-  un `init(from:)` écrit à la main, comme `AppRule` ; une valeur par défaut sur la propriété ne
-  suffit pas. Ne jamais retoucher un échantillon de `Tests/Fixtures/` : un changement de format
-  ajoute le dossier de la version qui le publie
-  (`FIXTURES_VERSION=<version> ./scripts/test.sh --filter FixtureGenerator`) ; celui d'une
-  version pas encore publiée (sans tag `v<version>`) se supprime et se régénère. Un champ ou un
-  réglage retiré exprès s'inscrit dans `removedOnPurpose` (`SavedFormatTests`), avec sa ligne
-  de `CHANGELOG.md`.
-- Ligne de commande (`--json`), outils du serveur MCP, `index.jsonl` et `dernier.md` : des
-  scripts et des IA les lisent. Ajouter une clé ou un outil, oui ; en renommer ou en retirer un
-  les casse : à noter dans `CHANGELOG.md` et `docs/GUIDE.md`, et à refléter dans les tests
-  (`CommandLineTests`, `MCPServerTests` ; le binaire ne se lance que par `PlumeBinary.run`).
-- Texte des dictées (nettoyage, commandes vocales, vocabulaire, styles) : chaque correction ou
-  nouvelle commande ajoute des lignes au tableau `DictationCorpusTests`, le cas traité et la
-  phrase ordinaire la plus proche, qui ne doit pas bouger. Un défaut connu s'y note avec
-  `withKnownIssue`, autour de la seule attente qui échoue.
+What to test:
+- What users and scripts depend on (saved files, command-line and MCP server output, dictation
+  text, clipboard), not layout.
+- Logic is tested on its own: in PlumeKit, or in a function that receives its dependencies;
+  views stay thin. App code is tested in `Tests/PlumeTests` (`@testable import Plume`). When a
+  behavior change touches app logic that can be isolated into one function without moving the
+  rest, isolate it with its test; otherwise, don't force it.
+- Saved files (transcriptions, cancelled recordings, vocabulary, rules, voiceprint, settings
+  backup): a file written by a released version must still be read back without losing
+  anything. A new field is optional (`T?`), or read with `decodeIfPresent(…) ?? value` in a
+  hand-written `init(from:)`, like `AppRule`; a default value on the property is not enough.
+  Never touch a sample in `Tests/Fixtures/`: a format change adds the folder for the version
+  that releases it (`FIXTURES_VERSION=<version> ./scripts/test.sh --filter FixtureGenerator`);
+  the one for a not-yet-released version (no `v<version>` tag) is deleted and regenerated. A
+  field or setting removed on purpose goes in `removedOnPurpose` (`SavedFormatTests`), with its
+  `CHANGELOG.md` line.
+- Command line (`--json`), MCP server tools, `index.jsonl` and `dernier.md`: scripts and AIs
+  read them. Adding a key or a tool is fine; renaming or removing one breaks them: note it in
+  `CHANGELOG.md` and `docs/GUIDE.md`, and reflect it in the tests (`CommandLineTests`,
+  `MCPServerTests`; the binary is only launched through `PlumeBinary.run`).
+- Dictation text (clean-up, voice commands, vocabulary, styles): each fix or new command adds
+  rows to the `DictationCorpusTests` table, the case handled and the closest ordinary sentence,
+  which must not change. A known defect is noted there with `withKnownIssue`, around the one
+  expectation that fails.
 
-Pour que les tests restent sûrs et fiables :
-- Jamais les vraies données. Dans un test : des dossiers temporaires ; pas de
-  `PlumeSettings.shared`, ni directement, ni par un paramètre `settings:` laissé à sa valeur par
-  défaut, ni par `SettingsModel` ; pas de `load`/`save` de `ReplacementStore`, `AppRuleStore` ou
-  `VoiceprintStore` (leurs fonctions pures et `read(from:)`/`write(_:to:)` restent permises) ;
-  `replacements:` toujours explicite avec `Pipeline.format` ; pas de `TranscriptStore.delete`
-  (vraie corbeille).
-- Pas le presse-papiers général (un presse-papiers nommé, libéré à la fin), pas d'événement
-  clavier, pas de `Remote.send`. Le binaire ne se lance qu'avec une commande de lecture
-  (`path`, `last`, `list`, `show`, `search`, `export` sans `-o`, `mcp` sans ses outils `listen` et
-  `summarize_transcript`) : sans argument ou avec une commande inconnue, il lance l'app.
-- Rien d'implicite : ni l'heure, ni le fuseau, ni la disposition du clavier, ni la langue de
-  l'interface. On passe les dates ; pour la langue, `L10n.$override.withValue(.english) { … }`,
-  jamais `L10n.current = …` (les tests tournent en parallèle).
+To keep tests safe and reliable:
+- Never the real data. In a test: temporary folders; no `PlumeSettings.shared`, neither
+  directly, nor through a `settings:` parameter left at its default, nor through
+  `SettingsModel`; no `load`/`save` on `ReplacementStore`, `AppRuleStore` or `VoiceprintStore`
+  (their pure functions and `read(from:)`/`write(_:to:)` are allowed); `replacements:` always
+  explicit with `Pipeline.format`; no `TranscriptStore.delete` (real Trash).
+- Not the general pasteboard (a named pasteboard, released at the end), no keyboard event, no
+  `Remote.send`. The binary is only launched with a read command (`path`, `last`, `list`,
+  `show`, `search`, `export` without `-o`, `mcp` without its `listen` and `summarize_transcript`
+  tools): with no argument or an unknown command, it launches the app.
+- Nothing implicit: no time, no time zone, no keyboard layout, no interface language. Pass the
+  dates; for text the UI shows, set the language with `L10n.$override.withValue(.english) { … }`
+  (or `.french`), never `L10n.current = …` (tests run in parallel).
 
-## À ne jamais faire
+## Never do
 
-- Committer un enregistrement, une transcription ou le contenu de `~/Plume` : ce sont des
-  données personnelles. Les tests utilisent des phrases inventées.
-- Publier un rendu `plume render` sans `--demo` : il montre la vraie bibliothèque.
-- Modifier `scripts/release.env` (dépôt, clé publique des mises à jour) ou l'identifiant
-  `studio.brigode.plume` : les apps déjà installées ne recevraient plus de mises à jour.
-- Lancer `scripts/release.sh` ou `scripts/publish.sh` sans qu'on te le demande : ils signent
-  et mettent en ligne une version.
+- Commit a recording, a transcription or the contents of `~/Plume`: they are personal data.
+  Tests use invented sentences.
+- Publish a `plume render` output without `--demo`: it shows the real library.
+- Edit `scripts/release.env` (repository, public update key) or the identifier
+  `studio.brigode.plume`: already-installed apps would stop receiving updates.
+- Run `scripts/release.sh` or `scripts/publish.sh` unless you are asked to: they sign and
+  publish a version.

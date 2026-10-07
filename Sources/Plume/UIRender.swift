@@ -2,9 +2,9 @@ import AppKit
 import PlumeKit
 import SwiftUI
 
-/// Rendu hors écran de l'interface en PNG (`plume render <dossier>`), pour contrôler
-/// l'apparence sans capture d'écran. Avec `--demo`, la fenêtre montre une bibliothèque
-/// inventée et un prénom fictif : de quoi faire des captures publiables.
+/// Off-screen rendering of the interface to PNG (`plume render <folder>`), to check
+/// the look without a screenshot. With `--demo`, the window shows an invented library
+/// and a fictional first name: enough to make publishable screenshots.
 @MainActor
 enum UIRender {
     static func run(directory: String, demo: Bool = false) {
@@ -25,12 +25,12 @@ enum UIRender {
         if let meeting = app.library.transcripts.first(where: { $0.speakers.count > 1 }) {
             app.library.selection = meeting.id
         }
-        // Les réglages en entier, sur une fenêtre très haute, pour voir toutes les sections.
+        // The full Settings page, in a very tall window, to see every section.
         app.page = .settings
         window(
             AppShell(app: app, session: session), size: NSSize(width: 1040, height: 2500),
-            name: "app-settings-entier", in: output, appearance: .darkAqua)
-        for (suffix, appearance) in [("sombre", NSAppearance.Name.darkAqua), ("clair", .aqua)] {
+            name: "app-settings-full", in: output, appearance: .darkAqua)
+        for (suffix, appearance) in [("dark", NSAppearance.Name.darkAqua), ("light", .aqua)] {
             for page in Page.allCases {
                 app.page = page
                 window(
@@ -38,25 +38,25 @@ enum UIRender {
                     name: "app-\(page.rawValue)-\(suffix)", in: output, appearance: appearance)
             }
         }
-        // L'accueil pendant une dictée : le bouton montre la voix qui arrive.
+        // Home during a dictation: the button shows the incoming voice.
         app.page = .home
         session.debugSet(
             phase: .recording, elapsed: 12,
             levels: (0..<SessionController.levelCount).map { Float(0.25 + 0.6 * abs(sin(Double($0) * 0.9))) })
         window(
             AppShell(app: app, session: session), size: NSSize(width: 1040, height: 680),
-            name: "app-home-dictee-sombre", in: output, appearance: .darkAqua)
+            name: "app-home-dictation-dark", in: output, appearance: .darkAqua)
         session.debugSet(phase: .idle)
-        // Le journal des modifications, tel qu'il s'ouvre depuis « Nouveautés ».
+        // The changelog, as it opens from "What's new".
         window(
             ChangelogView(releases: ChangelogFile.releases), size: NSSize(width: 420, height: 460),
-            name: "nouveautes-sombre", in: output, appearance: .darkAqua)
-        // Les enregistrements annulés, encore récupérables.
+            name: "whats-new-dark", in: output, appearance: .darkAqua)
+        // Cancelled recordings, still recoverable.
         app.page = .history
         app.library.filter = .cancelled
         window(
             AppShell(app: app, session: session), size: NSSize(width: 1040, height: 680),
-            name: "app-history-annules-sombre", in: output, appearance: .darkAqua)
+            name: "app-history-cancelled-dark", in: output, appearance: .darkAqua)
     }
 
     private static func islandStates(_ output: URL) {
@@ -65,50 +65,50 @@ enum UIRender {
             Float(0.25 + 0.75 * abs(sin(Double(i) * 0.9) * cos(Double(i) * 0.37)))
         }
         let meeting = Transcript(id: "x", createdAt: Date(), mode: .meeting, duration: 60, engine: "", text: "", rawText: "")
-        // (nom, commandes visibles, réglage de l'état)
+        // (name, visible commands, state setting)
         let states: [(String, Bool, () -> Void)] = [
-            ("ile-1-debut", true, { session.debugSet(phase: .recording, elapsed: 2, levels: levels) }),
-            ("ile-2-compacte", false, { session.debugSet(phase: .recording, elapsed: 21, levels: levels) }),
+            ("island-1-start", true, { session.debugSet(phase: .recording, elapsed: 2, levels: levels) }),
+            ("island-2-compact", false, { session.debugSet(phase: .recording, elapsed: 21, levels: levels) }),
             (
-                "ile-3-direct", false,
+                "island-3-live", false,
                 {
                     session.debugSet(
                         phase: .recording, elapsed: 14, levels: levels,
-                        committed: "Salut Victor, je voulais te parler du déploiement de ce matin.",
-                        volatile: "On a un souci avec le webhook Shopify, il faudrait regarder les logs avant")
+                        committed: "Hi Alex, I wanted to talk to you about this morning's deployment.",
+                        volatile: "We have an issue with the Shopify webhook, we should check the logs before")
                 }
             ),
             (
-                "ile-4-reunion-survol", true,
+                "island-4-meeting-hover", true,
                 {
                     session.debugSet(
                         phase: .recording, mode: .meeting, elapsed: 754, levels: levels,
-                        committed: "Oui, on reste sur le budget prévu au départ.",
-                        volatile: "Et pour la livraison, on vise fin octobre", systemActive: true)
+                        committed: "Yes, we're sticking to the budget we planned at the start.",
+                        volatile: "And for delivery, we're aiming for the end of October", systemActive: true)
                 }
             ),
-            ("ile-5-traitement", false, { session.debugSet(phase: .processing("Transcription")) }),
-            ("ile-6-colle", false, { session.debugSet(phase: .done("Collé")) }),
+            ("island-5-processing", false, { session.debugSet(phase: .processing(tr("Transcript"))) }),
+            ("island-6-pasted", false, { session.debugSet(phase: .done(tr("Pasted"))) }),
             (
-                "ile-7-reunion-finie", false,
-                { session.debugSet(phase: .done("Réunion enregistrée"), mode: .meeting, transcript: meeting) }
+                "island-7-meeting-done", false,
+                { session.debugSet(phase: .done(tr("Meeting saved")), mode: .meeting, transcript: meeting) }
             ),
-            ("ile-8-erreur", false, { session.debugSet(phase: .failed("Rien entendu")) }),
-            ("ile-9-pause", true, { session.debugSet(phase: .recording, mode: .meeting, elapsed: 312, paused: true) }),
-            ("ile-10-appel-detecte", false, { session.debugSet(phase: .suggestion("Zoom")) }),
+            ("island-8-error", false, { session.debugSet(phase: .failed(tr("Nothing heard"))) }),
+            ("island-9-pause", true, { session.debugSet(phase: .recording, mode: .meeting, elapsed: 312, paused: true) }),
+            ("island-10-call-detected", false, { session.debugSet(phase: .suggestion("Zoom")) }),
             (
-                "ile-11-consigne", false,
+                "island-11-instruction", false,
                 { session.debugSet(phase: .recording, intent: .transform, elapsed: 2, levels: levels) }
             ),
-            ("ile-12-mise-au-propre", false, { session.debugSet(phase: .processing("Mise au propre")) }),
+            ("island-12-clean-up", false, { session.debugSet(phase: .processing(tr("Cleaning up"))) }),
             (
-                "ile-13-micro-muet", false,
+                "island-13-mic-muted", false,
                 { session.debugSet(phase: .recording, elapsed: 24, quietMic: true, levels: [Float](repeating: 0, count: SessionController.levelCount)) }
             ),
         ]
         let geometries: [(String, NotchGeometry)] = [
-            ("encoche", NotchGeometry(notchWidth: 185, topHeight: 32)),
-            ("ecran-externe", NotchGeometry(notchWidth: 0, topHeight: 25)),
+            ("notch", NotchGeometry(notchWidth: 185, topHeight: 32)),
+            ("external-display", NotchGeometry(notchWidth: 0, topHeight: 25)),
         ]
         for (name, controls, configure) in states {
             configure()
@@ -127,7 +127,7 @@ enum UIRender {
         }
     }
 
-    /// Quatre étapes de l'ouverture du tiroir au survol, côte à côte.
+    /// Four steps of the drawer opening on hover, side by side.
     private static func drawerSteps(_ output: URL) {
         let session = SessionController()
         let levels: [Float] = (0..<SessionController.levelCount).map { i in
@@ -152,10 +152,10 @@ enum UIRender {
         }
         let renderer = ImageRenderer(content: strip)
         renderer.scale = 2
-        write(renderer.nsImage, to: output.appendingPathComponent("ile-tiroir-etapes.png"))
+        write(renderer.nsImage, to: output.appendingPathComponent("island-drawer-steps.png"))
     }
 
-    /// Rend une vraie fenêtre AppKit hors écran.
+    /// Renders a real AppKit window off-screen.
     private static func window<V: View>(
         _ view: V, size: NSSize, name: String, in output: URL, appearance: NSAppearance.Name
     ) {
@@ -186,12 +186,12 @@ enum UIRender {
     }
 }
 
-/// Fenêtre de rendu que le système ne ramène pas aux dimensions de l'écran.
+/// Render window that the system doesn't resize to the screen's dimensions.
 private final class UnconstrainedWindow: NSWindow {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 
-/// Haut d'écran factice pour les maquettes : un fond, la barre de menus et l'encoche.
+/// Fake top of the screen for mockups: a background, the menu bar and the notch.
 private struct FakeScreenTop: View {
     var geometry: NotchGeometry
 
@@ -210,43 +210,43 @@ private struct FakeScreenTop: View {
     }
 }
 
-/// Bibliothèque inventée pour les captures (`plume render <dossier> --demo`) : quelques
-/// semaines de dictées et une réunion à trois, dans un dossier temporaire.
+/// Invented library for screenshots (`plume render <folder> --demo`): a few
+/// weeks of dictations and a meeting of three, in a temporary folder.
 @MainActor
 enum DemoLibrary {
     static func install() {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-demo-\(UUID().uuidString)")
         setenv("PLUME_LIBRARY", root.path, 1)
-        setenv("PLUME_FIRST_NAME", "Léa", 1)
-        // Vocabulaire et règles inventés eux aussi : rien du vrai dossier Application Support.
+        setenv("PLUME_FIRST_NAME", "Emma", 1)
+        // Vocabulary and rules invented too: nothing from the real Application Support folder.
         setenv("PLUME_SUPPORT", root.appendingPathComponent("support").path, 1)
         ReplacementStore.save([
             Replacement(original: "super whisper", with: "Superwhisper"),
-            Replacement(original: "ma signature", with: "Léa Martin\nDirectrice artistique · studio Brume\n06 12 34 56 78"),
-            Replacement(original: "sitié", with: "CTA"),
+            Replacement(original: "my signature", with: "Emma Clarke\nArt director · Mist Studio\n+44 20 7946 0958"),
+            Replacement(original: "see tee ay", with: "CTA"),
         ])
         AppRuleStore.save([
             AppRule(bundleID: "com.tinyspeck.slackmacgap", name: "Slack", style: .message, pressReturn: true),
-            AppRule(bundleID: "com.apple.mail", name: "Mail", style: .standard, polish: true, instructions: "vouvoie, reste chaleureuse"),
+            AppRule(bundleID: "com.apple.mail", name: "Mail", style: .standard, polish: true, instructions: "stay formal but warm"),
             AppRule(bundleID: "com.apple.Terminal", name: "Terminal", style: .casual, typeText: true),
-            AppRule(bundleID: "*", name: "Toutes les autres applications"),
+            AppRule(bundleID: "*", name: tr("All other applications")),
         ])
         let store = TranscriptStore(root: root)
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
         let sentences = [
-            "Penser à envoyer le devis à l'agence avant vendredi.",
-            "Idée pour la newsletter : un récap des nouveautés du mois, court et visuel.",
-            "Réponds à Marc que la maquette est validée, on part sur la version deux.",
-            "Liste de courses : pâtes, tomates, basilic, parmesan et du café.",
-            "Le bug de connexion vient du jeton expiré, il faut le rafraîchir au démarrage.",
-            "Merci pour ton retour, je regarde ça demain matin et je te dis.",
-            "Pour l'article de blog, commencer par une anecdote plutôt que par les chiffres.",
-            "Rappeler le garage pour le contrôle technique.",
+            "Remember to send the quote to the agency before Friday.",
+            "Newsletter idea: a recap of the month's new features, short and visual.",
+            "Tell Mark the mockup is approved, we're going with version two.",
+            "Shopping list: pasta, tomatoes, basil, parmesan and coffee.",
+            "The login bug comes from the expired token, it needs a refresh at startup.",
+            "Thanks for the feedback, I'll look at it tomorrow morning and get back to you.",
+            "For the blog post, open with an anecdote rather than the numbers.",
+            "Call the garage about the car's yearly inspection.",
         ]
         var generator = SystemRandomNumberGenerator()
-        // Près d'un an d'activité, de plus en plus régulière.
+        // Nearly a year of activity, increasingly regular.
         for day in stride(from: 320, through: 1, by: -1) {
             let chance = day < 30 ? 0.9 : day < 120 ? 0.6 : 0.3
             guard Double.random(in: 0..<1, using: &generator) < chance else { continue }
@@ -257,23 +257,23 @@ enum DemoLibrary {
                 save(store, at: date, text: text)
             }
         }
-        // Aujourd'hui : les dictées visibles en tête de l'historique.
+        // Today: the dictations visible at the top of the history.
         let recent: [(Int, String, String?)] = [
-            (9 * 60 + 12, "Bonjour à tous, petit point sur le lancement : la page est en ligne et les premiers retours sont très bons.", "Slack"),
-            (10 * 60 + 47, "Réponds à Marc que la maquette est validée, on part sur la version deux avec le bouton plus visible.", "Mail"),
-            (14 * 60 + 5, "Idée pour la newsletter : un récap des nouveautés du mois, court et visuel, avec une capture par nouveauté.", "Notion"),
-            (16 * 60 + 38, "Le bug de connexion vient du jeton expiré : il faut le rafraîchir au démarrage de l'app, pas seulement à la connexion.", "Cursor"),
+            (9 * 60 + 12, "Hi all, quick update on the launch: the page is live and the first feedback is very good.", "Slack"),
+            (10 * 60 + 47, "Tell Mark the mockup is approved, we're going with version two and a more visible button.", "Mail"),
+            (14 * 60 + 5, "Newsletter idea: a recap of the month's new features, short and visual, with one screenshot per feature.", "Notion"),
+            (16 * 60 + 38, "The login bug comes from the expired token: it needs a refresh when the app starts, not only at sign-in.", "Cursor"),
         ]
         let meetingStart = calendar.date(byAdding: .minute, value: 11 * 60 + 30, to: today)!
         let lines: [(String, AudioChannel, String)] = [
-            ("Inès", .system, "Bon, on fait le point sur le lancement de la nouvelle version ?"),
-            (tr("Moi"), .mic, "Oui. La page est prête, il reste les captures et le texte de l'annonce."),
-            ("Thomas", .system, "Je peux m'occuper des captures cet après-midi, il me faut juste la dernière version."),
-            (tr("Moi"), .mic, "Parfait, je te l'envoie après la réunion."),
-            ("Inès", .system, "Pour l'annonce, on vise jeudi matin ? C'est là qu'on a le plus d'ouvertures."),
-            ("Thomas", .system, "Jeudi ça me va. On prévoit aussi un message pour les anciens utilisateurs ?"),
-            (tr("Moi"), .mic, "Bonne idée, un mail court avec les trois nouveautés principales et un lien vers la page."),
-            ("Inès", .system, "Je le rédige demain et je vous le partage avant midi."),
+            ("Nina", .system, "Okay, shall we go over the launch of the new version?"),
+            (tr("Me"), .mic, "Sure. The page is ready, we still need the screenshots and the announcement text."),
+            ("Sam", .system, "I can take care of the screenshots this afternoon, I just need the latest build."),
+            (tr("Me"), .mic, "Great, I'll send it to you after the meeting."),
+            ("Nina", .system, "For the announcement, are we aiming for Thursday morning? That's when we get the most opens."),
+            ("Sam", .system, "Thursday works for me. Should we also plan a message for existing users?"),
+            (tr("Me"), .mic, "Good idea, a short email with the three main new features and a link to the page."),
+            ("Nina", .system, "I'll write it tomorrow and share it with you before noon."),
         ]
         var segments: [Segment] = []
         var clock = 1.0
@@ -285,27 +285,27 @@ enum DemoLibrary {
         try? store.save(
             Transcript(
                 id: store.makeID(for: meetingStart), createdAt: meetingStart, mode: .meeting, duration: 1_472, engine: "demo",
-                text: TranscriptBuilder.text(for: segments), rawText: "", segments: segments, speakers: [tr("Moi"), "Inès", "Thomas"],
-                title: "Lancement de la nouvelle version",
+                text: TranscriptBuilder.text(for: segments), rawText: "", segments: segments, speakers: [tr("Me"), "Nina", "Sam"],
+                title: "Launch of the new version",
                 summary: """
-                    ## Points clés
-                    - La page de lancement est prête ; il reste les captures d'écran et le texte de l'annonce.
-                    - L'annonce est visée jeudi matin, moment où les ouvertures sont les plus nombreuses.
-                    - Un mail court préviendra les anciens utilisateurs, avec les trois nouveautés principales.
+                    ## Key points
+                    - The launch page is ready; the screenshots and the announcement text are still to do.
+                    - The announcement is planned for Thursday morning, when the most emails get opened.
+                    - A short email will tell existing users about the three main new features.
 
-                    ## Décisions
-                    - Annonce jeudi matin.
-                    - Mail aux anciens utilisateurs, avec un lien vers la page.
+                    ## Decisions
+                    - Announcement on Thursday morning.
+                    - Email to existing users, with a link to the page.
 
                     ## Actions
-                    - **Thomas** : les captures, cet après-midi.
-                    - **\(tr("Moi"))** : envoyer la dernière version à Thomas après la réunion.
-                    - **Inès** : rédiger le mail demain et le partager avant midi.
+                    - **Sam**: the screenshots, this afternoon.
+                    - **\(tr("Me"))**: send the latest build to Sam after the meeting.
+                    - **Nina**: write the email tomorrow and share it before noon.
                     """))
         for (minutes, text, app) in recent {
             save(store, at: calendar.date(byAdding: .minute, value: minutes, to: today)!, text: text, app: app)
         }
-        // Deux enregistrements annulés par erreur, dont une réunion pas encore transcrite.
+        // Two recordings cancelled by mistake, including a meeting not yet transcribed.
         let cancelled = CancelledStore(library: root)
         let tone = (0..<48_000).map { Float(sin(Double($0) * 2 * .pi * 220 / 16_000)) * 0.2 }
         let dictationStart = calendar.date(byAdding: .minute, value: 17 * 60 + 2, to: today)!
@@ -313,8 +313,8 @@ enum DemoLibrary {
             CancelledRecording(
                 id: store.makeID(for: dictationStart), createdAt: dictationStart, cancelledAt: dictationStart.addingTimeInterval(14),
                 mode: .dictation, duration: 14, app: "Mail",
-                text: "Merci pour l'invitation, je serai là jeudi. Je t'envoie la présentation ce soir.",
-                rawText: "merci pour l'invitation je serai là jeudi je t'envoie la présentation ce soir"),
+                text: "Thanks for the invite, I'll be there on Thursday. I'll send you the slides tonight.",
+                rawText: "thanks for the invite i'll be there on thursday i'll send you the slides tonight"),
             mic: tone)
         let meetingCancel = calendar.date(byAdding: .minute, value: 15 * 60, to: today)!
         try? cancelled.keep(

@@ -2,9 +2,9 @@ import AppKit
 import Testing
 @testable import Plume
 
-/// Ce que la dictée laisse dans le presse-papiers, sans rien simuler au clavier. Toujours un
-/// presse-papiers nommé, jamais le général : l'utilisateur ne perd rien pendant les tests.
-@Suite("Presse-papiers")
+/// What a dictation leaves on the pasteboard, without simulating anything on the keyboard.
+/// Always a named pasteboard, never the general one: the user loses nothing during the tests.
+@Suite("Pasteboard")
 @MainActor
 struct PasterTests {
     private static let transient = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
@@ -16,7 +16,7 @@ struct PasterTests {
         body(pasteboard)
     }
 
-    @Test func uneDictéeQuiSeraRemplacéePorteLesMarquesÉphémères() {
+    @Test func aDictationThatWillBeReplacedCarriesTransientMarks() {
         withPasteboard { pasteboard in
             pasteboard.clearContents()
             pasteboard.setString("contenu d'avant", forType: .string)
@@ -30,7 +30,7 @@ struct PasterTests {
         }
     }
 
-    @Test func uneDictéeQuiResteAppartientAuxGestionnaires() {
+    @Test func aDictationThatStaysBelongsToClipboardManagers() {
         withPasteboard { pasteboard in
             pasteboard.clearContents()
             pasteboard.setString("contenu d'avant", forType: .string)
@@ -42,7 +42,7 @@ struct PasterTests {
         }
     }
 
-    @Test func uneCopieSimpleNePortePasDeMarque() {
+    @Test func aPlainCopyCarriesNoMark() {
         withPasteboard { pasteboard in
             Paster.copy("texte", to: pasteboard)
             #expect(pasteboard.pasteboardItems?.count == 1)
@@ -51,9 +51,9 @@ struct PasterTests {
         }
     }
 
-    /// Tout revient, pas seulement le texte : plusieurs éléments, plusieurs formats chacun. Un
-    /// texte mis en forme ou une image ne doivent pas redevenir du texte brut.
-    @Test func leContenuDAvantRevientAprèsLeCollage() {
+    /// Everything comes back, not just the text: several items, several formats each. Rich
+    /// text or an image must not turn back into plain text.
+    @Test func previousContentComesBackAfterPasting() {
         withPasteboard { pasteboard in
             pasteboard.clearContents()
             let first = NSPasteboardItem()
@@ -73,7 +73,7 @@ struct PasterTests {
         }
     }
 
-    @Test func unPressePapiersVideRedevientVide() {
+    @Test func anEmptyPasteboardBecomesEmptyAgain() {
         withPasteboard { pasteboard in
             pasteboard.clearContents()
             let saved = Paster.stage("la dictée", restoreClipboard: true, on: pasteboard)
@@ -84,7 +84,7 @@ struct PasterTests {
         }
     }
 
-    @Test func uneCopieFaiteEntreTempsResteEnPlace() {
+    @Test func aCopyMadeInTheMeantimeStays() {
         withPasteboard { pasteboard in
             pasteboard.clearContents()
             pasteboard.setString("contenu d'avant", forType: .string)

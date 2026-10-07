@@ -6,7 +6,7 @@ let package = Package(
     platforms: [.macOS(.v15)],
     dependencies: [
         .package(url: "https://github.com/FluidInference/FluidAudio.git", exact: "0.17.5"),
-        // Mises à jour automatiques de l'app distribuée.
+        // Automatic updates for the distributed app.
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
     ],
     targets: [
@@ -19,7 +19,7 @@ let package = Package(
             name: "Plume",
             dependencies: ["PlumeKit", .product(name: "Sparkle", package: "Sparkle")],
             swiftSettings: [.swiftLanguageMode(.v5)],
-            // Sparkle.framework est rangé dans Contents/Frameworks de l'app.
+            // Sparkle.framework is placed in the app's Contents/Frameworks.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         .testTarget(

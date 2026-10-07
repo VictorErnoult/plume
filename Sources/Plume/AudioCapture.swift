@@ -10,26 +10,26 @@ enum CaptureError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noInput: return "Aucun micro disponible."
-        case .coreAudio(let step, let status): return "Capture du son système impossible (\(step), code \(status))."
+        case .noInput: return tr("No microphone available.")
+        case .coreAudio(let step, let status): return String(format: tr("System audio capture failed (%@, code %d)."), step, status)
         }
     }
 }
 
-/// Convertit en continu un flux audio quelconque vers du mono 16 kHz.
+/// Continuously converts any audio stream to 16 kHz mono.
 final class StreamResampler {
     private var converter: AVAudioConverter?
     private var sourceFormat: AVAudioFormat?
     private let target = AVAudioFormat(
         commonFormat: .pcmFormatFloat32, sampleRate: Double(SpeechEngine.sampleRate), channels: 1, interleaved: false)!
 
-    /// Tampon AVAudioEngine (micro).
+    /// AVAudioEngine buffer (microphone).
     func convert(_ buffer: AVAudioPCMBuffer) -> [Float] {
         let frames = Int(buffer.frameLength)
         let channels = Int(buffer.format.channelCount)
         guard frames > 0, channels > 0, let data = buffer.floatChannelData else { return [] }
-        // Sur une carte son à plusieurs entrées, le micro n'occupe souvent qu'un canal : on ne
-        // moyenne que les canaux qui portent du signal, pour ne pas diviser la voix par huit.
+        // On a sound card with several inputs, the microphone often only uses one channel: we only
+        // average the channels that carry signal, so as not to divide the voice by eight.
         let interleaved = buffer.format.isInterleaved
         func sample(_ channel: Int, _ frame: Int) -> Float {
             interleaved ? data[0][frame * channels + channel] : data[channel][frame]
@@ -56,12 +56,12 @@ final class StreamResampler {
         return resample(mono, rate: buffer.format.sampleRate)
     }
 
-    /// Tampons bruts Core Audio d'un micro, en flottants 32 bits : tous les flux d'entrée du
-    /// périphérique, en ne gardant que les canaux qui portent du signal.
+    /// Raw Core Audio buffers from a microphone, as 32-bit floats: all of the device's input streams,
+    /// keeping only the channels that carry signal.
     func convert(microphone bufferList: UnsafePointer<AudioBufferList>, format: AudioStreamBasicDescription) -> [Float] {
         guard format.mFormatFlags & kAudioFormatFlagIsFloat != 0, format.mBitsPerChannel == 32 else { return [] }
         let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: bufferList))
-        // Chaque canal : (pointeur, pas entre deux échantillons, nombre de trames).
+        // Each channel: (pointer, stride between two samples, frame count).
         var channels: [(UnsafePointer<Float>, Int, Int)] = []
         for buffer in buffers {
             guard let data = buffer.mData else { continue }
@@ -71,8 +71,8 @@ final class StreamResampler {
             for channel in 0..<count { channels.append((base + channel, count, frames)) }
         }
         guard let frames = channels.map(\.2).min(), frames > 0 else { return [] }
-        // Sur une carte son à plusieurs entrées, le micro n'occupe souvent qu'un canal : on ne
-        // moyenne que les canaux actifs, pour ne pas diviser la voix par huit.
+        // On a sound card with several inputs, the microphone often only uses one channel: we only
+        // average the active channels, so as not to divide the voice by eight.
         let energy = channels.map { channel -> Float in
             var sum: Float = 0
             for f in 0..<frames {
@@ -95,12 +95,12 @@ final class StreamResampler {
         return resample(mono, rate: format.mSampleRate)
     }
 
-    /// Tampons bruts Core Audio (tap du son système), en flottants 32 bits.
+    /// Raw Core Audio buffers (system audio tap), as 32-bit floats.
     func convert(bufferList: UnsafePointer<AudioBufferList>, format: AudioStreamBasicDescription) -> [Float] {
         guard format.mFormatFlags & kAudioFormatFlagIsFloat != 0, format.mBitsPerChannel == 32 else { return [] }
         let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: bufferList))
-        // Si la sortie audio possède aussi des entrées (carte son externe), leurs flux précèdent
-        // celui du tap dans la liste : le son système est toujours à la fin.
+        // If the audio output also has inputs (external sound card), their streams precede
+        // the tap's in the list: system audio is always at the end.
         let separate = format.mFormatFlags & kAudioFormatFlagIsNonInterleaved != 0
         let wanted = separate ? max(1, min(Int(format.mChannelsPerFrame), buffers.count)) : 1
         let tapBuffers = Array(buffers.suffix(wanted))
@@ -169,11 +169,11 @@ final class StreamResampler {
     }
 }
 
-/// Capture du micro choisi dans les réglages (par défaut, celui du Mac).
+/// Capture of the microphone chosen in settings (by default, the Mac's).
 ///
-/// On lit directement le périphérique par Core Audio plutôt que par AVAudioEngine : celui-ci
-/// suit l'entrée par défaut du système — que des écouteurs ou une enceinte Bluetooth
-/// détournent dès qu'ils se connectent — et ne livre plus rien si on lui en impose une autre.
+/// The device is read directly through Core Audio rather than AVAudioEngine: the latter
+/// follows the system's default input — which Bluetooth headphones or a speaker
+/// hijack as soon as they connect — and delivers nothing if another one is forced on it.
 final class MicCapture {
     private var deviceID = AudioObjectID(kAudioObjectUnknown)
     private var procID: AudioDeviceIOProcID?
@@ -183,10 +183,10 @@ final class MicCapture {
     private let resampler = StreamResampler()
     private var running = false
     var onSamples: (([Float]) -> Void)?
-    /// Le micro a disparu et aucun autre n'a pu prendre le relais.
+    /// The microphone disappeared and no other could take over.
     var onFailure: (() -> Void)?
-    /// Nom du micro effectivement utilisé (pour le journal et le diagnostic).
-    private(set) var deviceName = "aucun"
+    /// Name of the microphone actually used (for the log and diagnostics).
+    private(set) var deviceName = tr("none")
 
     private static var aliveAddress = AudioObjectPropertyAddress(
         mSelector: kAudioDevicePropertyDeviceIsAlive, mScope: kAudioObjectPropertyScopeGlobal,
@@ -198,7 +198,7 @@ final class MicCapture {
     }
 
     private func open() throws {
-        // Le micro choisi s'il est branché, sinon celui du Mac, sinon l'entrée du système.
+        // The chosen microphone if it is plugged in, otherwise the Mac's, otherwise the system input.
         var device = AudioObjectID(kAudioObjectUnknown)
         if let preferred = AudioDevices.preferredInput() {
             device = preferred.deviceID
@@ -209,7 +209,7 @@ final class MicCapture {
                 mSelector: kAudioHardwarePropertyDefaultInputDevice, mScope: kAudioObjectPropertyScopeGlobal,
                 mElement: kAudioObjectPropertyElementMain)
             AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device)
-            deviceName = "entrée par défaut du système"
+            deviceName = tr("system default input")
         }
         guard device != kAudioObjectUnknown else { throw CaptureError.noInput }
 
@@ -219,8 +219,8 @@ final class MicCapture {
             mSelector: kAudioDevicePropertyStreamFormat, mScope: kAudioDevicePropertyScopeInput,
             mElement: kAudioObjectPropertyElementMain)
         var status = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &format)
-        guard status == noErr, format.mSampleRate > 0 else { throw CaptureError.coreAudio("format du micro", status) }
-        TestHooks.log("micro : \(deviceName), \(Int(format.mSampleRate)) Hz, \(format.mChannelsPerFrame) canal(aux)")
+        guard status == noErr, format.mSampleRate > 0 else { throw CaptureError.coreAudio(tr("microphone format"), status) }
+        TestHooks.log("microphone: \(deviceName), \(Int(format.mSampleRate)) Hz, \(format.mChannelsPerFrame) channel(s)")
 
         let streamFormat = format
         var described = false
@@ -230,22 +230,22 @@ final class MicCapture {
                 described = true
                 let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
                 TestHooks.log(
-                    "micro : premier tampon [\(list.map { "\($0.mNumberChannels) canal(aux) × \($0.mDataByteSize) octets" }.joined(separator: ", "))], "
-                        + "drapeaux \(streamFormat.mFormatFlags), \(streamFormat.mBitsPerChannel) bits")
+                    "microphone: first buffer [\(list.map { "\($0.mNumberChannels) channel(s) × \($0.mDataByteSize) bytes" }.joined(separator: ", "))], "
+                        + "flags \(streamFormat.mFormatFlags), \(streamFormat.mBitsPerChannel) bits")
             }
             let samples = self.resampler.convert(microphone: input, format: streamFormat)
             if !samples.isEmpty { self.onSamples?(samples) }
         }
-        guard status == noErr, let procID else { throw CaptureError.coreAudio("lecture du micro", status) }
+        guard status == noErr, let procID else { throw CaptureError.coreAudio(tr("reading the microphone"), status) }
         status = AudioDeviceStart(device, procID)
         guard status == noErr else {
             AudioDeviceDestroyIOProcID(device, procID)
             self.procID = nil
-            throw CaptureError.coreAudio("démarrage du micro", status)
+            throw CaptureError.coreAudio(tr("starting the microphone"), status)
         }
         deviceID = device
 
-        // Micro débranché ou éteint en cours d'enregistrement : on bascule sur un autre.
+        // Microphone unplugged or switched off during a recording: switch to another one.
         let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.deviceVanished() }
         aliveListener = listener
         AudioObjectAddPropertyListenerBlock(device, &Self.aliveAddress, control, listener)
@@ -268,12 +268,12 @@ final class MicCapture {
     private func deviceVanished() {
         DispatchQueue.main.async { [self] in
             guard running else { return }
-            Log.write("micro : « \(deviceName) » a disparu, bascule sur un autre micro")
+            Log.write("microphone: “\(deviceName)” disappeared, switching to another microphone")
             close()
             do {
                 try open()
             } catch {
-                Log.write("micro : aucun micro de remplacement (\(error.localizedDescription))")
+                Log.write("microphone: no replacement microphone (\(error.localizedDescription))")
                 onFailure?()
             }
         }
@@ -285,9 +285,9 @@ final class MicCapture {
     }
 }
 
-/// Capture de tout le son émis par l'ordinateur (voix des autres participants d'une visio,
-/// même au casque), via un « process tap » Core Audio. Ne demande que l'autorisation
-/// « Enregistrement audio du système », pas l'enregistrement de l'écran.
+/// Capture of all the sound the computer plays (other participants' voices in a video call,
+/// even with headphones), through a Core Audio "process tap". Only asks for the
+/// "System Audio Recording" permission, not screen recording.
 final class SystemAudioCapture {
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
@@ -297,7 +297,7 @@ final class SystemAudioCapture {
     private let resampler = StreamResampler()
     var onSamples: (([Float]) -> Void)?
     private var outputListener: AudioObjectPropertyListenerBlock?
-    /// Faux après `stop()` : un écouteur ou une minuterie encore en vol ne relance rien.
+    /// False after `stop()`: a listener or timer still in flight restarts nothing.
     private var active = false
     private var formatWatch: DispatchSourceTimer?
 
@@ -305,23 +305,23 @@ final class SystemAudioCapture {
         mSelector: kAudioHardwarePropertyDefaultOutputDevice, mScope: kAudioObjectPropertyScopeGlobal,
         mElement: kAudioObjectPropertyElementMain)
 
-    /// File dédiée aux appels Core Audio de mise en place. La première fois, macOS suspend
-    /// la création du tap tant que l'utilisateur n'a pas répondu à la demande d'autorisation :
-    /// rien de tout cela ne doit s'exécuter sur le thread principal.
+    /// Dedicated queue for the Core Audio setup calls. The first time, macOS suspends
+    /// the tap creation until the user answers the permission prompt:
+    /// none of this must run on the main thread.
     private let control = DispatchQueue(label: "plume.system-audio.control")
 
-    /// Démarre la capture en arrière-plan. Les échantillons arrivent dès que le tap est prêt
-    /// (immédiatement, ou après l'accord de l'utilisateur la première fois).
+    /// Starts the capture in the background. Samples arrive as soon as the tap is ready
+    /// (immediately, or after the user's consent the first time).
     func start() throws {
         control.async { [self] in
             active = true
             do {
                 try startTap()
             } catch {
-                Log.write("son système : \(error.localizedDescription)")
+                Log.write("system audio: \(error.localizedDescription)")
                 return
             }
-            // Casque branché ou débranché en pleine réunion : on recrée le tap sur la nouvelle sortie.
+            // Headphones plugged or unplugged in the middle of a meeting: recreate the tap on the new output.
             let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
                 guard let self, self.active else { return }
                 self.stopTap()
@@ -331,8 +331,8 @@ final class SystemAudioCapture {
             AudioObjectAddPropertyListenerBlock(
                 AudioObjectID(kAudioObjectSystemObject), &Self.defaultOutputAddress, control, listener)
 
-            // La sortie peut changer de fréquence sans changer de périphérique (casque Bluetooth
-            // qui passe en mode appel) : on relit le format et on recrée le tap s'il a bougé.
+            // The output can change sample rate without changing device (Bluetooth headphones
+            // switching to call mode): re-read the format and recreate the tap if it changed.
             let timer = DispatchSource.makeTimerSource(queue: control)
             timer.schedule(deadline: .now() + 3, repeating: 3)
             timer.setEventHandler { [weak self] in
@@ -346,7 +346,7 @@ final class SystemAudioCapture {
                     current.mSampleRate != self.format.mSampleRate
                         || current.mChannelsPerFrame != self.format.mChannelsPerFrame
                 else { return }
-                Log.write("son système : format modifié, tap recréé")
+                Log.write("system audio: format changed, tap recreated")
                 self.stopTap()
                 try? self.startTap()
             }
@@ -370,7 +370,7 @@ final class SystemAudioCapture {
     }
 
     private func startTap() throws {
-        // Tap global stéréo ; on s'exclut soi-même pour ne pas capter nos propres sons.
+        // Global stereo tap; exclude ourselves so as not to capture our own sounds.
         let description = CATapDescription(stereoGlobalTapButExcludeProcesses: Self.ownProcessObjects())
         description.uuid = UUID()
         description.name = "Plume"
@@ -378,19 +378,19 @@ final class SystemAudioCapture {
         description.muteBehavior = .unmuted
 
         var tap = AudioObjectID(kAudioObjectUnknown)
-        try check(AudioHardwareCreateProcessTap(description, &tap), "création du tap")
+        try check(AudioHardwareCreateProcessTap(description, &tap), tr("creating the tap"))
         tapID = tap
 
         var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioTapPropertyFormat, mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain)
-        try check(AudioObjectGetPropertyData(tapID, &address, 0, nil, &size, &format), "format du tap")
+        try check(AudioObjectGetPropertyData(tapID, &address, 0, nil, &size, &format), tr("tap format"))
 
-        // Le tap se lit à travers un périphérique agrégé privé, calé sur la sortie réelle.
+        // The tap is read through a private aggregate device, aligned on the real output.
         let outputUID = try Self.defaultOutputDeviceUID()
         let aggregate: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "Plume (son système)",
+            kAudioAggregateDeviceNameKey: "Plume (system audio)",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
             kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,
@@ -402,13 +402,13 @@ final class SystemAudioCapture {
             ],
         ]
         var device = AudioObjectID(kAudioObjectUnknown)
-        try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device), "périphérique agrégé")
+        try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device), tr("aggregate device"))
         aggregateID = device
 
         let tapFormat = format
         Log.write(
-            "son système : tap créé (\(Int(tapFormat.mSampleRate)) Hz, \(tapFormat.mChannelsPerFrame) canaux, "
-                + "\(tapFormat.mBitsPerChannel) bits, drapeaux \(tapFormat.mFormatFlags))")
+            "system audio: tap created (\(Int(tapFormat.mSampleRate)) Hz, \(tapFormat.mChannelsPerFrame) channels, "
+                + "\(tapFormat.mBitsPerChannel) bits, flags \(tapFormat.mFormatFlags))")
         var described = false
         try check(
             AudioDeviceCreateIOProcIDWithBlock(&procID, aggregateID, queue) { [weak self] _, input, _, _, _ in
@@ -416,13 +416,13 @@ final class SystemAudioCapture {
                 if !described {
                     described = true
                     let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
-                    let layout = list.map { "\($0.mNumberChannels) canal(aux) × \($0.mDataByteSize) octets" }
-                    Log.write("son système : premier tampon reçu [\(layout.joined(separator: ", "))]")
+                    let layout = list.map { "\($0.mNumberChannels) channel(s) × \($0.mDataByteSize) bytes" }
+                    Log.write("system audio: first buffer received [\(layout.joined(separator: ", "))]")
                 }
                 let samples = self.resampler.convert(bufferList: input, format: tapFormat)
                 if !samples.isEmpty { self.onSamples?(samples) }
-            }, "lecture du tap")
-        try check(AudioDeviceStart(aggregateID, procID), "démarrage")
+            }, tr("reading the tap"))
+        try check(AudioDeviceStart(aggregateID, procID), tr("starting"))
     }
 
     private func stopTap() {
@@ -456,7 +456,7 @@ final class SystemAudioCapture {
             mElement: kAudioObjectPropertyElementMain)
         var status = AudioObjectGetPropertyData(
             AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device)
-        guard status == noErr else { throw CaptureError.coreAudio("sortie par défaut", status) }
+        guard status == noErr else { throw CaptureError.coreAudio(tr("default output"), status) }
 
         var uid: CFString = "" as CFString
         size = UInt32(MemoryLayout<CFString>.size)
@@ -464,11 +464,11 @@ final class SystemAudioCapture {
         status = withUnsafeMutablePointer(to: &uid) {
             AudioObjectGetPropertyData(device, &address, 0, nil, &size, $0)
         }
-        guard status == noErr else { throw CaptureError.coreAudio("identifiant de la sortie", status) }
+        guard status == noErr else { throw CaptureError.coreAudio(tr("output identifier"), status) }
         return uid as String
     }
 
-    /// Objet Core Audio de notre propre processus, s'il existe déjà.
+    /// Core Audio object of our own process, if it already exists.
     private static func ownProcessObjects() -> [AudioObjectID] {
         var pid = getpid()
         var object = AudioObjectID(kAudioObjectUnknown)
@@ -483,7 +483,7 @@ final class SystemAudioCapture {
     }
 }
 
-/// Un canal en cours d'enregistrement : tampon en mémoire, fichier de secours, niveau sonore.
+/// A channel being recorded: in-memory buffer, backup file, sound level.
 final class ChannelRecorder: @unchecked Sendable {
     let channel: AudioChannel
     let buffer = SampleBuffer()
@@ -498,14 +498,14 @@ final class ChannelRecorder: @unchecked Sendable {
         self.sessionStart = sessionStart
     }
 
-    /// Décalage du premier échantillon par rapport au début de la session.
+    /// Offset of the first sample relative to the start of the session.
     var offset: Double {
         lock.lock()
         defer { lock.unlock() }
         return firstSampleOffset ?? 0
     }
 
-    /// Branche le fichier de secours, en y versant d'abord tout ce qui a déjà été capté.
+    /// Attaches the backup file, first pouring in everything captured so far.
     func attach(_ writer: WavWriter) {
         lock.lock()
         defer { lock.unlock() }
@@ -523,13 +523,13 @@ final class ChannelRecorder: @unchecked Sendable {
         }
         let start = firstSampleOffset ?? 0
 
-        // Si la capture s'est interrompue (changement de périphérique), on comble par du
-        // silence pour que les horodatages restent alignés entre les canaux.
+        // If the capture was interrupted (device change), fill with
+        // silence so that timestamps stay aligned between channels.
         let expected = Int((now - start) * rate)
         let missing = expected - (buffer.count + samples.count)
         if missing > Int(rate / 2) {
-            // Au plus trente secondes de silence : après une longue interruption (veille de
-            // l'ordinateur), on décale l'origine plutôt que de fabriquer des heures de zéros.
+            // At most thirty seconds of silence: after a long interruption (computer
+            // sleep), shift the origin rather than fabricate hours of zeros.
             let padded = min(missing, Int(rate) * 30)
             if padded < missing {
                 firstSampleOffset = start + Double(missing - padded) / rate

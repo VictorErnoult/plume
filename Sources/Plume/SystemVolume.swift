@@ -1,15 +1,15 @@
 import CoreAudio
 import Foundation
 
-/// Coupe le son de la sortie par défaut le temps d'une dictée (musique, vidéo en cours), puis
-/// le rétablit. On passe par le réglage « muet » de la sortie, pas par le volume : rien n'est
-/// à mémoriser, et un son coupé par l'utilisateur lui-même le reste.
+/// Mutes the default output for the length of a dictation (music, a playing video), then
+/// restores it. It uses the output's "mute" setting, not the volume: nothing has to be
+/// remembered, and a sound the user muted themselves stays muted.
 enum SystemVolume {
     private static var address = AudioObjectPropertyAddress(
         mSelector: kAudioDevicePropertyMute, mScope: kAudioDevicePropertyScopeOutput,
         mElement: kAudioObjectPropertyElementMain)
 
-    /// - Returns: `true` si l'état a changé (faux si la sortie était déjà muette, ou ne sait pas se couper).
+    /// - Returns: `true` if the state changed (false if the output was already muted, or can't be muted).
     @discardableResult
     static func mute(_ on: Bool) -> Bool {
         guard let device = defaultOutput(), AudioObjectHasProperty(device, &address) else { return false }

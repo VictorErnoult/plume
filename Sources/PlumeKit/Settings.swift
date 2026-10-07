@@ -1,11 +1,11 @@
 import Foundation
 
-/// Raccourci clavier : soit une combinaison de modificateurs seuls (`keyCode == nil`,
-/// par exemple ⌃⌥), soit une touche avec modificateurs (⌥Espace).
+/// Keyboard shortcut: either a combination of modifiers alone (`keyCode == nil`,
+/// for example ⌃⌥), or a key with modifiers (⌥Space).
 public struct Shortcut: Codable, Sendable, Equatable {
-    /// Code de touche virtuel macOS, ou `nil` pour un accord de modificateurs seuls.
+    /// macOS virtual key code, or `nil` for a chord of modifiers alone.
     public var keyCode: Int?
-    /// Masque de modificateurs (bits de `ModifierMask`).
+    /// Modifier mask (bits of `ModifierMask`).
     public var modifiers: Int
 
     public init(keyCode: Int?, modifiers: Int) {
@@ -14,12 +14,12 @@ public struct Shortcut: Codable, Sendable, Equatable {
     }
 
     public var isModifierOnly: Bool { keyCode == nil }
-    /// Raccourci non attribué.
+    /// Unassigned shortcut.
     public var isEmpty: Bool { keyCode == nil && modifiers == 0 }
     public static let none = Shortcut(keyCode: nil, modifiers: 0)
 }
 
-/// Bits de modificateurs indépendants d'AppKit, pour rester utilisables hors macOS.
+/// Modifier bits independent of AppKit, to stay usable outside macOS.
 public enum ModifierMask {
     public static let control = 1 << 0
     public static let option = 1 << 1
@@ -27,7 +27,7 @@ public enum ModifierMask {
     public static let command = 1 << 3
 }
 
-/// Réglages persistants, partagés entre l'app et la ligne de commande.
+/// Persistent settings, shared between the app and the command line.
 public final class PlumeSettings: @unchecked Sendable {
     public static let bundleID = "studio.brigode.plume"
     public static let shared = PlumeSettings()
@@ -35,7 +35,7 @@ public final class PlumeSettings: @unchecked Sendable {
     public let defaults: UserDefaults
 
     public init() {
-        // PLUME_DEFAULTS : un jeu de réglages à part pour les essais, sans toucher aux vrais.
+        // PLUME_DEFAULTS: a separate set of settings for test runs, without touching the real ones.
         if let suite = ProcessInfo.processInfo.environment["PLUME_DEFAULTS"], !suite.isEmpty {
             defaults = UserDefaults(suiteName: Self.bundleID + "." + suite) ?? .standard
         } else if Bundle.main.bundleIdentifier == Self.bundleID {
@@ -108,14 +108,14 @@ public final class PlumeSettings: @unchecked Sendable {
         static let changelogSeen = "changelogSeen"
     }
 
-    // MARK: Dossiers
+    // MARK: Folders
 
     public static var defaultLibraryURL: URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Plume", isDirectory: true)
     }
 
-    /// Réglages annexes (vocabulaire, règles par application, empreinte vocale) :
-    /// `~/Library/Application Support/Plume`, ou le dossier `PLUME_SUPPORT` pour les essais.
+    /// Auxiliary settings (vocabulary, per-app rules, voiceprint):
+    /// `~/Library/Application Support/Plume`, or the `PLUME_SUPPORT` folder for test runs.
     public static var supportDirectory: URL {
         if let override = ProcessInfo.processInfo.environment["PLUME_SUPPORT"], !override.isEmpty {
             return URL(fileURLWithPath: (override as NSString).expandingTildeInPath, isDirectory: true)
@@ -126,7 +126,7 @@ public final class PlumeSettings: @unchecked Sendable {
 
     public var libraryURL: URL {
         get {
-            // Bibliothèque de substitution pour les essais, sans toucher à la vraie.
+            // Stand-in library for test runs, without touching the real one.
             if let override = ProcessInfo.processInfo.environment["PLUME_LIBRARY"], !override.isEmpty {
                 return URL(fileURLWithPath: (override as NSString).expandingTildeInPath, isDirectory: true)
             }
@@ -140,14 +140,14 @@ public final class PlumeSettings: @unchecked Sendable {
 
     public var store: TranscriptStore { TranscriptStore(root: libraryURL) }
 
-    // MARK: Comportement
+    // MARK: Behavior
 
     public var model: EngineModel {
         get { EngineModel(rawValue: defaults.string(forKey: Key.model) ?? "") ?? .parakeetUltra }
         set { defaults.set(newValue.rawValue, forKey: Key.model) }
     }
 
-    /// Dossier du modèle personnalisé (`EngineModel.custom`), ou `nil`.
+    /// Folder of the custom model (`EngineModel.custom`), or `nil`.
     public var customModelURL: URL? {
         get {
             guard let path = defaults.string(forKey: Key.customModelPath), !path.isEmpty else { return nil }
@@ -171,25 +171,25 @@ public final class PlumeSettings: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.restoreClipboard) }
     }
 
-    /// Nettoyage léger et déterministe du texte dicté (hésitations, mots bégayés).
+    /// Light, deterministic cleanup of the dictated text (hesitations, stuttered words).
     public var cleanup: Bool {
         get { defaults.bool(forKey: Key.cleanup) }
         set { defaults.set(newValue, forKey: Key.cleanup) }
     }
 
-    /// « À la ligne », « nouveau paragraphe », « efface ça »… exécutés plutôt qu'écrits.
+    /// "New line" (« à la ligne »), "new paragraph", "delete that"… executed rather than written.
     public var voiceCommands: Bool {
         get { defaults.bool(forKey: Key.voiceCommands) }
         set { defaults.set(newValue, forKey: Key.voiceCommands) }
     }
 
-    /// Espace, majuscule et point final adaptés à ce qui entoure le curseur.
+    /// Space, capital and final period adapted to what surrounds the cursor.
     public var smartInsert: Bool {
         get { defaults.bool(forKey: Key.smartInsert) }
         set { defaults.set(newValue, forKey: Key.smartInsert) }
     }
 
-    /// Les phrases se tapent dans le champ au fil de la dictée, au lieu d'être collées à la fin.
+    /// Sentences are typed into the field as the dictation goes, instead of being pasted at the end.
     public var streamingPaste: Bool {
         get { defaults.bool(forKey: Key.streamingPaste) }
         set { defaults.set(newValue, forKey: Key.streamingPaste) }
@@ -200,55 +200,55 @@ public final class PlumeSettings: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.keepAudio) }
     }
 
-    /// Ranger les dictées dans la bibliothèque. Sinon, le texte est collé puis oublié : pas
-    /// d'historique, pas d'audio, pas de fichier de secours. Les réunions, qui n'ont pas
-    /// d'autre débouché que l'historique, y sont toujours rangées.
+    /// File dictations in the library. Otherwise the text is pasted then forgotten: no
+    /// history, no audio, no backup file. Meetings, which have no other outlet
+    /// than the history, are always filed.
     public var keepHistory: Bool {
         get { defaults.bool(forKey: Key.keepHistory) }
         set { defaults.set(newValue, forKey: Key.keepHistory) }
     }
 
-    /// Nombre de jours pendant lesquels l'audio est gardé (0 : toujours).
+    /// Number of days the audio is kept (0: always).
     public var audioRetentionDays: Int {
         get { defaults.integer(forKey: Key.audioRetentionDays) }
         set { defaults.set(newValue, forKey: Key.audioRetentionDays) }
     }
 
-    /// Nombre d'heures pendant lesquelles un enregistrement annulé reste récupérable
-    /// (0 : il est jeté tout de suite).
+    /// Number of hours a cancelled recording stays recoverable
+    /// (0: it is thrown away right away).
     public var cancelledRetentionHours: Int {
         get { defaults.integer(forKey: Key.cancelledRetentionHours) }
         set { defaults.set(newValue, forKey: Key.cancelledRetentionHours) }
     }
 
-    /// Les enregistrements annulés encore récupérables.
+    /// Cancelled recordings that are still recoverable.
     public var cancelled: CancelledStore { CancelledStore(library: libraryURL) }
 
-    /// Proposer d'enregistrer quand une app de visio se met à utiliser le micro.
+    /// Offer to record when a video-call app starts using the microphone.
     public var meetingDetection: Bool {
         get { defaults.bool(forKey: Key.meetingDetection) }
         set { defaults.set(newValue, forKey: Key.meetingDetection) }
     }
 
-    /// Couper le son de l'ordinateur le temps d'une dictée (musique, vidéo).
+    /// Mute the system audio for the length of a dictation (music, video).
     public var muteWhileDictating: Bool {
         get { defaults.bool(forKey: Key.muteWhileDictating) }
         set { defaults.set(newValue, forKey: Key.muteWhileDictating) }
     }
 
-    /// Mise au propre de chaque dictée par l'IA locale, sauf règle contraire pour l'app.
+    /// AI clean-up of each dictation by the local AI, unless a rule says otherwise for the app.
     public var polish: Bool {
         get { defaults.bool(forKey: Key.polish) }
         set { defaults.set(newValue, forKey: Key.polish) }
     }
 
-    /// Consignes données à l'IA pour la mise au propre (« tutoie », « pas d'émojis »…).
+    /// Instructions given to the AI for the clean-up ("use informal 'tu'", "no emojis"…).
     public var polishInstructions: String {
         get { defaults.string(forKey: Key.polishInstructions) ?? "" }
         set { defaults.set(newValue, forKey: Key.polishInstructions) }
     }
 
-    /// Résumer chaque réunion par l'IA locale dès qu'elle est transcrite.
+    /// Summarize each meeting with the local AI as soon as it is transcribed.
     public var autoSummary: Bool {
         get { defaults.bool(forKey: Key.autoSummary) }
         set { defaults.set(newValue, forKey: Key.autoSummary) }
@@ -264,19 +264,19 @@ public final class PlumeSettings: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.systemAudioInMeeting) }
     }
 
-    /// Volume des sons de début et de fin (0…1).
+    /// Volume of the start and end sounds (0…1).
     public var soundVolume: Double {
         get { defaults.double(forKey: Key.soundVolume) }
         set { defaults.set(newValue, forKey: Key.soundVolume) }
     }
 
-    /// Pack de sons d'enregistrement (identifiant, voir `SoundPack` dans l'app).
+    /// Recording sound pack (identifier, see `SoundPack` in the app).
     public var soundPack: String {
         get { defaults.string(forKey: Key.soundPack) ?? "pluck" }
         set { defaults.set(newValue, forKey: Key.soundPack) }
     }
 
-    /// Identifiant du micro choisi. `nil` : le micro intégré du Mac.
+    /// Identifier of the chosen microphone. `nil`: the Mac's built-in microphone.
     public var microphoneUID: String? {
         get {
             let value = defaults.string(forKey: Key.microphoneUID)
@@ -285,25 +285,25 @@ public final class PlumeSettings: @unchecked Sendable {
         set { defaults.set(newValue ?? "", forKey: Key.microphoneUID) }
     }
 
-    /// Langue de l'interface (anglais par défaut).
+    /// Interface language (English by default).
     public var language: Language {
         get { Language(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .english }
         set { defaults.set(newValue.rawValue, forKey: Key.language) }
     }
 
-    /// Apparence de la fenêtre : `sombre` (par défaut), `clair` ou `systeme`.
+    /// Window appearance: `sombre` (default), `clair` or `systeme`.
     public var appearance: String {
         get { defaults.string(forKey: Key.appearance) ?? "sombre" }
         set { defaults.set(newValue, forKey: Key.appearance) }
     }
 
-    /// Affiche le choix dictée / réunion pendant les premières secondes d'un enregistrement.
+    /// Shows the dictation / meeting choice during the first seconds of a recording.
     public var modeSwitchAtStart: Bool {
         get { defaults.bool(forKey: Key.modeSwitchAtStart) }
         set { defaults.set(newValue, forKey: Key.modeSwitchAtStart) }
     }
 
-    /// Empreinte du journal des modifications la dernière fois que « Nouveautés » a été ouvert.
+    /// Fingerprint of the changelog the last time "What's new" was opened.
     public var changelogSeen: String {
         get { defaults.string(forKey: Key.changelogSeen) ?? "" }
         set { defaults.set(newValue, forKey: Key.changelogSeen) }
@@ -314,13 +314,13 @@ public final class PlumeSettings: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.onboarded) }
     }
 
-    // MARK: Raccourcis
+    // MARK: Shortcuts
 
-    /// ⌃⇧ par défaut, comme Superwhisper : appui bref pour démarrer puis arrêter,
-    /// maintien pour parler tant qu'on appuie.
+    /// ⌃⇧ by default, like Superwhisper: short press to start then stop,
+    /// hold to speak while pressing.
     public static let defaultDictationShortcut = Shortcut(
         keyCode: nil, modifiers: ModifierMask.control | ModifierMask.shift)
-    /// ⌃⇧⌘ par défaut. Le mode réunion s'active aussi depuis la pastille.
+    /// ⌃⇧⌘ by default. Meeting mode can also be started from the island.
     public static let defaultMeetingShortcut = Shortcut(
         keyCode: nil, modifiers: ModifierMask.control | ModifierMask.shift | ModifierMask.command)
 
@@ -334,36 +334,36 @@ public final class PlumeSettings: @unchecked Sendable {
         set { setShortcut(newValue, forKey: Key.meetingShortcut) }
     }
 
-    /// Raccourci qui ouvre la fenêtre de Plume (aucun par défaut).
+    /// Shortcut that opens the Plume window (none by default).
     public var openShortcut: Shortcut {
         get { shortcut(forKey: Key.openShortcut) ?? .none }
         set { setShortcut(newValue, forKey: Key.openShortcut) }
     }
 
-    /// Raccourci qui recolle la dernière dictée là où est le curseur (aucun par défaut).
+    /// Shortcut that pastes the last dictation again where the cursor is (none by default).
     public var pasteLastShortcut: Shortcut {
         get { shortcut(forKey: Key.pasteLastShortcut) ?? .none }
         set { setShortcut(newValue, forKey: Key.pasteLastShortcut) }
     }
 
-    /// Raccourci « transformer la sélection » : on dicte une consigne, l'IA locale réécrit le
-    /// texte sélectionné (aucun par défaut).
+    /// "Transform the selection" shortcut: you dictate an instruction, the local AI rewrites the
+    /// selected text (none by default).
     public var transformShortcut: Shortcut {
         get { shortcut(forKey: Key.transformShortcut) ?? .none }
         set { setShortcut(newValue, forKey: Key.transformShortcut) }
     }
 
-    /// Échap par défaut. Modifiable (⇧⎋, ⌃⎋…) pour qui presse Échap par réflexe dans d'autres apps.
+    /// Esc by default. Changeable (⇧⎋, ⌃⎋…) for those who press Esc by reflex in other apps.
     public static let defaultCancelShortcut = Shortcut(keyCode: 53, modifiers: 0)
 
-    /// Raccourci qui annule l'enregistrement en cours. Il n'est intercepté que pendant un
-    /// enregistrement : le reste du temps, la touche garde son rôle habituel.
+    /// Shortcut that cancels the current recording. It is only intercepted during a
+    /// recording: the rest of the time, the key keeps its usual role.
     public var cancelShortcut: Shortcut {
         get { shortcut(forKey: Key.cancelShortcut) ?? Self.defaultCancelShortcut }
         set { setShortcut(newValue, forKey: Key.cancelShortcut) }
     }
 
-    /// Raccourci qui récupère le dernier enregistrement annulé (aucun par défaut).
+    /// Shortcut that restores the last cancelled recording (none by default).
     public var restoreShortcut: Shortcut {
         get { shortcut(forKey: Key.restoreShortcut) ?? .none }
         set { setShortcut(newValue, forKey: Key.restoreShortcut) }

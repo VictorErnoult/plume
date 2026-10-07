@@ -1,246 +1,243 @@
-# Guide d'utilisation
+# User guide
 
-Tout ce que Plume sait faire, en détail. Pour l'essentiel, voir le [README](../README.md).
+Everything Plume can do, in detail. For the essentials, see the [README](../README.md).
 
-## Les gestes
+## Gestures
 
-| Geste | Effet |
+| Gesture | Effect |
 |---|---|
-| `⌃⇧` (appui bref) | Démarre un enregistrement. Second appui : le texte est collé dans le champ actif. |
-| `⌃⇧` (maintenu) | Parle tant que les touches sont tenues ; relâche pour coller. |
-| Survol de l'encoche | La touche **Réunion** (elle s'enclenche et reste allumée), annuler, terminer. |
-| `⌃⇧⌘` | Démarre directement une réunion (ou y passe en cours de dictée). |
-| `Échap` | Annule la dictée en cours (raccourci modifiable). L'enregistrement annulé reste récupérable, voir [Enregistrements annulés](#enregistrements-annulés). |
-| Survol de l'encoche › `⏸` | Met l'enregistrement en pause (le micro se ferme) ; `▶` reprend. |
-| Clic sur l'icône de la barre de menus | Ouvre la fenêtre de Plume (clic droit : menu court, avec les dernières dictées à recopier). |
-| `1` `2` `3` `4` `5`, `T`, `S` dans la fenêtre | Accueil, historique, vocabulaire, applications, réglages ; thème clair / sombre ; sons. |
+| `⌃⇧` (short press) | Starts a recording. Second press: the text is pasted into the active field. |
+| `⌃⇧` (held) | Talks for as long as the keys are held; release to paste. |
+| Hover the notch | The **Meeting** key (it latches and stays lit), cancel, finish. |
+| `⌃⇧⌘` | Starts a meeting directly (or switches to one mid-dictation). |
+| `Esc` | Cancels the current dictation (the shortcut can be changed). The cancelled recording can be restored, see [Cancelled recordings](#cancelled-recordings). |
+| Hover the notch › `⏸` | Pauses the recording (the microphone closes); `▶` resumes. |
+| Click the menu bar icon | Opens the Plume window (right-click: short menu, with the latest dictations to copy again). |
+| `1` `2` `3` `4` `5`, `T`, `S` in the window | Home, history, vocabulary, applications, settings; light / dark theme; sounds. |
 
-Sans raccourci : le bouton **Dicter** de l'accueil range la fenêtre
-(la main revient à l'app d'avant, celle où le texte sera collé) et lance la dictée dans
-l'encoche ; pendant une dictée, il la termine. L'accueil montre aussi les trois dernières
-transcriptions, et **Nouveautés**, en haut à droite de la fenêtre, ouvre le journal des
-modifications (`CHANGELOG.md`), avec un point tant qu'il y a du nouveau.
+With no shortcut: the **Dictate** button on Home steps the window aside (focus returns to the
+previous app, the one the text will be pasted into) and starts the dictation in the notch;
+during a dictation, it finishes it. Home also shows the three latest transcriptions, and
+**What's new**, at the top right of the window, opens the changelog (`CHANGELOG.md`), with a dot
+while there is something new.
 
-Trois raccourcis de plus, sans touche par défaut (à choisir dans **Réglages › Raccourcis**) :
-**Recoller la dernière dictée** (quand le collage a raté, ou pour la réutiliser ailleurs),
-**Récupérer le dernier enregistrement annulé** et **Transformer la sélection** (voir
-[IA locale](#ia-locale)).
+Three more shortcuts, with no default key (set them in **Settings › Shortcuts**): **Paste the
+last dictation again** (when the paste failed, or to reuse it elsewhere), **Restore the last
+cancelled recording** and **Transform the selection** (see [Local AI](#local-ai)).
 
-Le raccourci **Annuler la dictée** accepte une touche seule ou avec modificateurs, Échap
-compris (`⎋`, `⇧⎋`, `⌃⎋`…) : une combinaison évite de couper une dictée en pressant Échap
-par réflexe dans une autre app.
-Il n'est intercepté que pendant une dictée ; le reste du temps, la touche garde son rôle.
+The **Cancel the dictation** shortcut accepts a single key or one with modifiers, Esc included
+(`⎋`, `⇧⎋`, `⌃⎋`…): a combination avoids cutting off a dictation by pressing Esc out of reflex
+in another app. It is only intercepted during a dictation; the rest of the time, the key keeps
+its role.
 
-Les raccourcis se changent dans **Réglages**. Un raccourci peut être un accord de
-modificateurs seuls (`⌃⇧`) ou une touche avec modificateurs (`⌥Espace`). Un accord ne se
-déclenche que s'il est « propre » : `⌃⇧Tab` ou `⌃⇧` + clic ne lancent rien.
+Shortcuts are changed in **Settings**. A shortcut can be a chord of modifiers alone (`⌃⇧`) or a
+key with modifiers (`⌥Space`). A chord only fires when it is "clean": `⌃⇧Tab` or `⌃⇧` + click
+do nothing.
 
-## Ce qui arrive au texte dicté
+## What happens to the dictated text
 
-Dans l'ordre, à la fin de chaque dictée :
+In order, at the end of each dictation:
 
-1. **Nettoyage** : hésitations (« euh ») et mots bégayés retirés. Le texte brut du modèle est
-   conservé dans l'historique.
-2. **Commandes vocales** (Réglages › Dictée) : « à la ligne », « nouveau paragraphe »,
-   « nouvelle puce » (ou « tiret » après un saut de ligne), « point d'interrogation », « point
-   d'exclamation », « deux points » (suivi d'une pause), « points de suspension », « ouvrez /
-   fermez les guillemets », « ouvrez / fermez la parenthèse », « efface ça » (retire la phrase
-   qui précède), « efface tout », et « appuie sur Entrée » tout à la fin pour envoyer le message.
-   En anglais : *new line*, *new paragraph*, *bullet point*, *scratch that*, *press enter*…
-   Plume ne confond pas « la pêche à la ligne » ni « à la ligne 42 » avec une commande.
-3. **Vocabulaire** : les remplacements de la page Vocabulaire. Une entrée dont la colonne
-   « Écrit » tient sur plusieurs lignes (`⌥↩`) fait un raccourci vocal : « ma signature »
-   devient ta signature complète.
-4. **Style de l'application** (page Applications) : *Standard*, *Message* (sans point final),
-   *Décontracté* (sans majuscule de début de phrase ni point final).
-5. **Mise au propre par l'IA locale**, si elle est demandée (voir plus bas).
-6. **Écrire au fur et à mesure** (Réglages › Dictée, inactif par défaut, marqué « bêta ») : les mots se tapent
-   dans le champ pendant que tu parles, cinq fois par seconde, tels que le direct les entend ;
-   quand le modèle se corrige, Plume efface les quelques caractères qui changent et retape.
-   Le dernier mot entendu attend le suivant (c'est le moins sûr). À l'arrêt, ce qui reste est
-   tapé tout de suite. Le texte passe par le nettoyage, les commandes vocales (« efface ça »
-   efface aussi ce qui est déjà tapé), le vocabulaire et le style de l'app ; la mise au propre
-   par l'IA ne s'applique pas, et l'historique garde la version complète retranscrite d'un
-   bloc. Ne déplace pas le curseur pendant que ça écrit.
-7. **Insertion intelligente** (Réglages › Dictée) : Plume regarde ce qui entoure le curseur
-   (par l'accessibilité, quand l'app le permet) et ajoute une espace si le curseur touche un
-   mot, met une minuscule si la phrase est déjà commencée, retire le point final si elle
-   continue après le curseur.
+1. **Clean-up**: hesitations ("um") and stuttered words removed. The model's raw text is kept
+   in the history.
+2. **Voice commands** (Settings › Dictation): "new line", "new paragraph", "new bullet",
+   "question mark", "exclamation mark", "open / close quote", "open / close parenthesis",
+   "scratch that" (removes the preceding sentence), "delete everything", and "press enter" at the very end to send the message. In French:
+   « à la ligne », « nouveau paragraphe », « nouvelle puce » (or « tiret » after a line break),
+   « point d'interrogation », « point d'exclamation », « deux points » (followed by a pause),
+   « points de suspension », « ouvrez / fermez les guillemets », « ouvrez / fermez la
+   parenthèse », « efface ça », « efface tout », and « appuie sur Entrée ». Plume doesn't mistake
+   "a new line of products" or "line 42" for a command.
+3. **Vocabulary**: the replacements from the Vocabulary page. An entry whose "Written" column
+   spans several lines (`⌥↩`) makes a voice snippet: "my signature" becomes your full
+   signature.
+4. **The app's style** (Applications page): *Standard*, *Message* (no final period), *Casual*
+   (no capital at the start of a sentence, no final period).
+5. **Clean up with the local AI**, if requested (see below).
+6. **Write as you speak** (Settings › Dictation, off by default, marked "beta"): words are
+   typed into the field while you talk, five times a second, as live transcription hears them;
+   when the model corrects itself, Plume erases the few characters that change and retypes. The
+   last word heard waits for the next one (it is the least certain). On stop, what is left is
+   typed right away. The text goes through clean-up, voice commands ("scratch that" also erases
+   what is already typed), vocabulary and the app's style; AI clean-up doesn't apply, and the
+   history keeps the full version transcribed in one block. Don't move the cursor while it
+   writes.
+7. **Smart insert** (Settings › Dictation): Plume looks at what surrounds the cursor (through
+   accessibility, when the app allows it) and adds a space if the cursor touches a word, uses
+   lowercase if the sentence has already begun, drops the final period if it continues after
+   the cursor.
 
 ## Applications
 
-La page **Applications** donne à chaque app sa règle de dictée : le style du texte, **Valider
-avec Entrée** (le message part dès qu'il est collé — pour Slack, Messages, un terminal), la
-**mise au propre par l'IA locale** avec ses consignes (« vouvoie », « pas d'émojis »), et
-**Taper le texte au lieu de le coller** pour les rares apps qui refusent `⌘V` (bureau à
-distance, certains terminaux). « Toutes les autres applications » fixe la règle par défaut.
-Plume reconnaît l'app au premier plan au moment où la dictée commence.
+The **Applications** page gives each app its own dictation rule: the text style, **Send with
+Return** (the message goes out as soon as it is pasted — for Slack, Messages, a terminal), **Clean
+up with the local AI** with its instructions ("be formal", "no emojis"), and **Type
+the text instead of pasting it** for the few apps that refuse `⌘V` (remote desktop, some
+terminals). "All other applications" sets the default rule. Plume recognizes the frontmost app
+at the moment the dictation starts.
 
-## IA locale
+## Local AI
 
-Sur un Mac avec Apple Intelligence (macOS 26 ou plus récent, Apple Intelligence activée dans
-les Réglages Système), Plume peut utiliser le modèle de langage d'Apple, qui tourne sur
-l'appareil : rien ne quitte le Mac. Tout est en option, désactivé par défaut.
+On a Mac with Apple Intelligence (macOS 26 or later, Apple Intelligence turned on in System
+Settings), Plume can use Apple's language model, which runs on the device: nothing leaves the
+Mac. Everything is optional, off by default.
 
-- **Mettre les dictées au propre** (Réglages › IA locale, ou par application) : ponctuation,
-  faux départs et auto-corrections (« non pardon, à 16 h ») repris, sans changer le sens. Si
-  la réponse paraît douteuse (vide, bien plus longue ou plus courte), Plume garde le texte
-  déterministe. Le brut reste dans l'historique.
-- **Résumer une réunion** : dans l'historique, le bouton **Résumer** écrit les points clés,
-  les décisions et les actions, et propose un titre. Le résumé est rangé dans le fichier
-  Markdown de la transcription (section « Résumé »), donc visible par les IA qui lisent la
-  bibliothèque. **Réglages › IA locale › Résumer chaque réunion** le fait tout seul.
-- **Transformer la sélection** (raccourci à choisir) : sélectionne un texte dans n'importe
-  quelle app, appuie sur le raccourci, dicte une consigne (« traduis en anglais », « plus
-  court », « mets en liste », « rends ça plus formel ») ; l'IA réécrit et le résultat remplace
-  la sélection. Sans sélection, elle rédige à partir de la consigne (« un message pour prévenir
-  Marc que je serai en retard »).
+- **Clean up dictations** (Settings › Local AI, or per app): punctuation, false starts and
+  self-corrections ("no sorry, at 4 pm") fixed, without changing the meaning. If the answer
+  looks doubtful (empty, much longer or shorter), Plume keeps the deterministic text. The raw
+  text stays in the history.
+- **Summarize a meeting**: in the history, the **Summarize** button writes the key points,
+  decisions and actions, and suggests a title. The summary is stored in the transcript's
+  Markdown file (a "Summary" section), so AIs that read the library can see it. **Settings ›
+  Local AI › Summarize every meeting** does it automatically.
+- **Transform the selection** (shortcut to set): select text in any app, press the shortcut,
+  say an instruction ("translate to English", "shorter", "make it a list", "make it more
+  formal"); the AI rewrites it and the result replaces the selection. With no selection, it
+  writes from the instruction ("a message to tell Marc I'll be late").
 
-Sans Apple Intelligence, ces réglages sont grisés et en expliquent la raison.
+Without Apple Intelligence, these settings are greyed out and explain why.
 
-## Réunions
+## Meetings
 
-Quand **Zoom, Teams, FaceTime, Webex, Slack, Discord** ou **un navigateur** (Meet, Teams
-web) se met à utiliser le micro, l'encoche propose d'enregistrer la réunion : un clic sur
-**Enregistrer** suffit. La proposition disparaît d'elle-même au bout de vingt secondes.
-Réglages › Réunion › *Proposer d'enregistrer quand un appel démarre* la désactive. Plume ne
-fait que lire la liste des processus audio : rien n'est écouté avant que tu l'aies demandé.
+When **Zoom, Teams, FaceTime, Webex, Slack, Discord** or **a browser** (Meet, Teams web) starts
+using the microphone, the notch offers to record the meeting: one click on **Record** is enough.
+The offer goes away on its own after twenty seconds. Settings › Meeting › *Offer to record when
+a call starts* turns it off. Plume only reads the list of audio processes: nothing is heard
+before you ask.
 
-Pendant un enregistrement, si le micro ne capte rien pendant quinze secondes, l'onde de
-l'encoche s'éteint et un « zZ » bleuté se pose dessus : micro coupé, mauvais
-périphérique. Tout rentre dans l'ordre dès qu'un son arrive.
+During a recording, if the microphone picks up nothing for fifteen seconds, the notch's
+waveform goes out and a bluish "zZ" settles on it: microphone muted, wrong device. Everything
+returns to normal as soon as sound arrives.
 
-L'audio est écrit sur disque au fil de l'eau, pour une réunion comme pour une dictée : si
-l'app s'arrête en plein enregistrement, il est transcrit au prochain lancement.
+Audio is written to disk as it goes, for a meeting as for a dictation: if the app stops in the
+middle of a recording, it is transcribed at the next launch.
 
-En mode réunion, Plume capte aussi le son de l'ordinateur, sépare les voix à la fin, et
-range le dialogue dans l'historique au lieu de le coller. Sans casque, le son des
-haut-parleurs repasse dans le micro : Plume le détecte et retire cet écho avant de
-transcrire, sinon les voix distantes apparaîtraient en double et masqueraient la tienne.
-Si les voix restent mal séparées, « Refaire la séparation des voix » (dans l'historique)
-réécoute l'audio en imposant le nombre de personnes. « Moi » désigne ta voix : Plume
-l'apprend à partir de tes dictées (une empreinte vocale stockée localement). Dans
-l'historique, un clic sur un nom le renomme partout ; un clic sur un horodatage lance
-l'écoute à cet endroit.
+In meeting mode, Plume also captures the system audio, separates the voices at the end, and
+files the dialogue in the history instead of pasting it. Without headphones, the speakers' sound
+leaks back into the microphone: Plume detects it and removes that echo before transcribing,
+otherwise the remote voices would appear twice and drown out yours. If the voices are still
+poorly separated, "Redo speaker separation" (in the history) listens to the audio again,
+forcing the number of people. "Me" is your voice: Plume learns it from your dictations (a
+voiceprint stored locally). In the history, a click on a name renames it everywhere; a click on
+a timestamp starts playback from there.
 
-Plume n'écoute pas l'entrée audio par défaut du système mais le micro choisi dans
-**Réglages › Micro et sons** — par défaut celui du Mac. Connecter des écouteurs ou une enceinte
-Bluetooth ne change donc rien ; pour dicter avec leur micro, il faut le choisir soi-même.
+Plume doesn't listen to the system's default audio input but to the microphone chosen in
+**Settings › Microphone & sounds** — by default the Mac's. So connecting earbuds or a Bluetooth
+speaker changes nothing; to dictate with their microphone, you have to choose it yourself.
 
-**Réglages › Dictée › Couper le son de l'ordinateur pendant la dictée** coupe la musique ou
-la vidéo en cours le temps de parler, puis la rétablit (jamais en réunion).
+**Settings › Dictation › Mute the computer while dictating** mutes music or video playing while
+you talk, then restores it (never in a meeting).
 
-## Historique
+## History
 
-Chaque transcription peut recevoir un **titre** (clic sur le titre) ; sinon, la date en tient
-lieu. Le bouton **Exporter** l'enregistre en Markdown, texte brut, sous-titres SRT ou WebVTT
-(pour les réunions) ou JSON. **Retranscrire** refait la transcription à partir de l'audio
-conservé, avec le modèle actuel. Le presse-papiers est toujours rétabli après le collage, et la
-dictée est marquée « transitoire » : les gestionnaires de presse-papiers (Paste, Maccy,
-Raycast…) ne la gardent pas dans leur historique.
+Each transcription can get a **title** (click the title); otherwise the date stands in. The
+**Export** button saves it as Markdown, plain text, SRT or WebVTT subtitles (for meetings) or
+JSON. **Transcribe again** redoes the transcription from the kept audio, with the current model.
+The clipboard is always restored after pasting, and the dictation is marked "transient":
+clipboard managers (Paste, Maccy, Raycast…) don't keep it in their history.
 
-**Réglages › Bibliothèque › Conserver de chaque dictée** : *le texte et l'audio* (par
-défaut), *le texte seulement*, ou *rien* — la dictée est collée puis oubliée, sans texte, sans
-audio, sans fichier de secours (les réunions, qui n'ont pas d'autre débouché, restent dans
-l'historique). **Garder l'audio** limite la conservation des enregistrements (90, 30 ou 7
-jours) : l'audio plus ancien est supprimé au lancement, le texte reste.
-### Enregistrements annulés
+**Settings › Library › Keep from each dictation**: *Text and audio* (default), *Text only*, or
+*Nothing* — the dictation is pasted then forgotten, with no text, no audio, no safety file
+(meetings, which have nowhere else to go, stay in the history). **Keep audio** limits how long
+recordings are kept (90, 30 or 7 days): older audio is deleted at launch, the text stays.
 
-Une dictée ou une réunion annulée (raccourci, bouton de l'encoche, menu) n'est pas jetée tout de
-suite : elle est mise de côté dans `~/Plume/.annules/`, hors de l'historique et de l'index.
-Elle se retrouve par le bouton `↶` en haut de l'historique (on peut l'écouter, la copier, la récupérer ou la supprimer), par le
-raccourci **Récupérer le dernier enregistrement annulé**, le menu de la barre, `plume restore` ou
-`plume://recuperer`. Une dictée annulée est transcrite en arrière-plan (la récupérer la colle
-aussitôt, depuis l'encoche ou le raccourci) ; une réunion ne l'est qu'au moment où on la récupère.
-**Réglages › Bibliothèque › Garder les enregistrements annulés** : *ne pas garder*, 1 heure,
-24 heures, 7 jours (par défaut) ou 30 jours ; passé ce délai, ils sont supprimés. Un appui de
-moins d'une seconde n'est pas gardé.
+### Cancelled recordings
 
-**Tous les réglages › Exporter…** écrit raccourcis, options, vocabulaire et règles par
-application dans un fichier JSON, à importer sur un autre Mac.
+A cancelled dictation or meeting (shortcut, notch button, menu) isn't thrown away right away:
+it is set aside in `~/Plume/.annules/`, out of the history and the index. It can be found with
+the `↶` button at the top of the history (you can listen to it, copy it, restore it or delete
+it), with the **Restore the last cancelled recording** shortcut, the menu bar menu,
+`plume restore` or `plume://recuperer`. A cancelled dictation is transcribed in the background
+(restoring it pastes it right away, from the notch or the shortcut); a meeting is only
+transcribed when you restore it. **Settings › Library › Keep cancelled recordings**: *Don't
+keep*, 1 hour, 24 hours, 7 days (default) or 30 days; after that delay, they are deleted. A
+press shorter than one second isn't kept.
 
-## Langue
+**All settings › Export…** writes shortcuts, options, vocabulary and per-app rules to a JSON
+file, to import on another Mac.
 
-L'interface est en anglais par défaut ; **Réglages › Général › Langue** la passe en français
-(ou l'inverse), sans tenir compte de la langue du système. Le choix vaut pour la fenêtre,
-l'encoche, les menus, les titres des transcriptions (« Réunion du 2 oct. 2026 à 11:30 » /
-« Meeting, Oct 2, 2026 at 11:30 AM »), les noms des interlocuteurs (« Moi », « Interlocuteur
-1 » / « Me », « Speaker 1 ») et les notes de réunion écrites par l'IA locale. Les commandes
-vocales marchent dans les deux langues quel que soit le réglage. La ligne de commande reste
-en français.
+## Language
 
-## Modèles de transcription
+The interface is in English by default; **Settings › General › Language** switches it to French
+(or back), regardless of the system language. macOS system dialogs (permission prompts, open/save
+panels, update dialogs) follow the Mac's language. The choice applies to the window, the notch,
+the menus, transcript titles ("Meeting, Oct 2, 2026 at 11:30 AM" / "Réunion du 2 oct. 2026 à
+11:30"), speaker names ("Me", "Speaker 1" / "Moi", "Interlocuteur 1") and the meeting notes
+written by the local AI. Voice commands work in both languages whatever the setting. Command-line
+messages follow the setting; `--json` keys are always French.
 
-**Réglages › Modèle** propose toute la famille Parakeet que FluidAudio sait
-faire tourner sur le Neural Engine, chacun avec ses langues, sa taille et sa précision :
-Parakeet Ultra (recommandé, 25 langues), Parakeet TDT v3, Parakeet Redux (compact, 220 Mo),
-Parakeet TDT v2 et Phonon-2 (anglais), Parakeet TDT-CTC 110M (anglais, le plus rapide),
-Parakeet japonais. Chaque modèle est téléchargé une fois depuis Hugging Face, puis tout se
-passe hors ligne. **Dossier personnalisé…** charge ton propre modèle : un dossier au format
-Parakeet (quatre `.mlmodelc` — Preprocessor, Encoder, Decoder, JointDecision — et
-`parakeet_vocab.json`), par exemple un Parakeet ré-entraîné sur ton vocabulaire et converti
-avec les outils de FluidAudio. Le bouton **Retranscrire** de l'historique permet de comparer
-deux modèles sur le même enregistrement.
+## Transcription models
 
-## Sons
+**Settings › Model** offers the whole Parakeet family that FluidAudio can run on the Neural
+Engine, each with its languages, size and accuracy: Parakeet Ultra (recommended, 25 languages),
+Parakeet TDT v3, Parakeet Redux (compact, 220 MB), Parakeet TDT v2 and Phonon-2 (English),
+Parakeet TDT-CTC 110M (English, the fastest), Parakeet Japanese. Each model is downloaded once
+from Hugging Face, then everything happens offline. **Custom folder…** loads your own model: a
+folder in Parakeet format (four `.mlmodelc` — Preprocessor, Encoder, Decoder, JointDecision —
+and `parakeet_vocab.json`), for example a Parakeet retrained on your vocabulary and converted
+with FluidAudio's tools. The history's **Transcribe again** button lets you compare two models
+on the same recording.
 
-Un son au début et à la fin de chaque enregistrement, au choix dans **Réglages › Micro et
-sons › Pack de sons** : Pluck (par défaut), Bips, Clics, Mélodie, Glisse, ou Bois. Les packs sont des
-sons enregistrés (`Resources/Sounds`), raccourcis et adoucis par l'app ; Bois est synthétisé à
-la volée avec la recette du kit du portfolio (marimba très sobre, gamme pentatonique). Les
-gestes dans la fenêtre (survols, onglets, interrupteurs) ont leurs propres notes synthétisées.
-Volume et coupure dans **Réglages › Micro et sons** ou avec la touche `S`. `plume sounds <dossier>`
-écrit tous les sons en WAV, un sous-dossier par pack.
+## Sounds
 
-## Autorisations macOS
+A sound at the start and end of each recording, chosen in **Settings › Microphone & sounds ›
+Sound pack**: Pluck (default), Beeps, Clicks, Melody, Glide, or Wood. The packs are recorded
+sounds (`Resources/Sounds`), shortened and softened by the app; Wood is synthesized on the fly
+with the portfolio kit's recipe (a very restrained marimba, pentatonic scale). Gestures in the
+window (hovers, tabs, switches) have their own synthesized notes. Volume and mute are in
+**Settings › Microphone & sounds** or with the `S` key. `plume sounds <folder>` writes all the
+sounds as WAV, one subfolder per pack.
 
-| Autorisation | Pourquoi | Quand |
+## macOS permissions
+
+| Permission | Why | When |
 |---|---|---|
-| Microphone | T'entendre | Première dictée, ou depuis l'accueil |
-| Accessibilité | Simuler ⌘V pour coller le texte | Depuis l'accueil ; sans elle le texte est seulement copié |
-| Enregistrement audio du système | Capter le son de l'ordinateur en réunion | Première réunion |
+| Microphone | To hear you | First dictation, or from Home |
+| Accessibility | To simulate ⌘V and paste the text | From Home; without it the text is only copied |
+| System audio recording | To capture the system audio in a meeting | First meeting |
 
-L'app est signée avec un certificat local stable : les autorisations survivent aux mises à jour.
+The app is signed with a stable local certificate: permissions survive updates.
 
-## La bibliothèque : `~/Plume`
+## The library: `~/Plume`
 
 ```
 ~/Plume/
-  LISEZMOI.md                          mode d'emploi du dossier, pour les IA
-  dernier.md                           la transcription la plus récente
-  index.jsonl                          une ligne JSON par transcription
+  LISEZMOI.md                          how-to for the folder, for AIs
+  dernier.md                           the most recent transcription
+  index.jsonl                          one JSON line per transcription
   2026-10/
-    2026-10-02_14-31-05_dictee.md      texte, avec en-tête (date, durée, interlocuteurs)
-    2026-10-02_14-31-05_dictee.json    données complètes (segments horodatés, texte brut)
-    2026-10-02_14-31-05_mic.m4a        audio d'origine (mic = micro, sys = son de l'ordinateur)
+    2026-10-02_14-31-05_dictee.md      text, with a header (date, duration, speakers)
+    2026-10-02_14-31-05_dictee.json    full data (timestamped segments, raw text)
+    2026-10-02_14-31-05_mic.m4a        original audio (mic = microphone, sys = system audio)
 ```
 
-## Accès pour une IA
+## Access for an AI
 
-1. **Le dossier.** « Lis `~/Plume/dernier.md` » suffit à tout agent qui a accès aux fichiers.
-2. **La ligne de commande** `plume` :
+1. **The folder.** "Read `~/Plume/dernier.md`" is enough for any agent with file access.
+2. **The `plume` command line**:
    ```sh
-   plume last                 # dernière transcription
-   plume last --mode reunion  # dernière réunion
-   plume list -n 10           # les dix dernières
-   plume search budget site   # recherche plein texte
+   plume last                 # latest transcription
+   plume last --mode reunion  # latest meeting
+   plume list -n 10           # the last ten
+   plume search budget site   # full-text search
    plume show 2026-10-02_14-31-05
    plume transcribe audio.m4a --mode reunion --save
-   plume export 2026-10-02_14-31-05 --format srt -o reunion.srt
-   plume summarize 2026-10-02_14-31-05       # résumé par l'IA locale
-   plume listen                              # dicte dans l'app, le texte revient ici
+   plume export 2026-10-02_14-31-05 --format srt -o meeting.srt
+   plume summarize 2026-10-02_14-31-05       # summary by the local AI
+   plume listen                              # dictates in the app, the text comes back here
    ```
-   Ajoute `--json` pour une sortie structurée.
-3. **Le serveur MCP** (`plume mcp`), déclaré dans Claude Code. Outils : `get_latest_transcript`,
-   `list_transcripts`, `get_transcript`, `search_transcripts`, `summarize_transcript`, et
-   **`listen`** : l'agent ouvre le micro, tu réponds à la voix, tu termines avec ton raccourci,
-   il reçoit le texte. De quoi dire à Claude Code « demande-moi à l'oral » plutôt que de taper.
+   Add `--json` for structured output.
+3. **The MCP server** (`plume mcp`), registered in Claude Code. Tools: `get_latest_transcript`,
+   `list_transcripts`, `get_transcript`, `search_transcripts`, `summarize_transcript`, and
+   **`listen`**: the agent opens the microphone, you answer out loud, you finish with your
+   shortcut, it receives the text. Enough to tell Claude Code "ask me out loud" instead of
+   typing.
 
 `plume toggle dictee|reunion`, `plume stop`, `plume cancel`, `plume pause`, `plume paste`
-(recoller la dernière dictée), `plume restore` (récupérer le dernier enregistrement annulé ;
-`plume cancelled` les liste) et `plume open` pilotent l'app ouverte depuis un script, Raycast
-ou un Stream Deck. Les liens `plume://dictee`, `plume://reunion`, `plume://stop`,
-`plume://pause`, `plume://recoller`, `plume://recuperer`, `plume://transformer` et `plume://ouvrir` font de même
-depuis Raccourcis ou n'importe quelle app. `plume doctor` affiche l'état des autorisations, du
-modèle, de l'IA locale et des écrans ; `plume format "texte"` montre ce que la mise en forme
-fait d'un texte brut ; `plume polish` et `plume transform` essaient l'IA locale.
+(paste the last dictation again), `plume restore` (restore the last cancelled recording;
+`plume cancelled` lists them) and `plume open` drive the running app from a script, Raycast or
+a Stream Deck. The links `plume://dictee`, `plume://reunion`, `plume://stop`, `plume://pause`,
+`plume://recoller`, `plume://recuperer`, `plume://transformer` and `plume://ouvrir` do the same
+from Shortcuts or any app. `plume doctor` shows the state of permissions, model, local AI and
+screens; `plume format "text"` shows what the formatting does to raw text; `plume polish` and
+`plume transform` try the local AI.

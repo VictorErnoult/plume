@@ -2,17 +2,17 @@ import Foundation
 import Testing
 @testable import PlumeKit
 
-/// Les fichiers que la bibliothèque tient à jour pour les IA (`LISEZMOI.md`) : `index.jsonl`,
-/// une ligne par transcription, et `dernier.md`, la plus récente.
-@Suite("Fichiers de la bibliothèque pour les IA")
+/// The files the library keeps up to date for AIs (`LISEZMOI.md`): `index.jsonl`,
+/// one line per transcript, and `dernier.md`, the most recent.
+@Suite("Library files for AIs")
 struct LibraryFilesTests {
     static let indexKeys: Set<String> = ["id", "date", "mode", "appareil", "duree_s", "interlocuteurs", "fichier", "apercu"]
 
     private func date(_ iso: String) -> Date { ISO8601DateFormatter().date(from: iso)! }
 
-    /// Trois transcriptions inventées, de la plus ancienne à la plus récente, enregistrées dans
-    /// l'ordre inverse : l'index et `dernier.md` suivent la date, pas l'ordre d'enregistrement
-    /// (renommer un interlocuteur réenregistre une transcription ancienne).
+    /// Three invented transcripts, oldest to newest, saved in reverse order: the index and
+    /// `dernier.md` follow the date, not the save order (renaming a speaker re-saves an old
+    /// transcript).
     private func makeLibrary() throws -> (root: URL, transcripts: [Transcript]) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)", isDirectory: true)
         let transcripts = [
@@ -33,7 +33,7 @@ struct LibraryFilesTests {
         return (root, transcripts)
     }
 
-    @Test func chaqueLigneDeLIndexDécritUneTranscription() throws {
+    @Test func eachIndexLineDescribesATranscript() throws {
         let (root, transcripts) = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let lines = try String(contentsOf: root.appendingPathComponent("index.jsonl"), encoding: .utf8)
@@ -41,18 +41,18 @@ struct LibraryFilesTests {
         #expect(lines.count == transcripts.count)
         for (line, transcript) in zip(lines, transcripts) {
             let entry = try #require(try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
-            #expect(Self.indexKeys.isSubset(of: entry.keys), "clés : \(entry.keys.sorted())")
+            #expect(Self.indexKeys.isSubset(of: entry.keys), "keys: \(entry.keys.sorted())")
             #expect(entry["id"] as? String == transcript.id)
             #expect((entry["titre"] as? String) == transcript.title)
             let file = try #require(entry["fichier"] as? String)
             var isDirectory: ObjCBool = false
             let exists = FileManager.default.fileExists(atPath: root.appendingPathComponent(file).path, isDirectory: &isDirectory)
-            #expect(exists && !isDirectory.boolValue, "\(file) manque")
-            #expect((file as NSString).lastPathComponent.hasPrefix(transcript.id + "_"), "\(file) n'est pas \(transcript.id)")
+            #expect(exists && !isDirectory.boolValue, "\(file) is missing")
+            #expect((file as NSString).lastPathComponent.hasPrefix(transcript.id + "_"), "\(file) is not \(transcript.id)")
         }
     }
 
-    @Test func dernierMdEstLaTranscriptionLaPlusRécente() throws {
+    @Test func dernierMdIsTheMostRecentTranscript() throws {
         let (root, transcripts) = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let latest = try String(contentsOf: root.appendingPathComponent("dernier.md"), encoding: .utf8)

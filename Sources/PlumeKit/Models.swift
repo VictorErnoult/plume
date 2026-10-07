@@ -1,17 +1,17 @@
 import Foundation
 
 public enum RecordingMode: String, Codable, Sendable, CaseIterable {
-    /// Dictée : micro seul, texte collé dans le champ actif.
+    /// Dictation: microphone only, text pasted into the active field.
     case dictation
-    /// Réunion : micro + audio système, séparation des interlocuteurs.
+    /// Meeting: microphone + system audio, speakers separated.
     case meeting
-    /// Fichier audio importé (glisser-déposer, menu, CLI).
+    /// Imported audio file (drag and drop, menu, CLI).
     case imported
 
     public var label: String {
         switch self {
-        case .dictation: return tr("Dictée")
-        case .meeting: return tr("Réunion")
+        case .dictation: return tr("Dictation")
+        case .meeting: return tr("Meeting")
         case .imported: return tr("Import")
         }
     }
@@ -51,7 +51,7 @@ public struct Word: Codable, Sendable, Equatable {
     }
 }
 
-/// Un tour de parole : un interlocuteur, un intervalle, un texte.
+/// A speaker turn: a speaker, a time span, a text.
 public struct Segment: Codable, Sendable, Identifiable, Equatable {
     public var id: Int
     public var speaker: String
@@ -71,7 +71,7 @@ public struct Segment: Codable, Sendable, Identifiable, Equatable {
 }
 
 public struct Transcript: Codable, Sendable, Identifiable, Equatable {
-    /// Identifiant triable : `2026-10-02_14-31-05`.
+    /// Sortable identifier: `2026-10-02_14-31-05`.
     public var id: String
     public var createdAt: Date
     public var mode: RecordingMode
@@ -79,19 +79,19 @@ public struct Transcript: Codable, Sendable, Identifiable, Equatable {
     public var device: String
     public var duration: Double
     public var engine: String
-    /// Texte final (dictée nettoyée, ou dialogue rendu pour une réunion).
+    /// Final text (cleaned-up dictation, or dialogue rendered for a meeting).
     public var text: String
-    /// Sortie brute du modèle, avant nettoyage.
+    /// Raw model output, before cleanup.
     public var rawText: String
     public var segments: [Segment]
     public var speakers: [String]
-    /// Noms de fichiers audio, relatifs au dossier du transcript.
+    /// Audio file names, relative to the transcript folder.
     public var audioFiles: [String]
-    /// Application au premier plan au moment de la dictée.
+    /// Frontmost app at the time of the dictation.
     public var app: String?
-    /// Titre donné par l'utilisateur ou proposé par l'IA locale (sinon, la date fait office de titre).
+    /// Title given by the user or suggested by the local AI (otherwise the date serves as title).
     public var title: String?
-    /// Résumé en Markdown (points clés, décisions, actions), écrit par l'IA locale.
+    /// Markdown summary (key points, decisions, actions), written by the local AI.
     public var summary: String?
 
     public init(
@@ -115,7 +115,7 @@ public struct Transcript: Codable, Sendable, Identifiable, Equatable {
         self.summary = summary
     }
 
-    /// Première ligne utile, pour les listes.
+    /// First useful line, for lists.
     public var preview: String {
         let source = segments.first?.text ?? text
         let flat = source.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
@@ -124,7 +124,7 @@ public struct Transcript: Codable, Sendable, Identifiable, Equatable {
 }
 
 public enum Format {
-    /// `1:05` ou `1:02:03`.
+    /// `1:05` or `1:02:03`.
     public static func clock(_ seconds: Double) -> String {
         let total = max(0, Int(seconds.rounded()))
         let h = total / 3600

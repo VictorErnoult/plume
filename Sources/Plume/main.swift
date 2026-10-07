@@ -1,11 +1,11 @@
 import AppKit
 import PlumeKit
 
-/// Lancé par un lien symbolique (`~/.local/bin/plume`), le binaire ne trouve pas son app :
-/// `Bundle.main` désigne le dossier du lien, sans les sons enregistrés ni les polices. On se
-/// relance depuis le chemin résolu du binaire lancé, transmis par le noyau, et non d'après
-/// `Bundle.main`, que la variable `CFProcessPath` peut détourner. `realpath` étant idempotent,
-/// la relance n'a lieu qu'une fois.
+/// Launched through a symbolic link (`~/.local/bin/plume`), the binary doesn't find its app:
+/// `Bundle.main` points to the link's folder, without the bundled sounds or fonts. It
+/// relaunches from the resolved path of the running binary, passed by the kernel, and not from
+/// `Bundle.main`, which the `CFProcessPath` variable can hijack. Since `realpath` is idempotent,
+/// the relaunch happens only once.
 private func relaunchFromRealPathIfNeeded() {
     var size: UInt32 = 0
     _NSGetExecutablePath(nil, &size)
@@ -21,23 +21,23 @@ private func relaunchFromRealPathIfNeeded() {
 relaunchFromRealPathIfNeeded()
 
 let arguments = CommandLine.arguments
-// La langue de l'interface vaut aussi pour la ligne de commande (titres, noms d'interlocuteurs).
+// The interface language also applies to the command line (titles, speaker names).
 L10n.current = PlumeSettings.shared.language
 
 if CLI.handles(arguments) {
-    // Mode ligne de commande : pas d'interface, on sort avec le code de la commande.
-    // Les bibliothèques de modèles écrivent des traces sur la sortie standard : on les
-    // renvoie vers la sortie d'erreur pour que seul notre résultat reste sur stdout.
+    // Command line mode: no interface, exit with the command's code.
+    // Model libraries write traces to standard output: redirect them
+    // to standard error so that only our result stays on stdout.
     CLI.isolateStandardOutput()
     Task.detached {
         let code = await CLI.run(arguments)
         exit(code)
     }
-    // Boucle d'événements sur le vrai thread principal (AppKit en a besoin pour `render`).
+    // Event loop on the real main thread (AppKit needs it for `render`).
     while true { RunLoop.main.run(mode: .default, before: .distantFuture) }
 } else {
-    // Une seule instance : si Plume tourne déjà, on la laisse faire. Une instance d'essai,
-    // sur son propre canal de commande, peut tourner à côté.
+    // A single instance: if Plume is already running, leave it alone. A trial instance,
+    // on its own command channel, can run alongside.
     let others = NSRunningApplication.runningApplications(withBundleIdentifier: PlumeSettings.bundleID)
         .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
     let trial = ProcessInfo.processInfo.environment["PLUME_CHANNEL"] != nil

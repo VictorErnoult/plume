@@ -2,10 +2,10 @@ import Foundation
 import PlumeKit
 import Testing
 
-/// Le binaire de l'app, construit avec les tests, lancé comme le ferait un script ou une IA.
-/// Seulement des commandes de lecture : sans argument, ou avec une commande inconnue, il
-/// lancerait l'app (fenêtre, modèle, raccourcis) ; d'autres pilotent l'app ou le clavier.
-/// Avec `mcp`, les outils `listen` et `summarize_transcript` sont refusés eux aussi.
+/// The app's binary, built with the tests, launched the way a script or an AI would.
+/// Read commands only: with no argument, or an unknown command, it would launch the
+/// app (window, model, shortcuts); others drive the app or the keyboard.
+/// With `mcp`, the `listen` and `summarize_transcript` tools are refused too.
 enum PlumeBinary {
     static let readCommands: Set<String> = ["path", "last", "list", "show", "search", "export", "mcp"]
 
@@ -17,25 +17,25 @@ enum PlumeBinary {
 
     struct Refused: Error, CustomStringConvertible {
         var arguments: [String]
-        var description: String { "commande refusée dans les tests : \(arguments)" }
+        var description: String { "command refused in tests: \(arguments)" }
     }
 
     private final class Marker {}
 
-    /// SwiftPM range le binaire de l'app à côté du paquet de tests, avec les deux systèmes de
-    /// construction (`.build/out/Products/Debug`, `.build/arm64-apple-macosx/debug`).
+    /// SwiftPM puts the app's binary next to the test bundle, with both build systems
+    /// (`.build/out/Products/Debug`, `.build/arm64-apple-macosx/debug`).
     static var url: URL {
         Bundle(for: Marker.self).bundleURL.deletingLastPathComponent().appendingPathComponent("Plume")
     }
 
-    /// Refuse, sans rien lancer, une commande qui ouvrirait ou piloterait l'app : les tests du
-    /// lanceur passent par ici, pour qu'une vérification cassée ne lance jamais rien.
+    /// Refuses, without launching anything, a command that would open or drive the app: the
+    /// launcher tests go through here, so that a broken check never launches anything.
     static func check(_ arguments: [String], input: String = "") throws {
         guard let command = arguments.first, readCommands.contains(command), !arguments.contains("-o") else {
             throw Refused(arguments: arguments)
         }
-        // Sur le serveur MCP, `listen` pilote l'app et `summarize_transcript` l'IA locale. Découpé
-        // aux octets de fin de ligne, comme le serveur lit : un « \r\n » ne doit rien cacher.
+        // On the MCP server, `listen` drives the app and `summarize_transcript` the local AI. Split
+        // on newline bytes, the way the server reads: a "\r\n" must hide nothing.
         if command == "mcp" {
             for line in input.utf8.split(separator: UInt8(ascii: "\n")) {
                 let request = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any]
@@ -45,16 +45,16 @@ enum PlumeBinary {
         }
     }
 
-    /// Lance le binaire sur `library`, dans un environnement vierge : réglages neufs jamais
-    /// écrits, canal et dossier de support à part, sans île ni collage, en UTC. Tué après 30 s.
+    /// Runs the binary on `library`, in a blank environment: fresh settings never written,
+    /// separate channel and support folder, no island or paste, in UTC. Killed after 30 s.
     static func run(_ arguments: [String], library: URL, input: String = "") async throws -> Output {
         try check(arguments, input: input)
-        #expect(FileManager.default.isExecutableFile(atPath: url.path), "binaire introuvable : \(url.path)")
+        #expect(FileManager.default.isExecutableFile(atPath: url.path), "binary not found: \(url.path)")
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("plume-binary-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: work) }
-        // Fichiers plutôt que tubes : une sortie abondante ne peut pas bloquer le processus.
+        // Files rather than pipes: heavy output cannot block the process.
         let stdin = work.appendingPathComponent("stdin"), stdout = work.appendingPathComponent("stdout")
         let stderr = work.appendingPathComponent("stderr")
         try Data(input.utf8).write(to: stdin)
@@ -67,14 +67,14 @@ enum PlumeBinary {
         process.environment = [
             "PLUME_LIBRARY": library.path,
             "PLUME_SUPPORT": work.appendingPathComponent("support").path,
-            // Un jeu de réglages jamais écrit : seules les valeurs par défaut, aucun fichier créé.
+            // A settings suite never written: defaults only, no file created.
             "PLUME_DEFAULTS": "tests-\(UUID().uuidString)",
             "PLUME_CHANNEL": "tests",
             "PLUME_HEADLESS": "1",
             "PLUME_NO_PASTE": "1",
             "TZ": "UTC",
-            // Le vrai dossier personnel : Foundation ne lit pas $HOME pour le trouver, ce n'est
-            // donc pas une isolation, juste un environnement normal.
+            // The real home folder: Foundation does not read $HOME to find it, so this is
+            // not isolation, just a normal environment.
             "HOME": NSHomeDirectory(),
         ]
         process.standardInput = try FileHandle(forReadingFrom: stdin)
@@ -94,7 +94,7 @@ enum PlumeBinary {
             }
         }
         if process.terminationReason == .uncaughtSignal {
-            Issue.record("\(arguments) : arrêté au bout de 30 s, ou tué par un signal")
+            Issue.record("\(arguments): stopped after 30 s, or killed by a signal")
         }
         return Output(
             status: process.terminationStatus,
@@ -103,7 +103,7 @@ enum PlumeBinary {
     }
 }
 
-/// Une bibliothèque inventée : une dictée, une réunion, un import, enregistrés par l'app.
+/// An invented library: a dictation, a meeting, an import, saved by the app.
 struct SampleLibrary {
     let root: URL
     let dictation: Transcript
