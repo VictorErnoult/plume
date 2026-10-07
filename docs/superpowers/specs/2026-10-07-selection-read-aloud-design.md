@@ -1,7 +1,7 @@
 # Read the selection aloud: design
 
-Status: draft for the owner's review, 2026-10-07 (revision 6: the owner's review answers
-applied to revision 5, which four independent reviews had brought to clean).
+Status: 2026-10-07, revision 7: the owner's review answers applied to revision 5 (which four
+independent reviews had brought to clean), then a fifth review's findings.
 
 ## Goal
 
@@ -25,7 +25,8 @@ Speed comes first (time to the first sound), speech quality second.
 The feature must be comfortable on a **base M2** (8 or 10 GPU cores, 8 GB), not only on the
 M5 it was benchmarked on:
 
-- read aloud: first sound in **≤ 0.5 s**, any length;
+- read aloud: first sound in **≤ 0.5 s**, any length (the first sentence is capped at about 70
+  characters for this; measured on the M5 only);
 - summary of an email or a short thread (~500 tokens): first sound in **≤ 3 s**;
 - summary of a 1,300-word article (~2,200 tokens): first sound in **≤ 10 s**;
 - longer summaries: progress shown while the model reads the text, with the remaining time.
@@ -53,7 +54,7 @@ Measurements: base Apple M5 (10 GPU cores), 24 GB, macOS 26.6. Throwaway benchma
 | LLM runtime | llama.cpp, official XCFramework, embedded in the app | Builds with SwiftPM and the Command Line Tools (verified: `binaryTarget` → library → executable builds and runs). MLX reads prompts ~30% faster with the same generation speed, but needs Xcode and only runs on Apple hardware. llama.cpp and GGUF also run on Windows, Linux, Android, iOS and the web. |
 | Runtime placement | In process, through llama.cpp's C API | Tokens stream straight into the voice; nothing extra to sign or supervise. |
 | Voice | Supertonic-3 (FluidAudio 0.17.5, already a dependency), voice F1 by default, M2 as an option | Picked by ear among Supertonic F1/M2, Kokoro and PocketTTS at 1.5×. ~90× real time on the M5, 162 MB for 31 languages, licence OpenRAIL++. |
-| Numbers | FluidAudio's `NemoTextNormalizer` before the voice (French, English, Spanish, German) | Supertonic misreads digits ("du 14 au 21" → "du 14 au zoo 21"); written out, it reads them correctly. |
+| Numbers | FluidAudio's `NemoTextNormalizer` before the voice (for the languages it shares with Supertonic-3: French, English, Spanish, German, Japanese, Hindi) | Supertonic misreads digits ("du 14 au 21" → "du 14 au zoo 21"); written out, it reads them correctly. |
 | Playback speed | Pitch-preserving time-stretch at playback (`AVAudioUnitTimePitch`), 0.75× to 2×, default 1.5× | Works for any voice engine and can change during playback. Intelligible at 1.5×. |
 | Downloads | Nothing is downloaded or deleted without an explicit user action | Plume stays at its current size for everyone else; the user decides what occupies the disk. |
 | New dependency | llama.cpp (MIT) | The owner waived the issue that `AGENTS.md` asks for. |
@@ -85,14 +86,15 @@ selections provided by the owner, through Plume's own in-process path, not the b
 step-by-step walkthrough (`bench/read-aloud-eval/README.md`), so the eval can be run without
 help:
 
-1. **Collect.** Create `~/Documents/Perso/wdir/read-aloud-eval/selections/` and drop one `.txt`
+1. **Collect.** Create an eval folder outside the repository (`<eval folder>`, for example in a
+   scratch folder of your own) with a `selections/` folder inside, and drop one `.txt`
    file per selection: mail, Slack threads, articles, documentation; French and English; about
    a third short (under 300 words), a third medium, a third long (over 1,500 words). The file
    name is free. These files never enter the repository.
 2. **Download both candidates**: `plume read-aloud --download qwen3.5-4b-q4km` and
    `plume read-aloud --download gemma4-e2b-q4`. Neither turns the feature on in the app.
-3. **Run**: `plume read-aloud --eval ~/Documents/Perso/wdir/read-aloud-eval/selections
-   --engines qwen3.5-4b-q4km,gemma4-e2b-q4 --out ~/Documents/Perso/wdir/read-aloud-eval/results.json`.
+3. **Run**: `plume read-aloud --eval <eval folder>/selections --engines
+   qwen3.5-4b-q4km,gemma4-e2b-q4 --out <eval folder>/results.json`.
    For each file and each engine, it records the summary (length "automatic", language "same
    as the text"), cold and warm timings (load, reading the input, first sentence, total), and
    whether the input was truncated. It prints progress and how long is left.
@@ -101,11 +103,12 @@ help:
    A and B in a random order per selection (the engine names stay hidden until the end). For
    each summary, tick: main point kept, nothing invented, right language, right length; then
    choose a preference (A, B, or equal) and an optional note. Progress is saved in the browser,
-   so the judging can be spread over several sittings.
+   so the judging can be spread over several sittings; the random A/B order is saved with it,
+   so a reload never swaps the labels of a judged selection.
 5. **Read the verdict**: once every selection is judged, the page reveals which engine was A
    or B and shows, per engine and per length class, the share of summaries passing each
-   criterion, the preferences, and the median timings. **Export** saves `verdicts.json` next
-   to the results.
+   criterion, the preferences, and the median timings. **Export** downloads `verdicts.json`
+   (a page opened from a file cannot write next to the results; move it there by hand).
 6. **Decide**:
    - both acceptable → both ship, and the recommendation depends on the Mac (below);
    - one clearly worse → only the other ships;
@@ -136,7 +139,10 @@ the user asks, and nothing is deleted until the user asks.**
   meanwhile; Cancel and Retry are next to it.
 - **Delete** asks for confirmation. Deleting the active summary model leaves summaries off
   until another downloaded model is chosen with **Use**. Deleting the voice turns both modes
-  off; summary models are kept.
+  off; summary models are kept. Deleting the voice or the model in use, or choosing another
+  model with **Use**, during a read stops the read and unloads what was loaded.
+- While a download runs, the other Download and Delete buttons are disabled (one download or
+  deletion at a time, see the lock in `ReadAloudModels`).
 
 **The recommendation adapts to the Mac**, from its chip and memory, read when the list is shown
 (no speed test): the more accurate model on a Pro, Max or Ultra chip or an M5 or later, with at
@@ -160,8 +166,9 @@ while reading", "Keep the models loaded". Both shortcuts are unassigned by defau
 3. While playing, the island shows "Reading" with a speaker icon and the progress ("2/4", or
    "12/180" for a long text).
 4. Hovering the island shows: **stop**, pause/resume, previous and next sentence, replay from
-   the start, − and + for speed (saved as the new speed setting), **Show text**, and, during a
-   summary, **Read the full text**.
+   the start, − and + for speed (saved as the new speed setting), **Show text**, and, for a
+   summary, **Read the full text** (also offered while the model reads the text and in the
+   "Finished" state).
 5. **Read the full text** stops the summary and reads the same selection word for word.
 6. **Show text** pins open a text panel under the island: the summary, or the full text for
    word-for-word reading, with the sentence being read highlighted and kept in view, and a Copy
@@ -170,14 +177,16 @@ while reading", "Keep the models loaded". Both shortcuts are unassigned by defau
    clickable area grow to include it, so Copy and the scroll receive clicks. The setting "Show
    the text while reading" opens it by default.
 7. **Pressing a shortcut always starts a new read** of the current selection, replacing the one
-   in progress (the other shortcut switches mode the same way). To stop: **Esc**, or **stop** on
-   the island.
+   in progress (the other shortcut switches mode the same way). To stop: **Esc**, **stop** on
+   the island, or `plume stop` / `plume://stop` / the Remote `stop` (which stop the read when no
+   dictation is running, so Raycast, Shortcuts or a Stream Deck can stop it without the mouse).
    - Esc is a system-wide key: holding it for a whole read would break it in every other app
      (Plume already releases it outside dictations for that reason). So Esc stops a read only
      from "Loading the model…" until the first sound (not during a download, which can last
      minutes), and afterwards while the pointer is on the island or the text panel is open.
      With "Show the text while reading" on, that is the whole read; the setting's help text
-     says so.
+     says so. The help text of both shortcuts says that a read is stopped from the island (or
+     with Esc while hovering it).
    - During a summary, a stop takes effect within one input batch (≤ ~2 s on an M2, see
      `LlamaSummaryService`).
 8. When the read ends, the island stays in a "Finished" state for 8 seconds with Replay and
@@ -190,7 +199,7 @@ while reading", "Keep the models loaded". Both shortcuts are unassigned by defau
 | Empty selection, or the app does not expose it | "Select some text first" | Nothing starts; a read in progress continues. |
 | Voice not installed | Neither shortcut is registered. | |
 | No summary model in use | "Summarize aloud" is not registered. | |
-| The voice or the model in use is downloading | "Downloading… x%" | The read starts when it is ready, unless stopped. |
+| The voice is downloading, or no engine is in use and one is downloading (`readAloudPendingDownload`) | "Downloading… x%" | The read waits and starts when the download is ready, unless stopped. |
 | A dictation or meeting is recording | Both shortcuts are ignored. | |
 | A dictation starts while reading | The read stops, the dictation starts. | |
 | Summary of a selection over the input budget (context minus the output reserve, ~15,000 tokens) | "Summarizing the beginning (about N words)" | The text is cut at the last sentence that fits. |
@@ -321,8 +330,8 @@ name, languages) lists `supertonic3-f1` and `supertonic3-m2` in v1.
   without punctuation become sentence ends, whitespace is collapsed.
 - Language: `NLLanguageRecognizer` on the whole selection; used as is if Supertonic-3 supports
   it (31 languages), otherwise the interface language. The normalizer runs only for languages
-  `NemoTextNormalizer` supports (French, English, Spanish, German); other languages are spoken
-  without it.
+  `NemoTextNormalizer` also supports (French, English, Spanish, German, Japanese, Hindi); other
+  languages are spoken without it.
 
 **`SummaryPrompt`** (pure)
 
@@ -403,9 +412,14 @@ name, languages) lists `supertonic3-f1` and `supertonic3-m2` in v1.
 - Fed text pieces, emits complete sentences as soon as they end.
 - Does not split on decimals ("4,5", "3.2"), common abbreviations ("M.", "Mme", "Dr", "e.g.",
   "i.e.", "etc."), initials, or ellipses inside a sentence.
+- Sentence ends: `.`, `!`, `?`, `…`, and the full-width and other-script ends `。`, `！`, `？`,
+  `।`, `؟`.
 - A sentence longer than about 300 characters (no punctuation for a long stretch, common in
-  copied text) is split at the nearest comma, semicolon or space, so synthesis never waits on
-  a huge piece.
+  copied text) is split at the nearest comma, semicolon or space, or cut at 300 characters if
+  there is none (Japanese has no spaces), so synthesis never waits on a huge piece.
+- An option caps the **first** sentence at about 70 characters, cut the same way (Supertonic
+  synthesizes in 70-character chunks): word-for-word reading uses it so the first sound comes
+  fast.
 - Flushes the remaining text at the end of the stream.
 
 **`Voice` and `SupertonicVoice`**
@@ -462,7 +476,8 @@ protocol Voice: Sendable {
 - One lock (`flock` on `<support directory>/Models/.download.lock`) covers any download or
   deletion, so the app and the command line never write the same files at once. It is taken
   without waiting (`LOCK_NB`): a second taker fails with "A download is already running".
-  Delete, Cancel and the resume at launch take the same lock.
+  Delete, Cancel and the resume at launch take the same lock. Settings disables Download and
+  Delete while one runs, so the user never meets that error there.
 - **Deletion only on request.** Nothing is deleted except by the user's Delete (one item) or
   Cancel (the item being downloaded). Downloading an engine never deletes another.
 - The command line's `--download` writes neither `readAloudEngine` nor
@@ -506,8 +521,10 @@ hardware.
   "Finished" state; drops them afterwards.
 - Synthesizes up to three sentences ahead of playback; skipping cancels what is queued and
   synthesizes from the new position.
-- **Read the full text** (summary mode): cancels the summary and starts a read-aloud of the
-  same selection, kept in memory for the duration of the read.
+- **Read the full text** (summary mode, from input reading to "Finished"): cancels the summary
+  and starts a read-aloud of the same selection, kept in memory for the duration of the read.
+- Deleting the voice or the engine in use, or **Use** on another engine, during a read stops
+  the read and unloads the affected service or voice.
 - A sentence that fails in the voice is skipped; if every sentence fails, the read fails.
 - Publishes `ReadAloudState`: `idle`, `downloading(fraction)`, `loading`,
   `readingInput(fraction, remaining)`, `summarizing`, `reading(mode, index, count, paused)`,
@@ -544,11 +561,13 @@ hardware.
 **Shortcuts and triggers**
 
 - New `HotkeyAction.readAloud` (registered when the voice is installed or downloading) and
-  `HotkeyAction.summarizeAloud` (registered when an engine is in use, installed or
-  downloading, and the voice too).
-- `plume://read-aloud`, `plume://summarize-aloud`, and the Remote actions `toggle-read-aloud`
-  and `toggle-summarize-aloud` (matching the existing `toggle-*` names) start a read of the
-  current selection, through the app, which has the permissions.
+  `HotkeyAction.summarizeAloud` (registered when an engine is in use, or when none is and
+  `readAloudPendingDownload` names an engine; in that case a read waits for that download).
+- `plume://read-aloud`, `plume://summarize-aloud`, and the Remote actions `read-aloud` and
+  `summarize-aloud` start a read of the current selection, through the app, which has the
+  permissions. (Not `toggle-*`: they always start, they never stop.)
+- `stop` (Remote, `plume://stop`, `plume stop`) stops the read when no dictation or meeting is
+  running; today it only reaches `session.stop()` (Remote.swift, AppDelegate.swift).
 
 **Command line** (`plume read-aloud`, in-process, no app needed)
 
@@ -594,7 +613,8 @@ their French translation in `L10nTable`.
   is routed through the same filter.
 - Nothing is sent anywhere; the only network access is the downloads from Hugging Face,
   started by the user.
-- The eval's selections and results stay in the owner's `wdir/`, outside the repository.
+- The eval's selections, results and verdicts stay in the owner's eval folder, outside the
+  repository; the walkthrough uses a placeholder path.
 
 ## Testing
 
@@ -604,12 +624,14 @@ device:
 - `SpokenText`: a table of inputs (URLs, e-mail addresses, markdown, fenced code, bullet lists,
   line breaks without punctuation) and the plain sentence closest to each, which must not
   change; language choice (supported, unsupported → interface language; normalizer only for
-  its four languages).
+  its six languages shared with Supertonic).
 - `SummaryPrompt`: word counts × length settings → sentence budget; language choice (detected
   French, detected English, undetected, other → interface language); truncation at a sentence
   end with a fake token counter; no model-specific markup in the request.
 - `SentenceSplitter`: a table of tricky inputs ("4,5 %", "M. Dupont", "e.g.", "U.S.", "…",
-  quotes, a sentence split across pieces, a 1,000-character run without punctuation) and the
+  quotes, a sentence split across pieces, a 1,000-character run without punctuation, Japanese
+  `。` and Hindi `।` ends, a 400-character Japanese run without spaces, the 70-character
+  first-sentence cap) and the
   plain sentence closest to each, which must not change.
 - `SummaryCleaner`: think blocks, markdown, labels, over-long output, empty output.
 - Engine catalog (reasoning samples fed token by token, not as one string): unique ids; pinned
@@ -638,8 +660,9 @@ device:
   excluded from the backup and listed in `settingsOutsideTheBackupKeepTheirName`; the backup
   fixture of the unreleased version (1.0.2, no tag) regenerated; French translations present;
   the two new shortcuts.
-- Command line and Remote: `read-aloud` in `CLI.commands`, `toggle-read-aloud` and
-  `toggle-summarize-aloud` in `RemoteTests`. The "not installed" cases are tested on the
+- Command line and Remote: `read-aloud` in `CLI.commands`, `read-aloud` and `summarize-aloud`
+  in `RemoteTests`; `stop` reaches the read when no session is active (routing function tested
+  with fakes). The "not installed" cases are tested on the
   in-process function behind the command, which takes the settings and the models folder as
   parameters (`PlumeSettings.shared` is not allowed in tests), not by launching the binary,
   which `AGENTS.md` allows only for read commands; it fails with the expected message and
@@ -704,7 +727,7 @@ resuming, deleting a model in use).
   runs on the in-process path to catch differences.
 - **English words in French text** (e.g. "bugs") are sometimes misread by the voice; word for
   word, this matters more than in summaries.
-- **Languages beyond French and English** in word-for-word reading are spoken without number
-  normalization except Spanish and German, and were not listened to.
+- **Languages beyond French and English** in word-for-word reading were not listened to; those
+  outside the normalizer's six are spoken without number normalization.
 - **Supertonic-3's OpenRAIL++ licence** carries use restrictions that pass on to users; check the
   wording to show in Settings.
