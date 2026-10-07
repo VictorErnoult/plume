@@ -2479,6 +2479,7 @@ git commit -m "Read aloud: Supertonic voice that never downloads on load"
     - `public func download(_ item: DownloadItem, catalog: [SummaryEngineEntry] = SummaryEngineCatalog.all, progress: @escaping @Sendable (Double) -> Void) async throws`
     - `public func delete(_ item: DownloadItem, catalog: [SummaryEngineEntry] = SummaryEngineCatalog.all) throws`
     - `public func usedBytes() -> Int64`
+    - `public func hasChecksumMismatch(_ entry: SummaryEngineEntry) -> Bool` (the `<file>.mismatch` marker: a mismatch is never resumed automatically at launch)
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2594,6 +2595,11 @@ struct ReadAloudModelsTests {
         }
         #expect(!models.isInstalled(entry))
         #expect(!FileManager.default.fileExists(atPath: models.modelURL(for: entry).appendingPathExtension("partial").path))
+        #expect(models.hasChecksumMismatch(entry))
+        // A good download clears the mark.
+        serveWhole()
+        try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
+        #expect(!models.hasChecksumMismatch(entry))
     }
 
     @Test func refusesWithoutEnoughSpace() async throws {
@@ -2891,6 +2897,16 @@ public final class ReadAloudModels: @unchecked Sendable {
         FileManager.default.fileExists(atPath: modelURL(for: entry).path)
     }
 
+    func mismatchMarker(for entry: SummaryEngineEntry) -> URL {
+        modelURL(for: entry).appendingPathExtension("mismatch")
+    }
+
+    /// The last download of this engine failed its checksum: the app does not resume it on its
+    /// own at launch, only on the user's Resume.
+    public func hasChecksumMismatch(_ entry: SummaryEngineEntry) -> Bool {
+        FileManager.default.fileExists(atPath: mismatchMarker(for: entry).path)
+    }
+
     public func download(
         _ item: DownloadItem, catalog: [SummaryEngineEntry] = SummaryEngineCatalog.all,
         progress: @escaping @Sendable (Double) -> Void
@@ -2921,8 +2937,13 @@ public final class ReadAloudModels: @unchecked Sendable {
                 // The user's Cancel: delete what is left while the lock is still ours. (Quitting
                 // kills the process instead, and the `.partial` stays for a resume.)
                 if Task.isCancelled { try? FileManager.default.removeItem(at: partial) }
+                // Remembered across launches: a wrong pin must not re-download 3 GB at every start.
+                if (error as? ReadAloudError) == .checksumMismatch {
+                    FileManager.default.createFile(atPath: mismatchMarker(for: entry).path, contents: nil)
+                }
                 throw error
             }
+            try? FileManager.default.removeItem(at: mismatchMarker(for: entry))
             progress(1)
         }
     }
@@ -2962,6 +2983,7 @@ public final class ReadAloudModels: @unchecked Sendable {
         case .engine(let id):
             guard let entry = SummaryEngineCatalog.entry(id: id, in: catalog) else { throw ReadAloudError.unknownEngine }
             try? fm.removeItem(at: modelURL(for: entry).appendingPathExtension("partial"))
+            try? fm.removeItem(at: mismatchMarker(for: entry))
             try? fm.removeItem(at: modelURL(for: entry))
         }
     }
