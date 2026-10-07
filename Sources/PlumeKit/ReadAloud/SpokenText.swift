@@ -62,11 +62,11 @@ public enum SpokenText {
         s = s.replacingOccurrences(of: #"\[([^\]]+)\]\([^)]+\)"#, with: "$1", options: .regularExpression)
         s = s.replacingOccurrences(
             of: #"(https?://|(?<![\w@.])www\.)[^\s<>()]*[^\s<>().,;:!?'"»”]"#, with: link, options: .regularExpression)
-        // Only paired emphasis goes: "2 ** 3" is not markdown, "**bold**" is. "__init__" reads
-        // exactly like "__bold__", so Python's well-known special names are kept as written.
+        // Only paired emphasis goes: "2 ** 3" is not markdown, "**bold**" is. A single word
+        // between double underscores ("__init__") is an identifier; "__bold text__" is emphasis.
+        s = s.replacingOccurrences(of: #"(?<!\w)\*\*(?=\S)(.+?)(?<=\S)\*\*(?!\w)"#, with: "$1", options: .regularExpression)
         s = s.replacingOccurrences(
-            of: #"(?<!\w)(\*\*|__)(?!(?:init|main|name|file|self|class|dict|doc|new|call|str|repr|len|iter|enter|exit)__)(?=\S)(.+?)(?<=\S)\1(?!\w)"#,
-            with: "$2", options: .regularExpression)
+            of: #"(?<!\w)__(?=\S)((?:(?!__)[^\n])*? (?:(?!__)[^\n])*?)(?<=\S)__(?!\w)"#, with: "$1", options: .regularExpression)
         s = s.replacingOccurrences(of: "`", with: "")
         s = s.replacingOccurrences(of: #"(?<![\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![\w*])"#, with: "$1", options: .regularExpression)
         var lines: [String] = []
