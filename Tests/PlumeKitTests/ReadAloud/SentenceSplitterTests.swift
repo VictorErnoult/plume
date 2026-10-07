@@ -21,6 +21,14 @@ struct SentenceSplitterTests {
         ("今日は晴れです。明日は雨です。", ["今日は晴れです。", "明日は雨です。"]),
         ("यह पहला वाक्य है। यह दूसरा है।", ["यह पहला वाक्य है।", "यह दूसरा है।"]),
         ("First paragraph without end\n\nSecond one.", ["First paragraph without end", "Second one."]),
+        ("Open config.json. Then restart.", ["Open config.json.", "Then restart."]),
+        ("La version est 3.2. Il baisse.", ["La version est 3.2.", "Il baisse."]),
+        ("I said no. He left.", ["I said no.", "He left."]),
+        ("No. I won't go.", ["No.", "I won't go."]),
+        ("So did I. He left.", ["So did I.", "He left."]),
+        ("Voir le No. 5 ici. Fin.", ["Voir le No. 5 ici.", "Fin."]),
+        ("Voir p. 12 pour la suite. Fin.", ["Voir p. 12 pour la suite.", "Fin."]),
+        ("He said \"Hello.\" \"World,\" she said.", ["He said \"Hello.\"", "\"World,\" she said."]),
         // ordinary neighbours
         ("Il pleut beaucoup. Il fait très froid.", ["Il pleut beaucoup.", "Il fait très froid."]),
         ("Use a hammer. Then rest.", ["Use a hammer.", "Then rest."]),
@@ -67,6 +75,19 @@ struct SentenceSplitterTests {
         let sentences = SentenceSplitter.split(text, firstMaxLength: 70)
         #expect(sentences[0].count <= 70)
         #expect(sentences.last == "Courte.")
+    }
+
+    @Test func cutsALongRunOfPeriods() {
+        let sentences = SentenceSplitter.split(String(repeating: ".", count: 1000))
+        #expect(sentences.count >= 4)
+        #expect(sentences.allSatisfy { $0.count <= 300 })
+    }
+
+    @Test func aLimitUnderOneStillTerminates() {
+        let sentences = SentenceSplitter.split("abc def", maxLength: 0)
+        #expect(!sentences.isEmpty)
+        #expect(sentences.allSatisfy { !$0.isEmpty })
+        #expect(SentenceSplitter.split("abc def", firstMaxLength: -5).allSatisfy { !$0.isEmpty })
     }
 
     /// Review focus: 1 MB of text splits in linear time.

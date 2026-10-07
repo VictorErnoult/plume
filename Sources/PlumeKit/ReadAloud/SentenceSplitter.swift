@@ -15,8 +15,9 @@ public struct SentenceSplitter: Sendable {
     private var emitted = 0
 
     public init(maxLength: Int = 300, firstMaxLength: Int? = nil) {
-        self.maxLength = maxLength
-        self.firstMaxLength = firstMaxLength
+        // A limit under 1 would never advance.
+        self.maxLength = max(1, maxLength)
+        self.firstMaxLength = firstMaxLength.map { max(1, $0) }
     }
 
     public mutating func feed(_ piece: String) -> [String] {
@@ -38,10 +39,17 @@ public struct SentenceSplitter: Sendable {
     /// Ends that need no space after them (Japanese and Chinese run sentences together).
     static let unspacedTerminators: Set<Character> = ["。", "！", "？"]
     static let closers: Set<Character> = ["\"", "'", "”", "’", "»", ")", "]"]
+    /// Closers that may follow a space ("oui. »"). The ASCII quotes are left out: after a space
+    /// they open the next sentence.
+    static let spacedClosers: Set<Character> = ["»", "”"]
     /// Words that take a period without ending a sentence.
     static let abbreviations: Set<String> = [
         "M", "MM", "Mme", "Mmes", "Mlle", "Mr", "Mrs", "Ms", "Dr", "Pr", "Prof", "Me", "St", "Ste",
-        "Sr", "Jr", "vs", "cf", "p", "pp", "env", "approx", "ex", "fig", "Fig", "No", "no", "vol", "chap",
+        "Sr", "Jr", "vs", "cf", "env", "approx",
+    ]
+    /// Abbreviations that are also ordinary words ("I said no."): they only count before a number.
+    static let numberedAbbreviations: Set<String> = [
+        "no", "No", "fig", "Fig", "p", "pp", "vol", "chap", "ex",
     ]
 
     private mutating func drain(final: Bool) -> [String] {
@@ -108,12 +116,13 @@ public struct SentenceSplitter: Sendable {
             }
             let mark = i
             step()
-            while i < text.endIndex, terminators.contains(text[i]) || closers.contains(text[i]) { step() }
+            // Bounded by the limit too: a run of "." must not make one endless sentence.
+            while i < text.endIndex, count < limit, terminators.contains(text[i]) || closers.contains(text[i]) { step() }
             if unspacedTerminators.contains(c) { return .end(i) }
             // A space may separate French punctuation and closers: "oui. »"
             while i < text.endIndex, text[i] == " " || text[i] == "\u{00A0}" {
                 let after = text.index(after: i)
-                guard after < text.endIndex, closers.contains(text[after]) else { break }
+                guard after < text.endIndex, spacedClosers.contains(text[after]) else { break }
                 step()
                 step()
             }
@@ -144,9 +153,20 @@ public struct SentenceSplitter: Sendable {
             start = previous
         }
         let word = String(text[start..<mark])
-        if abbreviations.contains(word) || word.contains(".") { return true }
-        if word.count == 1, word.first?.isUppercase == true { return true }
+        if abbreviations.contains(word) { return true }
+        if numberedAbbreviations.contains(word), text[next].isNumber { return true }
+        if isDottedAbbreviation(word) { return true }
+        // A single capital is an initial ("J. R. R."), except "I", which often ends a sentence.
+        if word.count == 1, let letter = word.first, letter.isUppercase, letter != "I" { return true }
         return false
+    }
+
+    /// "U.S", "e.g", "a.m": dots between segments of one or two letters. A decimal, a file
+    /// name or a domain ("3.2", "config.json") is a word that ends the sentence.
+    static func isDottedAbbreviation(_ word: String) -> Bool {
+        let segments = word.split(separator: ".", omittingEmptySubsequences: false)
+        guard segments.count > 1 else { return false }
+        return segments.allSatisfy { (1...2).contains($0.count) && $0.allSatisfy(\.isLetter) }
     }
 
     /// Where to cut a run longer than the limit: after a comma, semicolon or colon, else a
