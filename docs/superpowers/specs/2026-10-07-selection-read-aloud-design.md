@@ -1,7 +1,7 @@
 # Read the selection aloud: design
 
-Status: 2026-10-07, revision 7: the owner's review answers applied to revision 5 (which four
-independent reviews had brought to clean), then a fifth review's findings.
+Status: 2026-10-07, revision 8: the owner's review answers applied to revision 5 (which four
+independent reviews had brought to clean), then the fifth and sixth reviews' findings.
 
 ## Goal
 
@@ -135,12 +135,17 @@ the user asks, and nothing is deleted until the user asks.**
 - Every download asks for confirmation with its size: "Downloads N GB. Nothing leaves your
   Mac." For a summary model on a Mac with less than 16 GB of memory, it adds: "This Mac has
   N GB of memory: other apps may slow down while a summary is being written."
-- Download progress shows next to the item, and on the island if the user triggers a read
-  meanwhile; Cancel and Retry are next to it.
+- Download progress shows next to the item in Settings, with **Cancel download** (and Retry
+  after a failure). If the user triggers a read meanwhile, the island shows "Downloading… x%"
+  with **stop**, which ends only that waiting read; the download goes on.
 - **Delete** asks for confirmation. Deleting the active summary model leaves summaries off
   until another downloaded model is chosen with **Use**. Deleting the voice turns both modes
-  off; summary models are kept. Deleting the voice or the model in use, or choosing another
-  model with **Use**, during a read stops the read and unloads what was loaded.
+  off; summary models are kept. Deleting the voice or the model in use unloads it if it is
+  loaded (at any time, not only during a read: "Keep the models loaded" may hold it), and stops
+  a read that uses it. **Use** on another engine unloads the previous one and stops a summary
+  in progress; a word-for-word read goes on.
+- Download completion, Delete and Use reload the shortcuts (`HotkeyManager.reload()` today
+  runs only when shortcuts change), since which shortcuts exist depends on what is installed.
 - While a download runs, the other Download and Delete buttons are disabled (one download or
   deletion at a time, see the lock in `ReadAloudModels`).
 
@@ -476,8 +481,13 @@ protocol Voice: Sendable {
 - One lock (`flock` on `<support directory>/Models/.download.lock`) covers any download or
   deletion, so the app and the command line never write the same files at once. It is taken
   without waiting (`LOCK_NB`): a second taker fails with "A download is already running".
-  Delete, Cancel and the resume at launch take the same lock. Settings disables Download and
-  Delete while one runs, so the user never meets that error there.
+  Delete and the resume at launch take it themselves. **Cancel does not**: it cancels the
+  running download task, which deletes what it left (the `.partial`, or the unmarked voice
+  folder) while it still holds the lock, then releases it. Quitting the app or interrupting the
+  command line kills the process instead, so the `.partial` stays for a resume.
+- Settings disables Download and Delete while the app's own download runs. A download started
+  by the command line (`--download`, for the eval) holds the lock too; the app cannot see it,
+  so Settings then shows "A download is already running" when the user tries.
 - **Deletion only on request.** Nothing is deleted except by the user's Delete (one item) or
   Cancel (the item being downloaded). Downloading an engine never deletes another.
 - The command line's `--download` writes neither `readAloudEngine` nor
@@ -488,6 +498,10 @@ protocol Voice: Sendable {
   a pending download is set, it resumes automatically and the island shows nothing until a read
   is requested. When an engine download completes and no engine is in use, `readAloudEngine`
   takes its id; the pending value is cleared.
+- **Cancel** clears `readAloudPendingDownload` (a cancelled download is never resumed) and
+  re-registers the shortcuts. **A failure** keeps it, so Retry and the next launch resume
+  from the `.partial`; the next launch tries once, and a second failure leaves it to the user's
+  Retry. A read waiting for that download moves to `failed` with the error and Retry.
 - Status per item: `absent`, `downloading(fraction)`, `installed`, `failed(message)`.
 
 **Recommendation** (pure): `recommendedEngine(chip:memoryGB:catalog:)` returns the `.accurate`
@@ -521,7 +535,7 @@ hardware.
   "Finished" state; drops them afterwards.
 - Synthesizes up to three sentences ahead of playback; skipping cancels what is queued and
   synthesizes from the new position.
-- **Read the full text** (summary mode, from input reading to "Finished"): cancels the summary
+- **Read the full text** (summary mode, from loading to "Finished", see the Island table): cancels the summary
   and starts a read-aloud of the same selection, kept in memory for the duration of the read.
 - Deleting the voice or the engine in use, or **Use** on another engine, during a read stops
   the read and unloads the affected service or voice.
@@ -539,12 +553,26 @@ hardware.
 
 - Today the island renders only `SessionController.displayPhase`, and `.processing` already
   swaps its label for the speech model's loading state, so it is not reused.
-- The island gets a combined state: if the session is not idle, the session wins (a dictation
-  always takes the island); otherwise the read-aloud state is shown.
-- New renderings: downloading, loading, reading the input (with %), summarizing, reading (icon,
-  "2/4", hover controls: stop, pause/resume, previous/next sentence, replay, −/+, Show text, and
-  Read the full text in summary mode), finished (Replay, Show text, 8 s), failed; the pinned
-  text panel with the text and the highlighted sentence.
+- The island gets a combined state: while the session is recording or processing a dictation
+  or meeting, the session takes the island; its other phases (`suggestion`, `done`, `failed`)
+  show only when no read is active. Esc is armed for a read only while the read is what the
+  island shows.
+- New renderings, and the controls each state offers on hover (one table, the reference for
+  PR 2):
+
+  | State | Island shows | Hover controls |
+  |---|---|---|
+  | `downloading` (a read waits) | "Downloading… x%" | stop (ends the waiting read only) |
+  | `loading` | "Loading the model…" | stop; Read the full text (summary) |
+  | `readingInput` | "Reading the text… 40%", remaining time | stop; Read the full text (summary) |
+  | `summarizing` | "Summarizing…" | stop; Read the full text |
+  | `reading` | speaker icon, "2/4" | stop, pause/resume, previous/next, replay, −/+, Show text; Read the full text (summary) |
+  | `finished` (8 s) | "Finished" | Replay, Show text; Read the full text (summary) |
+  | `failed` | the error | Retry when the cause is a download |
+
+  The selection is kept in memory from the shortcut until the "Finished" state ends (so Read
+  the full text and Replay work during those 8 s), then dropped with the sentences. The pinned
+  text panel shows the text with the highlighted sentence.
 - Shortcut routing: `onPress`/`onRelease` today send every action except open and restore to
   `session.handlePress` (AppDelegate.swift); `readAloud` and `summarizeAloud` are routed to the
   controller instead.
@@ -565,7 +593,9 @@ hardware.
   `readAloudPendingDownload` names an engine; in that case a read waits for that download).
 - `plume://read-aloud`, `plume://summarize-aloud`, and the Remote actions `read-aloud` and
   `summarize-aloud` start a read of the current selection, through the app, which has the
-  permissions. (Not `toggle-*`: they always start, they never stop.)
+  permissions. (Not `toggle-*`: they always start, they never stop.) No Plume command sends them: they are for
+  Raycast, Shortcuts or a Stream Deck, through the URL or the command channel. The command
+  line's `plume read-aloud` is a different thing (it reads standard input); the guide says so.
 - `stop` (Remote, `plume://stop`, `plume stop`) stops the read when no dictation or meeting is
   running; today it only reaches `session.stop()` (Remote.swift, AppDelegate.swift).
 
@@ -725,6 +755,11 @@ resuming, deleting a model in use).
   purpose.
 - **Prompt formats**: the in-process formatter is not the bench's Jinja path; the quality eval
   runs on the in-process path to catch differences.
+- **The 70-character first-sentence cap** applies before number normalization, which lengthens
+  text ("1786" → "mille sept cent quatre-vingt-six"), and Supertonic's Japanese and Korean chunks
+  are 57 characters: the first sentence can still take two chunks. Accepted; measured on the M5.
+- **Greek questions** end with `;`, which the splitter does not treat as a sentence end (it is
+  a clause mark elsewhere); Greek sentences run longer and are cut at 300 characters.
 - **English words in French text** (e.g. "bugs") are sometimes misread by the voice; word for
   word, this matters more than in summaries.
 - **Languages beyond French and English** in word-for-word reading were not listened to; those
