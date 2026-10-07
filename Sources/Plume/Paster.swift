@@ -196,6 +196,10 @@ enum Paster {
         return role == secure || subrole == secure
     }
 
+    private static func isSecure(_ element: AXUIElement) -> Bool {
+        isSecure(role: string(kAXRoleAttribute, of: element), subrole: string(kAXSubroleAttribute, of: element))
+    }
+
     /// A few characters on either side of the cursor, or `nil` if the app doesn't expose them
     /// (many web or Electron apps don't).
     static func insertionContext(reach: Int = 60) -> InsertionContext? {
@@ -203,7 +207,7 @@ enum Paster {
             return nil
         }
         // A password field can't be read.
-        if string(kAXRoleAttribute, of: element) == "AXSecureTextField" { return nil }
+        if isSecure(element) { return nil }
         let start = max(0, selection.location - reach)
         let before = string(for: CFRange(location: start, length: selection.location - start), of: element)
         var after = string(for: CFRange(location: selection.location + selection.length, length: reach), of: element)
@@ -233,6 +237,8 @@ enum Paster {
     /// The selected text in the frontmost app: through accessibility, otherwise through a discreet ⌘C
     /// (the clipboard is restored right after).
     static func selectedText() async -> String {
+        // A password field has no selection to read, and ⌘C must not be tried on it.
+        if let element = focusedElement(), isSecure(element) { return "" }
         if let element = focusedElement(), let selected = string(kAXSelectedTextAttribute, of: element),
             !selected.isEmpty
         {
