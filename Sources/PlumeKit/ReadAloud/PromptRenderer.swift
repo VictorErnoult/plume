@@ -19,21 +19,25 @@ public enum PromptRenderer {
     ) throws -> [PromptPiece] {
         let system = request.system.trimmingCharacters(in: .whitespacesAndNewlines)
         let user = request.user.trimmingCharacters(in: .whitespacesAndNewlines)
-        let rendered: String
+        let before: String
+        let after: String
         switch format {
         case .embedded(let prefix):
-            rendered = try applyTemplate(system, sentinel) + prefix
+            let parts = (try applyTemplate(system, sentinel) + prefix).components(separatedBy: sentinel)
+            guard parts.count == 2 else { throw ReadAloudError.unsupportedTemplate }
+            (before, after) = (parts[0], parts[1])
         case .explicit(let template):
-            rendered = template
-                .replacingOccurrences(of: "{system}", with: system)
-                .replacingOccurrences(of: "{user}", with: sentinel)
+            // Split on `{user}` first, so a `{user}` typed in the system text stays plain text.
+            let parts = template.components(separatedBy: "{user}")
+            guard parts.count == 2 else { throw ReadAloudError.unsupportedTemplate }
+            (before, after) = (
+                parts[0].replacingOccurrences(of: "{system}", with: system),
+                parts[1].replacingOccurrences(of: "{system}", with: system))
         }
-        let parts = rendered.components(separatedBy: sentinel)
-        guard parts.count == 2 else { throw ReadAloudError.unsupportedTemplate }
         return [
-            PromptPiece(text: parts[0], isSelection: false),
+            PromptPiece(text: before, isSelection: false),
             PromptPiece(text: user, isSelection: true),
-            PromptPiece(text: parts[1], isSelection: false),
+            PromptPiece(text: after, isSelection: false),
         ]
     }
 }

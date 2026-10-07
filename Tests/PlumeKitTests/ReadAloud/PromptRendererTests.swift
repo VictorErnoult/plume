@@ -33,6 +33,30 @@ struct PromptRendererTests {
         ])
     }
 
+    @Test func aPlaceholderTypedInTheSystemTextStaysText() throws {
+        let tricky = SummaryRequest(
+            system: "Answer {user} questions", user: "Hello there.",
+            maxSentences: 2, language: "en", truncated: false, keptWords: 2)
+        let pieces = try PromptRenderer.pieces(
+            for: tricky, format: SummaryEngineCatalog.gemma4_e2b.llamaSpec.promptFormat,
+            applyTemplate: { _, _ in Issue.record("not used"); return "" })
+        #expect(pieces == [
+            PromptPiece(text: "<|turn>system\nAnswer {user} questions<turn|>\n<|turn>user\n", isSelection: false),
+            PromptPiece(text: "Hello there.", isSelection: true),
+            PromptPiece(text: "<turn|>\n<|turn>model\n", isSelection: false),
+        ])
+    }
+
+    @Test func aSelectionContainingTheSentinelStaysOnePiece() throws {
+        let selection = "before \(PromptRenderer.sentinel) after"
+        let tricky = SummaryRequest(
+            system: "Summarize.", user: selection, maxSentences: 2, language: "en", truncated: false, keptWords: 3)
+        let pieces = try PromptRenderer.pieces(
+            for: tricky, format: SummaryEngineCatalog.qwen35_4b.llamaSpec.promptFormat, applyTemplate: chatML)
+        #expect(pieces.count == 3)
+        #expect(pieces[1] == PromptPiece(text: selection, isSelection: true))
+    }
+
     @Test func aTemplateThatLosesTheSelectionIsRejected() {
         #expect(throws: ReadAloudError.unsupportedTemplate) {
             try PromptRenderer.pieces(for: request, format: .embedded(assistantPrefix: ""), applyTemplate: { s, _ in s })
@@ -49,6 +73,29 @@ struct PromptRendererTests {
         #expect(accumulator.append(Array(emoji[0..<3])) == "")
         #expect(accumulator.append([emoji[3]]) == "🙂")
         #expect(accumulator.finish() == "")
+    }
+
+    @Test func aMultiByteCharacterIsHeldWhateverTheSplit() {
+        let bytes = Array("中".utf8)  // E4 B8 AD
+        var oneThenTwo = UTF8Accumulator()
+        #expect(oneThenTwo.append([bytes[0]]) == "")
+        #expect(oneThenTwo.append([bytes[1], bytes[2]]) == "中")
+        var twoThenOne = UTF8Accumulator()
+        #expect(twoThenOne.append([bytes[0], bytes[1]]) == "")
+        #expect(twoThenOne.append([bytes[2]]) == "中")
+    }
+
+    @Test func aLoneContinuationByteNeverStalls() {
+        var accumulator = UTF8Accumulator()
+        #expect(accumulator.append([0x80]) == "\u{FFFD}")
+        #expect(accumulator.finish() == "")
+    }
+
+    @Test func unparsableSamplingMetadataFallsBackAndMinPIsTaken() {
+        let broken: [String: String] = ["general.sampling.top_k": "abc", "general.sampling.top_p": "x"]
+        #expect(Sampling.resolve(metadata: { broken[$0] }, temperature: 0.3) == Sampling(topK: 40, topP: 0.95, minP: 0.05, temperature: 0.3))
+        let minP: [String: String] = ["general.sampling.min_p": "0.1"]
+        #expect(Sampling.resolve(metadata: { minP[$0] }, temperature: 0.3) == Sampling(topK: 40, topP: 0.95, minP: 0.1, temperature: 0.3))
     }
 
     @Test func samplingTakesTheModelsValuesButOurTemperature() {
