@@ -18,11 +18,21 @@ public enum SpokenText {
     /// Languages the voice speaks (Supertonic-3), without its "na" pseudo-language.
     public static let voiceLanguages: Set<String> = Set(Supertonic3Constants.availableLanguages).subtracting(["na"])
 
-    /// The text's language when the voice speaks it, otherwise the interface language.
-    public static func speechLanguage(of text: String, interface: Language) -> String {
+    /// The text's language, or nil when the recognizer is not sure (probability under 0.5).
+    /// Short texts make it guess wildly ("OK" is Polish, "Hello" scores 0.13 for English), and a
+    /// wrong guess reads or summarizes in the wrong language: no answer beats a bad one.
+    public static func detectedLanguage(of text: String) -> String? {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
-        if let code = recognizer.dominantLanguage?.rawValue, voiceLanguages.contains(code) { return code }
+        guard let (language, probability) = recognizer.languageHypotheses(withMaximum: 1).first,
+            probability >= 0.5
+        else { return nil }
+        return language.rawValue
+    }
+
+    /// The text's language when the voice speaks it, otherwise the interface language.
+    public static func speechLanguage(of text: String, interface: Language) -> String {
+        if let code = detectedLanguage(of: text), voiceLanguages.contains(code) { return code }
         return interface.rawValue
     }
 
@@ -51,8 +61,13 @@ public enum SpokenText {
         s = s.replacingOccurrences(of: #"```[\s\S]*?(```|$)"#, with: "\n\(skipped)\n", options: .regularExpression)
         s = s.replacingOccurrences(of: #"\[([^\]]+)\]\([^)]+\)"#, with: "$1", options: .regularExpression)
         s = s.replacingOccurrences(
-            of: #"(https?://|www\.)[^\s<>()]*[^\s<>().,;:!?'"»”]"#, with: link, options: .regularExpression)
-        s = s.replacingOccurrences(of: #"\*\*|__|`"#, with: "", options: .regularExpression)
+            of: #"(https?://|(?<![\w@.])www\.)[^\s<>()]*[^\s<>().,;:!?'"»”]"#, with: link, options: .regularExpression)
+        // Only paired emphasis goes: "2 ** 3" is not markdown, "**bold**" is. "__init__" reads
+        // exactly like "__bold__", so Python's well-known special names are kept as written.
+        s = s.replacingOccurrences(
+            of: #"(?<!\w)(\*\*|__)(?!(?:init|main|name|file|self|class|dict|doc|new|call|str|repr|len|iter|enter|exit)__)(?=\S)(.+?)(?<=\S)\1(?!\w)"#,
+            with: "$2", options: .regularExpression)
+        s = s.replacingOccurrences(of: "`", with: "")
         s = s.replacingOccurrences(of: #"(?<![\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![\w*])"#, with: "$1", options: .regularExpression)
         var lines: [String] = []
         for raw in s.components(separatedBy: "\n") {
