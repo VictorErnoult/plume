@@ -1,7 +1,7 @@
 # Read the selection aloud: design
 
-Status: 2026-10-07, revision 10: the owner's review answers applied to revision 5 (which four
-independent reviews had brought to clean), then the fifth to eighth reviews' findings.
+Status: 2026-10-07, revision 11: the owner's review answers applied to revision 5 (which four
+independent reviews had brought to clean), then the fifth to ninth reviews' findings.
 
 ## Goal
 
@@ -143,10 +143,15 @@ the user asks, and nothing is deleted until the user asks.**
   error, if it failed) with **Resume** (which continues from the `.partial`; it is the Retry
   of a failed download) and **Delete**; its `.partial` counts in the total space used. The
   voice cannot resume (an incomplete voice folder is deleted before any retry): it shows
-  **Failed** with **Retry**, which restarts it from zero.
+  **Failed** with **Retry**, which restarts it from zero, and **Delete**, which removes the
+  incomplete folder, clears `readAloudPendingDownload` and reloads the shortcuts.
 - During an engine download that brings the voice, the voice counts as installed as soon as its
-  completion marker is written: a waiting word-for-word read starts then, and the island shows
-  the voice's share of the progress meanwhile.
+  completion marker is written: any waiting read whose items are now all installed starts then
+  (a word-for-word read, or a summary on an engine already in use), and the island shows the
+  voice's share of the progress meanwhile.
+- A failure during the voice part of an engine download belongs to the engine: the engine shows
+  `paused(0 bytes, message)` and its Resume brings the voice first; the voice shows `absent`
+  (its incomplete folder is deleted), with Download disabled while that engine is pending.
 - **Delete** asks for confirmation. Deleting the item named by `readAloudPendingDownload` (a
   paused download) clears that key, so nothing resumes it at the next launch. Deleting the active summary model leaves summaries off
   until another downloaded model is chosen with **Use**. Deleting the voice turns both modes
@@ -214,7 +219,7 @@ while reading", "Keep the models loaded". Both shortcuts are unassigned by defau
 | Empty selection, or the app does not expose it | "Select some text first" | Nothing starts; a read in progress continues. |
 | Voice not installed | Neither shortcut is registered. | |
 | No summary model in use | "Summarize aloud" is not registered. | |
-| The voice is downloading, or no engine is in use and one is downloading (`readAloudPendingDownload`) | "Downloading… x%" | The read waits and starts when the download is ready, unless stopped. |
+| An item a read needs is downloading (`readAloudPendingDownload`: the voice, or an engine when none is in use) | "Downloading… x%" | A read that needs the pending item waits and starts once all its items are installed, unless stopped; a read that needs nothing pending starts at once. |
 | The session is busy (`session.isBusy`: recording, or processing a dictation, a transform, a restore or a meeting transcript) | Both shortcuts and the read URLs are ignored. | A read never starts without an island to show it and stop it. |
 | A dictation starts while reading | The read stops, the dictation starts. | |
 | A restore (shortcut, URL or window) while reading | The read stops, the restore runs. | Same as a dictation: the session's processing takes the island. |
@@ -481,8 +486,8 @@ protocol Voice: Sendable {
   expire. Written to `<support directory>/Models/<file>.partial` with HTTP `Range` requests to
   resume; a `200` reply instead of `206` (range ignored) restarts from zero.
 - Before starting: free disk space ≥ total size + 10%.
-- At the end: size and SHA-256 checked; a mismatch deletes the file and reports a failure with
-  Retry. Then the `.partial` is renamed.
+- At the end: size and SHA-256 checked; a mismatch deletes the file and reports a failure (the
+  engine shows `paused(0 bytes, message)` with Resume). Otherwise the `.partial` is renamed.
 - Voice: `Supertonic3ResourceDownloader.ensureModels(directory:veVariant: "ane-int4",
   progressHandler:)`, then `downloadVoiceStyle` for F1 and M2 (a few kB each). `ensureModels`
   only checks that files exist, and an interrupted bundle can leave `weight.bin.partial` behind
@@ -562,7 +567,8 @@ hardware.
   `finished(mode)`, `failed(message)`, plus the sentences.
 - A shortcut during any state starts a new read of the current selection; an empty selection
   leaves the current read going and shows "Select some text first".
-- Starting a dictation or a meeting stops the read.
+- One rule: a session phase change into `.recording` or `.processing` (a dictation, a meeting,
+  a transform, a restore) stops the read, hooked in `session.onPhaseChanged` (AppDelegate.swift).
 - Its own idle timer unloads the service and the voice after the "Keep the models loaded"
   delay (`SessionController.scheduleUnload` belongs to dictation).
 
@@ -707,7 +713,7 @@ device:
   read restarts with the new selection; an empty selection leaves the read going; Esc and stop
   stop; Read the full text switches mode on the same selection; previous/next and replay
   re-synthesize from the right sentence; a failing sentence is skipped, all failing → error;
-  dictation start stops the read; the state sequence for the island; a long read keeps at most
+  a session entering recording or processing (dictation, restore) stops the read; the state sequence for the island; a long read keeps at most
   the queued sentences' audio.
 - Settings: the new keys in `SettingsBackup` and in `FixtureSamples.backup` (enforced by
   `SavedFormatTests.samplesCoverEveryValue`); `readAloudEngine` and `readAloudPendingDownload`
