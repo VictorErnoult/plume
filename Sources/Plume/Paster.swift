@@ -188,6 +188,14 @@ enum Paster {
         return value as? String
     }
 
+    /// Whether a field is a password field. macOS reports one as role `AXTextField` with subrole
+    /// `AXSecureTextField`, so the subrole is what matters; the role is checked too, for apps
+    /// that report the value there.
+    static func isSecure(role: String?, subrole: String?) -> Bool {
+        let secure = kAXSecureTextFieldSubrole
+        return role == secure || subrole == secure
+    }
+
     /// A few characters on either side of the cursor, or `nil` if the app doesn't expose them
     /// (many web or Electron apps don't).
     static func insertionContext(reach: Int = 60) -> InsertionContext? {
