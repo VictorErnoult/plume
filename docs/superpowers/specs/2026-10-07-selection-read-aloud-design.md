@@ -1,6 +1,6 @@
 # Read the selection aloud: design
 
-Status: draft for review, 2026-10-07 (revision 2, after an independent review).
+Status: draft for review, 2026-10-07 (revision 3, after two independent reviews).
 
 ## Goal
 
@@ -21,6 +21,11 @@ M5 it was benchmarked on:
 - an email or a short thread (~500 tokens): first sound in **≤ 3 s**;
 - a 1,300-word article (~2,200 tokens): first sound in **≤ 10 s**;
 - anything longer: progress shown while the text is read, with the remaining time.
+
+These targets assume the model is already loaded ("warm"). Loading it adds 1.5 to 3 s on the
+M5 (more on an M2, and ~4 s more the very first time, while Metal compiles its kernels). The
+"Keep the model loaded" setting decides how often a read starts cold; the quality eval records
+cold and warm timings.
 
 ### Non-goals (v1)
 
@@ -99,10 +104,11 @@ Settings › Local AI gets a new block, "Read a summary of the selection aloud":
   memory: other apps may slow down while a summary is being written."
 - Download progress shows in the block and on the island if the user triggers a read meanwhile;
   Cancel and Retry are next to it.
-- Once a model is ready, the feature turns on, and the rows below become available: shortcut,
-  length, language, voice, speed, show text.
-- **Switching model**: downloading another model replaces the current one once it is ready (one
-  summary model on disk at a time).
+- As soon as a download starts, the rows below become available: shortcut, length, language,
+  voice, speed, show text, keep the model loaded. The feature works once the model is ready.
+- **Switching model**: downloading another model from Settings replaces the current one once it
+  is ready (Settings keeps one summary model on disk). The command line's `--download` keeps
+  other models, so the quality eval can compare them.
 - **Remove**: deletes the summary model and the voice, and turns the feature off.
 
 The shortcut is unassigned by default, like "Transform the selection", and is also listed in
@@ -124,8 +130,11 @@ Settings › Shortcuts.
    setting), and **Show text**.
 5. **Show text** opens the drawer with the summary, the sentence being read highlighted, and a
    Copy button. A setting, "Show the text while reading", opens it by default.
-6. Pressing the shortcut again, or Esc, stops at any moment, including while the text is being
-   read by the model.
+6. Pressing the shortcut again stops at any moment. Esc also stops, but only until the first
+   sound, and afterwards while the pointer is on the island or the text is shown: Esc is a
+   system-wide key, and holding it for a whole read would break it in every other app (Plume
+   already releases it outside dictations for that reason). Stopping takes effect within one
+   input batch (≤ ~2 s on an M2, see `LlamaSummaryService`).
 7. When the read ends, the island stays in a "Finished" state for 8 seconds with Replay and Show
    text, then closes. After that, the summary is gone.
 
@@ -275,14 +284,23 @@ name, languages) lists `supertonic3-f1` and `supertonic3-m2` in v1.
   use ChatML). Renders with `llama_chat_apply_template(add_ass: true)` and appends the prefix; a
   return of −1 fails with "Unsupported chat template". `.explicit`: substitutes the
   placeholders.
-- **Tokenization.** The rendered prompt is tokenized with special tokens parsed for the
-  template parts only; the selection itself is tokenized with `parse_special = false`, so a
-  selection containing a control token (e.g. `<|im_end|>`) stays plain text.
-- **Reading the input** in batches of `n_batch` tokens, emitting `readingInput(fraction)` after
-  each batch and checking cancellation between batches. `llama_set_abort_callback` reads the
-  same cancellation flag, so Esc also interrupts a batch in progress.
-- **Sampling** (same as `llama-server`'s defaults, which the bench used): top-k 40, top-p 0.95,
-  min-p 0.05, temperature 0.3, then random draw; repetition penalty off.
+- **Tokenization.** The prompt is rendered with a unique sentinel string in place of the
+  selection, then split on it. The template parts are tokenized with `parse_special = true`, the
+  selection with `parse_special = false` (so a selection containing `<|im_end|>` stays plain
+  text). `add_special = true` only for the first piece, so the model adds its BOS token itself if
+  it uses one (Gemma does, Qwen does not); `.explicit` templates must not contain a literal BOS
+  token (checked by the catalog test).
+- **Reading the input** in batches of 512 tokens (`n_batch = n_ubatch = 512`; 512 is already
+  llama.cpp's default `n_ubatch`, so speed is unchanged), emitting `readingInput(fraction)` after
+  each batch and checking cancellation between batches. A batch in progress cannot be
+  interrupted: llama.cpp's abort callback only works on the CPU, not on Metal. Worst case, a stop
+  takes effect after one batch: ~2 s on an M2, ~0.5 s on the M5.
+- **Context settings:** `swa_full = false` (llama.cpp's C default is true, which would allocate
+  a full-size sliding-window cache for Gemma; `llama-server`, used in the bench, sets false),
+  flash attention on automatic. `llama_memory_clear` at the start of every read: Qwen3.5 keeps
+  recurrent state, and a stopped read can leave it half-written.
+- **Sampling** (what the bench ran: `llama-server`'s default chain with temperature set to 0.3):
+  top-k 40, top-p 0.95, min-p 0.05, temperature 0.3, then random draw; repetition penalty off.
 - **Generation** stops on end-of-generation, a token cap of 60 tokens per budgeted sentence +
   100, or cancellation.
 - `llama_backend_init` once per process; llama.cpp's own log goes through `llama_log_set` into
@@ -317,9 +335,15 @@ protocol Voice: Sendable {
 - `SupertonicVoice` is built from a `VoiceEntry`. It normalizes the sentence
   (`NemoTextNormalizer`, French or English), then synthesizes with `Supertonic3Manager` at
   `speed: 1.0` (Supertonic's own default is 1.05), 44.1 kHz.
-- The manager is created with `directory: <support directory>/Models/supertonic-3`, so Plume
-  owns the files: "Remove" deletes them, and `PLUME_SUPPORT` isolates trials. (FluidAudio's
-  default on macOS is `~/.cache/fluidaudio`, outside Plume's control.)
+- The manager is created with `directory: <support directory>/Models` (FluidAudio adds
+  `supertonic-3/` itself), so Plume owns the files: "Remove" deletes them, and `PLUME_SUPPORT`
+  isolates trials. (FluidAudio's default on macOS is `~/.cache/fluidaudio`, outside Plume's
+  control.)
+- One constant fixes the voice variant for both the download and the manager:
+  `vectorEstimator: .aneBucketed(.int4)` and `veVariant: "ane-int4"` (the variant the bench
+  measured; FluidAudio's `downloadVariant` is internal, so the string is repeated, and a test
+  checks the two match). `load()` checks that the files and the completion marker exist before
+  calling `initialize()`, so loading can never start a download.
 - Speed is applied by the player, never here.
 
 **`ReadAloudModels`** (downloads)
@@ -333,13 +357,18 @@ protocol Voice: Sendable {
 - Before starting: free disk space ≥ total size + 10%.
 - At the end: size and SHA-256 checked; a mismatch deletes the file and reports a failure with
   Retry. Then the `.partial` is renamed.
-- Voice: `Supertonic3ResourceDownloader.ensureModels(directory:…, progressHandler:)` with the
-  default vector-estimator variant, and `downloadVoiceStyle` for F1 and M2 (a few kB each).
+- Voice: `Supertonic3ResourceDownloader.ensureModels(directory:veVariant: "ane-int4",
+  progressHandler:)`, then `downloadVoiceStyle` for F1 and M2 (a few kB each). `ensureModels`
+  only checks that files exist, and an interrupted bundle can leave `weight.bin.partial` behind
+  and still pass. So Plume writes a `.complete` marker in the voice folder once all three calls
+  succeed; "ready" requires the marker, and without it the voice folder is deleted before any
+  retry. Cancel deletes it too.
 - The download is owned by the app. A lock file next to the `.partial` (`flock`) prevents a
   second process (the command line) from writing the same file.
-- **Lifecycle.** Quitting mid-download keeps the `.partial`; at the next launch, if the user had
-  started a download, it resumes automatically and the island shows nothing until a read is
-  requested. "Cancel" stops it and deletes the `.partial`. "Remove" cancels any download first.
+- **Lifecycle.** The engine being downloaded is stored in `readAloudPendingEngine`. Quitting
+  mid-download keeps the `.partial`; at the next launch, if a pending engine is set, the
+  download resumes automatically and the island shows nothing until a read is requested. When
+  it completes, `readAloudEngine` takes its id and the pending value is cleared. "Cancel" stops it and deletes the `.partial`. "Remove" cancels any download first.
 - Status: `absent`, `downloading(fraction)`, `ready`, `failed(message)`.
 
 **Recommendation** (pure): `recommendedEngine(chip:memoryGB:catalog:)` returns the `.accurate`
@@ -369,7 +398,7 @@ entry if there is one. The chip name comes from `machdep.cpu.brand_string`.
   `finished`, `failed(message)`, plus the summary text.
 - Toggle: the shortcut during any active state stops.
 - Starting a dictation or a meeting stops the read.
-- Its own idle timer unloads the service and the voice after 10 minutes without a read
+- Its own idle timer unloads the service and the voice after the "Keep the model loaded" delay
   (`SessionController.scheduleUnload` belongs to dictation).
 
 **Island**
@@ -381,9 +410,9 @@ entry if there is one. The chip name comes from `machdep.cpu.brand_string`.
 - New renderings: downloading, loading, reading the input (with %), summarizing, reading (icon,
   "2/4", hover controls), finished (Replay, Show text, 8 s), failed; the drawer with the summary
   text and the highlighted sentence.
-- Shortcut routing: `onPress`/`onRelease` dispatch on the hotkey action; Esc is enabled while a
-  read is active (today: only while dictating), and `onCancelShortcut` stops the read when no
-  dictation is running.
+- Shortcut routing: `onPress`/`onRelease` dispatch on the hotkey action. The cancel key (Esc by
+  default) is enabled during a read only until the first sound, and while the pointer is on the
+  island or the drawer is open; `onCancelShortcut` stops the read when no dictation is running.
 - `UIRender` gets demo states for each new rendering (`plume render … --demo`), as `AGENTS.md`
   requires for interface changes.
 
@@ -413,6 +442,8 @@ Through `PlumeSettings` and `SettingsModel`. New fields are optional when read f
 | Key | Type | Default | In backup |
 |---|---|---|---|
 | `readAloudEngine` | engine id or empty | empty (no model) | **no**: restoring a backup on a new Mac must not start a 3 GB download; the user picks again |
+| `readAloudPendingEngine` | engine id or empty | empty | no (same reason) |
+| `readAloudKeepLoaded` | 5 min / 30 min / always | 30 min with ≥ 16 GB of memory, 5 min below | yes |
 | `readAloudShortcut` | Shortcut | none | yes |
 | `readAloudLength` | `short` / `automatic` / `detailed` | `automatic` | yes |
 | `readAloudLanguage` | `sameAsText` / `interface` / `fr` / `en` | `sameAsText` | yes |
@@ -446,7 +477,8 @@ device:
 - Engine catalog: unique ids; pinned 40-character revisions; 64-character SHA-256; positive
   sizes; each `.explicit` template contains `{system}` and `{user}`; each `.embedded` entry
   renders a sample request through the same formatting code (with the template string stored
-  in the test); an unknown id resolves to "no model".
+  in the test); an unknown id resolves to "no model"; no `.explicit` template contains a literal BOS token;
+  the voice variant constant matches FluidAudio's `.aneBucketed(.int4)` download name.
 - Recommendation: a table of chips × memory → expected entry, including a one-entry catalog.
 - `ReadAloudModels`: resume with `206`, restart on `200`, checksum mismatch, insufficient disk
   space, cancel, the lock held by another process; with a stub `URLProtocol` and temporary
@@ -455,7 +487,8 @@ device:
   stops during input reading, a failing sentence is skipped, all failing → error, dictation
   start stops the read, the state sequence for the island.
 - Settings: the new keys in `SettingsBackup` and in `FixtureSamples.backup` (enforced by
-  `SavedFormatTests.samplesCoverEveryValue`), `readAloudEngine` excluded from the backup; the
+  `SavedFormatTests.samplesCoverEveryValue`), `readAloudEngine` and `readAloudPendingEngine` excluded from the backup and listed in
+  `settingsOutsideTheBackupKeepTheirName`; the
   backup fixture of the unreleased version (1.0.2, no tag) regenerated; French translations
   present; the new shortcut.
 - Command line and Remote: `read-aloud` in `CLI.commands` and in `RemoteTests`; without a
@@ -470,9 +503,13 @@ quitting mid-download and resuming).
 - `Package.swift`: a `binaryTarget` for `llama.xcframework` from a pinned llama.cpp release URL
   with its checksum, used by PlumeKit. (The zip nests the framework under `build-apple/`; SwiftPM
   accepts it, verified.)
-- `scripts/assemble.sh` (called by both `build.sh` and `release.sh`): copy `llama.framework`
-  into `Contents/Frameworks` next to Sparkle, thinned to arm64 with `lipo -thin`, and sign it
-  the same way. The app already has the `@executable_path/../Frameworks` rpath.
+- `scripts/assemble.sh` (called by both `build.sh` and `release.sh`, unsigned): copy
+  `llama.framework` into `Contents/Frameworks` next to Sparkle, thinned to arm64 with
+  `lipo -thin`. The app already has the `@executable_path/../Frameworks` rpath.
+- Signing, like Sparkle's: `build.sh` signs it with the local identity, `release.sh` with the
+  release identity (hardened runtime, timestamp), before signing the app.
+- The llama.cpp version is pinned to the one the bench used (b11461) unless the quality eval
+  runs on a newer one.
 - `Resources/LICENSES.md`: llama.cpp's MIT notice. Model and voice licences (Apache 2.0,
   OpenRAIL++) are linked from the model list in Settings.
 - App size: about +12 MB.
