@@ -2649,6 +2649,23 @@ struct ReadAloudModelsTests {
         _ = try DownloadLock(directory: folder)  // released
     }
 
+    /// A failure during the voice part of an engine download: the voice is absent (folder
+    /// gone), the engine has nothing on disk yet and can be resumed later.
+    @Test func aVoiceFailureLeavesNoVoiceFolder() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        serveWhole()
+        let models = models(installVoice: { directory, _ in
+            let voice = VoiceAssets.folder(in: directory)
+            try FileManager.default.createDirectory(at: voice, withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: voice.appendingPathComponent("weight.bin.partial").path, contents: Data(count: 5))
+            throw URLError(.networkConnectionLost)
+        })
+        await #expect(throws: URLError.self) { try await models.download(.engine(entry.id), catalog: [entry]) { _ in } }
+        #expect(!FileManager.default.fileExists(atPath: VoiceAssets.folder(in: folder).path))
+        #expect(!models.isVoiceInstalled)
+        #expect(!models.isInstalled(entry))
+    }
+
     @Test func deletingRemovesOnlyItsItem() async throws {
         defer { try? FileManager.default.removeItem(at: folder) }
         serveWhole()
@@ -2926,7 +2943,9 @@ public final class ReadAloudModels: @unchecked Sendable {
         do {
             try await installVoice(directory, progress)
         } catch {
-            if Task.isCancelled { try? FileManager.default.removeItem(at: folder) }
+            // The voice cannot resume: its incomplete folder goes at the failure (or the
+            // Cancel), never left for FluidAudio to mistake for complete.
+            try? FileManager.default.removeItem(at: folder)
             throw error
         }
         FileManager.default.createFile(atPath: folder.appendingPathComponent(VoiceAssets.completeMarker).path, contents: nil)
