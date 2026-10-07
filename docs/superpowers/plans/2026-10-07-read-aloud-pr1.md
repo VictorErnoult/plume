@@ -14,7 +14,7 @@
 
 - Work in the worktree `/Users/victor/Documents/Perso/plume/worktrees/read-aloud`, branch `read-aloud`. Never touch the main checkout.
 - Swift 6 compiler, language mode 5 (`swiftSettings: [.swiftLanguageMode(.v5)]`), macOS 15+, Apple Silicon. Build with `swift build`; never add an Xcode project.
-- Tests: always `./scripts/test.sh` (optionally `--filter <Suite name>`), never bare `swift test`. The whole suite must stay fast and need no model, no network, no audio device.
+- Tests: always `./scripts/test.sh` (optionally `--filter <TestTypeName>` or `--filter <testFunctionName>`), never bare `swift test`. `--filter` matches type and function names, **not** `@Suite("…")` display names: a filter that matches nothing prints "No matching test cases were run" and exits 0. Every "run the tests" step must show tests actually ran; quote the count in the report. The whole suite must stay fast and need no model, no network, no audio device.
 - Code, comments, commit messages in **English**. Comments are `///` and explain *why*. Match the style of the file you are in.
 - Every interface string (errors, command-line messages, usage) is written in English inside `tr("…")` and gets its French translation in `Sources/PlumeKit/L10nTable.swift` (informal "tu"). `PlumeKitTests` fails on a missing key. Model prompts are model inputs, not interface text: no `tr()`.
 - Tests never use `PlumeSettings.shared` (directly or through a defaulted parameter), the real support folder, the real pasteboard, or real downloads. Use temporary folders, `UserDefaults(suiteName: "plume-tests-\(UUID())")`, and stub `URLProtocol`s.
@@ -33,7 +33,7 @@
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   ```
 
-  Amends keep the dates (`--date` and the env vars again). **No push, PR, comment or tag** from a task: the controller handles that at the end, only when the real time is past the latest commit date and before 07:00 or after 18:00. Never merge.
+  Amends keep the dates (`--date` and the env vars again). Chaining past midnight is fine (repo rule); if work resumes another day after a pause, that day's first commit is dated between 18:00 and 19:30 instead. **No push, PR, comment or tag** from a task: the controller handles that at the end, only when the real time is past the latest commit date and before 07:00 or after 18:00 (the owner explicitly allowed opening PRs before 07:00 on 2026-10-07). Never merge.
 - Model files and audio are never committed. Test texts are invented.
 
 ## Review Focus
@@ -80,7 +80,6 @@ Tests/PlumeKitTests/FixtureSamples.swift               modify: new backup keys
 Tests/PlumeKitTests/SavedFormatTests.swift             modify: settings outside the backup
 Tests/Fixtures/1.0.2/                                  regenerate
 Tests/PlumeTests/ReadAloudCommandTests.swift           create
-Tests/PlumeTests/RemoteTests.swift                     modify: the new command word reaches the CLI
 docs/DEVELOPMENT.md, docs/PLAN.md, CHANGELOG.md        modify
 ```
 
@@ -117,7 +116,7 @@ struct LlamaLinkTests {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `./scripts/test.sh --filter "llama.cpp link"`
+Run: `./scripts/test.sh --filter LlamaLinkTests`
 Expected: build error `no such module 'llama'`.
 
 - [ ] **Step 3: Add the binary target**
@@ -147,7 +146,7 @@ and make PlumeKit and its tests depend on it:
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `./scripts/test.sh --filter "llama.cpp link"`
+Run: `./scripts/test.sh --filter LlamaLinkTests`
 Expected: PASS. If the module is named differently, run `find .build -name module.modulemap -path '*llama*' | xargs cat` and use the module name it declares.
 
 - [ ] **Step 5: Embed, thin and sign the framework in the app**
@@ -175,23 +174,7 @@ codesign --force --sign "Plume Local Signing" --keychain "$KEYCHAIN" "$APP/Conte
 "${SIGN[@]}" "$APP/Contents/Frameworks/llama.framework"
 ```
 
-`Resources/LICENSES.md`: add a section in the file's existing format:
-
-```markdown
-## llama.cpp
-
-https://github.com/ggml-org/llama.cpp — MIT License
-
-Copyright (c) 2023-2026 The ggml authors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-(Copy the exact copyright line from the `LICENSE` file inside the downloaded xcframework zip or the llama.cpp repository at tag b11461.)
+`Resources/LICENSES.md`: add llama.cpp in the file's existing format, as one bullet under `## Libraries` next to Sparkle (read the file first and match how Sparkle is listed: name, copyright holder, URL, licence): "llama.cpp, © The ggml authors — https://github.com/ggml-org/llama.cpp — MIT License".
 
 - [ ] **Step 6: Verify the assembled app loads it**
 
@@ -310,7 +293,7 @@ struct ReadAloudSettingsTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Read-aloud settings"`
+Run: `./scripts/test.sh --filter ReadAloudSettingsTests`
 Expected: build errors (`PlumeSettings(defaults:)`, `readAloudEngine`… not found).
 
 - [ ] **Step 3: Write the options**
@@ -497,7 +480,7 @@ In `Sources/PlumeKit/Settings.swift`:
 
 - [ ] **Step 5: Run the new tests**
 
-Run: `./scripts/test.sh --filter "Read-aloud settings"`
+Run: `./scripts/test.sh --filter ReadAloudSettingsTests`
 Expected: PASS.
 
 - [ ] **Step 6: Update the samples and the format tests**
@@ -584,6 +567,8 @@ struct SentenceSplitterTests {
         ("Attends… je réfléchis. Bon.", ["Attends… je réfléchis.", "Bon."]),
         ("Il a dit « oui. » Puis il est parti.", ["Il a dit « oui. »", "Puis il est parti."]),
         ("Quoi ?! Vraiment.", ["Quoi ?!", "Vraiment."]),
+        ("Born in the U.S. today, he left.", ["Born in the U.S. today, he left."]),
+        ("See Fig. 3 for details. Done.", ["See Fig. 3 for details.", "Done."]),
         ("今日は晴れです。明日は雨です。", ["今日は晴れです。", "明日は雨です。"]),
         ("यह पहला वाक्य है। यह दूसरा है।", ["यह पहला वाक्य है।", "यह दूसरा है।"]),
         ("First paragraph without end\n\nSecond one.", ["First paragraph without end", "Second one."]),
@@ -595,6 +580,14 @@ struct SentenceSplitterTests {
     @Test func splitsTheTable() {
         for (input, expected) in Self.table {
             #expect(SentenceSplitter.split(input) == expected, "\(input)")
+        }
+    }
+
+    /// Known limit: an initialism ending a sentence ("the U.S. It is…") does not split, since
+    /// "U.S." looks like an abbreviation. Two sentences become one; nothing is lost.
+    @Test func anInitialismAtASentenceEndStaysJoined() {
+        withKnownIssue("an initialism ending a sentence is read as an abbreviation") {
+            #expect(SentenceSplitter.split("They moved to the U.S. It is far.") == ["They moved to the U.S.", "It is far."])
         }
     }
 
@@ -640,7 +633,7 @@ struct SentenceSplitterTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Sentence splitter"`
+Run: `./scripts/test.sh --filter SentenceSplitterTests`
 Expected: build error `cannot find 'SentenceSplitter'`.
 
 - [ ] **Step 3: Implement**
@@ -690,7 +683,7 @@ public struct SentenceSplitter: Sendable {
     /// Words that take a period without ending a sentence.
     static let abbreviations: Set<String> = [
         "M", "MM", "Mme", "Mmes", "Mlle", "Mr", "Mrs", "Ms", "Dr", "Pr", "Prof", "Me", "St", "Ste",
-        "Sr", "Jr", "vs", "cf", "p", "pp", "env", "approx", "ex", "fig", "No", "no", "vol", "chap",
+        "Sr", "Jr", "vs", "cf", "p", "pp", "env", "approx", "ex", "fig", "Fig", "No", "no", "vol", "chap",
     ]
 
     private mutating func drain(final: Bool) -> [String] {
@@ -816,7 +809,7 @@ public struct SentenceSplitter: Sendable {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `./scripts/test.sh --filter "Sentence splitter"`
+Run: `./scripts/test.sh --filter SentenceSplitterTests`
 Expected: PASS. If a table row fails, fix the implementation, not the row, unless the row contradicts the spec; then note it with `withKnownIssue` around that one expectation and explain why in a comment.
 
 - [ ] **Step 5: Commit**
@@ -892,7 +885,7 @@ struct SpokenTextTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Spoken text"`
+Run: `./scripts/test.sh --filter SpokenTextTests`
 Expected: build error `cannot find 'SpokenText'`.
 
 - [ ] **Step 3: Implement**
@@ -971,7 +964,7 @@ public enum SpokenText {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `./scripts/test.sh --filter "Spoken text"`
+Run: `./scripts/test.sh --filter SpokenTextTests`
 Expected: PASS. Adjust the regular expressions if a row fails; keep every row.
 
 - [ ] **Step 5: Commit**
@@ -1090,7 +1083,7 @@ struct EngineCatalogTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Engine catalog"`
+Run: `./scripts/test.sh --filter EngineCatalogTests`
 Expected: build errors.
 
 - [ ] **Step 3: Implement**
@@ -1286,7 +1279,7 @@ public enum VoiceAssets {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `./scripts/test.sh --filter "Engine catalog"`
+Run: `./scripts/test.sh --filter EngineCatalogTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1395,7 +1388,7 @@ final class Counter: @unchecked Sendable {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Summary prompt"`
+Run: `./scripts/test.sh --filter SummaryPromptTests`
 Expected: build errors.
 
 - [ ] **Step 3: Write the errors**
@@ -1573,7 +1566,7 @@ public enum SummaryPrompt {
 
 - [ ] **Step 5: Run the tests**
 
-Run: `./scripts/test.sh --filter "Summary prompt"` then `./scripts/test.sh --filter "translation"` (or the whole suite, to run the L10n completeness test).
+Run: `./scripts/test.sh --filter SummaryPromptTests` then `./scripts/test.sh --filter everyTrLiteralHasAFrenchEntry` (or the whole suite, to run the L10n completeness test).
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -1647,6 +1640,7 @@ struct SummaryCleanerTests {
             ("The release moves.<|im_end|>", false, "The release moves."),
             ("The release moves.<turn|>", false, "The release moves."),
             ("Summary: is a word here.", false, "Summary: is a word here."),
+            ("It is *really* fixed.", false, "It is really fixed."),
             // ordinary neighbour
             ("The release moves to October.", true, "The release moves to October."),
         ]
@@ -1659,7 +1653,7 @@ struct SummaryCleanerTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Summary cleaner"`
+Run: `./scripts/test.sh --filter SummaryCleanerTests`
 Expected: build error.
 
 - [ ] **Step 3: Implement**
@@ -1743,6 +1737,7 @@ public struct SummaryCleaner: Sendable {
         var text = sentence
         text = text.replacingOccurrences(of: #"<\|[^<>\s]*\|?>|<[^<>\s|]*\|>"#, with: "", options: .regularExpression)
         text = text.replacingOccurrences(of: #"\*\*|__|`"#, with: "", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"(?<![\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![\w*])"#, with: "$1", options: .regularExpression)
         text = text.replacingOccurrences(of: #"^\s*(#{1,6}|[-*•+]|\d{1,2}[.)])\s+"#, with: "", options: .regularExpression)
         if isFirst {
             text = text.replacingOccurrences(
@@ -1756,7 +1751,7 @@ public struct SummaryCleaner: Sendable {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `./scripts/test.sh --filter "Summary cleaner"`
+Run: `./scripts/test.sh --filter SummaryCleanerTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1857,7 +1852,7 @@ extension SummaryEngineEntry {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Prompt renderer"`
+Run: `./scripts/test.sh --filter PromptRendererTests`
 Expected: build errors.
 
 - [ ] **Step 3: Implement**
@@ -1960,7 +1955,7 @@ public struct Sampling: Equatable, Sendable {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `./scripts/test.sh --filter "Prompt renderer"`
+Run: `./scripts/test.sh --filter PromptRendererTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1978,6 +1973,7 @@ git commit -m "Read aloud: prompt renderer, UTF-8 accumulator, sampling values"
 - Create: `Sources/PlumeKit/ReadAloud/SummaryService.swift`
 - Create: `Sources/PlumeKit/ReadAloud/LlamaSummaryService.swift`
 - Test: `Tests/PlumeKitTests/ReadAloud/LlamaSummaryServiceTests.swift`
+- Create: `Tests/PlumeKitTests/ReadAloud/Qwen35Template.swift`: `enum Qwen35Template { static let jinja = #"""…"""# }`, the exact content of `https://huggingface.co/Qwen/Qwen3.5-4B/resolve/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a/chat_template.jinja` (fetch it with `curl -sL`, ~7.8 kB, paste as a raw multi-line string; a comment above it names the URL). Task 15 checks the GGUF's own embedded template with the real model.
 
 **Interfaces:**
 - Consumes: Tasks 5, 6, 8.
@@ -2003,12 +1999,27 @@ struct LlamaSummaryServiceTests {
         #expect(await service.isLoaded == false)
     }
 
+    /// llama.cpp's C formatter must recognize Qwen3.5's template (it does not run Jinja; it
+    /// matches known families). The template is the official one at a pinned revision.
+    @Test func llamaCppRecognizesQwensTemplate() throws {
+        let rendered = try LlamaSummaryService.applyTemplate(Qwen35Template.jinja, system: "S", user: "U")
+        #expect(rendered == "<|im_start|>system\nS<|im_end|>\n<|im_start|>user\nU<|im_end|>\n<|im_start|>assistant\n")
+        let pieces = try PromptRenderer.pieces(
+            for: SummaryRequest(system: "S", user: "U", maxSentences: 2, language: "en", truncated: false, keptWords: 1),
+            format: SummaryEngineCatalog.qwen35_4b.llamaSpec.promptFormat,
+            applyTemplate: { try LlamaSummaryService.applyTemplate(Qwen35Template.jinja, system: $0, user: $1) })
+        #expect(pieces.map(\.text) == [
+            "<|im_start|>system\nS<|im_end|>\n<|im_start|>user\n", "U",
+            "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+        ])
+    }
+
     @Test func theInputBudgetLeavesRoomForTheSummary() async {
         let service = LlamaSummaryService(entry: SummaryEngineCatalog.qwen35_4b, modelURL: URL(fileURLWithPath: "/nonexistent"))
         #expect(await service.inputBudget == 16_384 - LlamaSummaryService.outputReserve)
     }
 
-    /// Runs only with a real model: READ_ALOUD_TEST_GGUF=<path> READ_ALOUD_TEST_ENGINE=<id> ./scripts/test.sh --filter "Llama summary service"
+    /// Runs only with a real model: READ_ALOUD_TEST_GGUF=<path> READ_ALOUD_TEST_ENGINE=<id> ./scripts/test.sh --filter LlamaSummaryServiceTests
     @Test(.enabled(if: ProcessInfo.processInfo.environment["READ_ALOUD_TEST_GGUF"] != nil, "set READ_ALOUD_TEST_GGUF"))
     func summarizesWithARealModel() async throws {
         let environment = ProcessInfo.processInfo.environment
@@ -2043,7 +2054,7 @@ struct LlamaSummaryServiceTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Llama summary service"`
+Run: `./scripts/test.sh --filter LlamaSummaryServiceTests`
 Expected: build errors.
 
 - [ ] **Step 3: Write the protocol**
@@ -2293,6 +2304,12 @@ public final class LlamaSummaryService: SummaryService, @unchecked Sendable {
 
     private func applyEmbeddedTemplate(system: String, user: String) throws -> String {
         guard let model, let template = llama_model_chat_template(model, nil) else { throw ReadAloudError.noChatTemplate }
+        return try Self.applyTemplate(String(cString: template), system: system, user: user)
+    }
+
+    /// llama.cpp's C formatter on a template string: no model needed, so a test can check that
+    /// it recognizes a catalog model's template.
+    static func applyTemplate(_ template: String, system: String, user: String) throws -> String {
         let strings = ["system", system, "user", user].map { strdup($0)! }
         defer { strings.forEach { free($0) } }
         var messages = [
@@ -2325,7 +2342,7 @@ Notes for the implementer: the exact Swift types of llama.cpp pointers come from
 
 - [ ] **Step 5: Run the tests**
 
-Run: `./scripts/test.sh --filter "Llama summary service"`
+Run: `./scripts/test.sh --filter LlamaSummaryServiceTests`
 Expected: 2 PASS, 1 skipped (no model).
 
 - [ ] **Step 6: Commit**
@@ -2379,7 +2396,7 @@ struct VoiceTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Voice"`
+Run: `./scripts/test.sh --filter VoiceTests`
 Expected: build error.
 
 - [ ] **Step 3: Implement**
@@ -2448,7 +2465,7 @@ VoiceAssets.pinRevision()
 
 - [ ] **Step 4: Run the tests**
 
-Run: `./scripts/test.sh --filter "Voice"`
+Run: `./scripts/test.sh --filter VoiceTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -2479,7 +2496,9 @@ git commit -m "Read aloud: Supertonic voice that never downloads on load"
     - `public func download(_ item: DownloadItem, catalog: [SummaryEngineEntry] = SummaryEngineCatalog.all, progress: @escaping @Sendable (Double) -> Void) async throws`
     - `public func delete(_ item: DownloadItem, catalog: [SummaryEngineEntry] = SummaryEngineCatalog.all) throws`
     - `public func usedBytes() -> Int64`
-    - `public func hasChecksumMismatch(_ entry: SummaryEngineEntry) -> Bool` (the `<file>.mismatch` marker: a mismatch is never resumed automatically at launch)
+    - `public func checksumMismatchMessage(_ entry: SummaryEngineEntry) -> String?` (the `<file>.mismatch` marker holds the error; non-nil means "never resume automatically at launch")
+    - `public func partialBytes(_ entry: SummaryEngineEntry) -> Int64` (size of `<file>.partial`, 0 if none; the "Paused, N MB" of PR 3)
+    - Statuses (`absent`, `downloading`, `installed`, `paused`, `failed`) are computed by the app in PR 2/3 from these functions; this PR does not store them.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2493,23 +2512,37 @@ import Testing
 /// Serves canned responses per host, so parallel tests never share one.
 final class StubProtocol: URLProtocol {
     typealias Handler = @Sendable (URLRequest) -> (status: Int, headers: [String: String], body: Data)
-    nonisolated(unsafe) static var handlers: [String: Handler] = [:]
+    nonisolated(unsafe) static var handlers: [String: (handler: Handler, delay: TimeInterval)] = [:]
     static let lock = NSLock()
+    private let stopped = CancelFlag()
 
-    static func register(_ host: String, _ handler: @escaping Handler) { lock.withLock { handlers[host] = handler } }
+    /// `delay` answers later from another queue, never blocking the shared loading thread.
+    static func register(_ host: String, delay: TimeInterval = 0, _ handler: @escaping Handler) {
+        lock.withLock { handlers[host] = (handler, delay) }
+    }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
-        let handler = Self.lock.withLock { Self.handlers[request.url?.host ?? ""] }
-        guard let handler else { client?.urlProtocol(self, didFailWithError: URLError(.cannotFindHost)); return }
-        let (status, headers, body) = handler(request)
-        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: body)
-        client?.urlProtocolDidFinishLoading(self)
+        guard let entry = Self.lock.withLock({ Self.handlers[request.url?.host ?? ""] }) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.cannotFindHost))
+            return
+        }
+        let answer = { [self] in
+            guard !stopped.isSet else { return }
+            let (status, headers, body) = entry.handler(request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: body)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+        if entry.delay > 0 {
+            DispatchQueue.global().asyncAfter(deadline: .now() + entry.delay, execute: answer)
+        } else {
+            answer()
+        }
     }
-    override func stopLoading() {}
+    override func stopLoading() { stopped.set() }
 }
 
 @Suite("Read-aloud models")
@@ -2571,6 +2604,7 @@ struct ReadAloudModelsTests {
         let models = models()
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try body.prefix(400).write(to: models.modelURL(for: entry).appendingPathExtension("partial"))
+        #expect(models.partialBytes(entry) == 400)
         try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
         #expect(try Data(contentsOf: models.modelURL(for: entry)) == body)
     }
@@ -2595,11 +2629,11 @@ struct ReadAloudModelsTests {
         }
         #expect(!models.isInstalled(entry))
         #expect(!FileManager.default.fileExists(atPath: models.modelURL(for: entry).appendingPathExtension("partial").path))
-        #expect(models.hasChecksumMismatch(entry))
+        #expect(models.checksumMismatchMessage(entry) == ReadAloudError.checksumMismatch.localizedDescription)
         // A good download clears the mark.
         serveWhole()
         try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
-        #expect(!models.hasChecksumMismatch(entry))
+        #expect(models.checksumMismatchMessage(entry) == nil)
     }
 
     @Test func refusesWithoutEnoughSpace() async throws {
@@ -2640,7 +2674,7 @@ struct ReadAloudModelsTests {
     @Test func cancellingDeletesThePartialFile() async throws {
         defer { try? FileManager.default.removeItem(at: folder) }
         let body = self.body
-        StubProtocol.register(host) { _ in Thread.sleep(forTimeInterval: 2); return (200, [:], body) }
+        StubProtocol.register(host, delay: 2) { _ in (200, [:], body) }
         let entry = self.entry
         let models = models()
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -2651,6 +2685,7 @@ struct ReadAloudModelsTests {
         task.cancel()
         await #expect(throws: (any Error).self) { try await task.value }
         #expect(!FileManager.default.fileExists(atPath: partial.path))
+        #expect(models.partialBytes(entry) == 0)
         #expect(!models.isInstalled(entry))
         _ = try DownloadLock(directory: folder)  // released
     }
@@ -2695,7 +2730,7 @@ final class Fractions: @unchecked Sendable {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Read-aloud models"`
+Run: `./scripts/test.sh --filter ReadAloudModelsTests`
 Expected: build errors.
 
 - [ ] **Step 3: Write the file downloader**
@@ -2901,10 +2936,15 @@ public final class ReadAloudModels: @unchecked Sendable {
         modelURL(for: entry).appendingPathExtension("mismatch")
     }
 
-    /// The last download of this engine failed its checksum: the app does not resume it on its
-    /// own at launch, only on the user's Resume.
-    public func hasChecksumMismatch(_ entry: SummaryEngineEntry) -> Bool {
-        FileManager.default.fileExists(atPath: mismatchMarker(for: entry).path)
+    /// The last download of this engine failed its checksum, and why: the app does not resume it
+    /// on its own at launch, only on the user's Resume.
+    public func checksumMismatchMessage(_ entry: SummaryEngineEntry) -> String? {
+        (try? Data(contentsOf: mismatchMarker(for: entry))).map { String(decoding: $0, as: UTF8.self) }
+    }
+
+    /// Bytes already downloaded for a paused engine download.
+    public func partialBytes(_ entry: SummaryEngineEntry) -> Int64 {
+        (try? ModelFileDownloader.size(of: modelURL(for: entry).appendingPathExtension("partial"))) ?? 0
     }
 
     public func download(
@@ -2936,10 +2976,15 @@ public final class ReadAloudModels: @unchecked Sendable {
             } catch {
                 // The user's Cancel: delete what is left while the lock is still ours. (Quitting
                 // kills the process instead, and the `.partial` stays for a resume.)
-                if Task.isCancelled { try? FileManager.default.removeItem(at: partial) }
-                // Remembered across launches: a wrong pin must not re-download 3 GB at every start.
+                if Task.isCancelled {
+                    try? FileManager.default.removeItem(at: partial)
+                    try? FileManager.default.removeItem(at: mismatchMarker(for: entry))
+                }
+                // Remembered across launches, with its reason: a wrong pin must not re-download
+                // 3 GB at every start.
                 if (error as? ReadAloudError) == .checksumMismatch {
-                    FileManager.default.createFile(atPath: mismatchMarker(for: entry).path, contents: nil)
+                    FileManager.default.createFile(
+                        atPath: mismatchMarker(for: entry).path, contents: Data(error.localizedDescription.utf8))
                 }
                 throw error
             }
@@ -3023,7 +3068,7 @@ public final class ReadAloudModels: @unchecked Sendable {
 
 - [ ] **Step 5: Run the tests**
 
-Run: `./scripts/test.sh --filter "Read-aloud models"`
+Run: `./scripts/test.sh --filter ReadAloudModelsTests`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -3168,7 +3213,7 @@ struct ReadAloudPipelineTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Read-aloud pipeline"`
+Run: `./scripts/test.sh --filter ReadAloudPipelineTests`
 Expected: build errors.
 
 - [ ] **Step 3: Implement**
@@ -3283,7 +3328,7 @@ public enum ReadAloudPipeline {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `./scripts/test.sh --filter "Read-aloud pipeline"`
+Run: `./scripts/test.sh --filter ReadAloudPipelineTests`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -3301,7 +3346,7 @@ git commit -m "Read aloud: pipeline for both modes"
 - Create: `Sources/Plume/ReadAloudPlayer.swift`
 - Create: `Sources/Plume/ReadAloudCommand.swift`
 - Modify: `Sources/Plume/CLI.swift`, `Sources/PlumeKit/L10nTable.swift`
-- Test: `Tests/PlumeTests/ReadAloudCommandTests.swift`, `Tests/PlumeTests/RemoteTests.swift`
+- Test: `Tests/PlumeTests/ReadAloudCommandTests.swift`
 
 **Interfaces:**
 - Consumes: everything above.
@@ -3358,7 +3403,7 @@ struct ReadAloudCommandTests {
         }
         #expect(code == 1)
         #expect(errors == [ReadAloudError.voiceNotInstalled.localizedDescription])
-        #expect(!FileManager.default.fileExists(atPath: folder.path) || (try FileManager.default.contentsOfDirectory(atPath: folder.path)).isEmpty)
+        try #expect(!FileManager.default.fileExists(atPath: folder.path) || FileManager.default.contentsOfDirectory(atPath: folder.path).isEmpty)
     }
 
     @Test func summarizingWithoutAModelFails() async {
@@ -3389,7 +3434,7 @@ struct ReadAloudCommandTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "plume read-aloud"`
+Run: `./scripts/test.sh --filter ReadAloudCommandTests`
 Expected: build errors.
 
 - [ ] **Step 3: Write the minimal player**
@@ -3583,12 +3628,14 @@ enum ReadAloudCommand {
         return 0
     }
 
-    /// Synthesizes sentences as they come and plays them in order; synthesis (~90× real
-    /// time) runs ahead of playback on its own.
+    /// Synthesizes sentences as they come and plays them in order. Synthesis (~90× real time)
+    /// runs ahead of playback, but at most three sentences ahead: a long read never holds all
+    /// its audio in memory.
     private static func speak(_ events: AsyncThrowingStream<ReadAloudEvent, Error>, voice: SupertonicVoice, speed: Double) async throws {
         let player = ReadAloudPlayer(sampleRate: voice.sampleRate, rate: speed)
         try player.start()
         defer { player.stop() }
+        let ahead = Permits(3)
         let (audio, sink) = AsyncThrowingStream<[Float], Error>.makeStream()
         let producer = Task {
             do {
@@ -3596,7 +3643,9 @@ enum ReadAloudCommand {
                 for try await event in events {
                     switch event {
                     case .language(let code): language = code
-                    case .sentence(let sentence): sink.yield(try await voice.speak(sentence, language: language))
+                    case .sentence(let sentence):
+                        await ahead.acquire()
+                        sink.yield(try await voice.speak(sentence, language: language))
                     default: break
                     }
                 }
@@ -3606,7 +3655,10 @@ enum ReadAloudCommand {
             }
         }
         defer { producer.cancel() }
-        for try await samples in audio { await player.play(samples) }
+        for try await samples in audio {
+            await player.play(samples)
+            await ahead.release()
+        }
     }
 
     static func json(_ object: [String: Any]) throws -> String {
@@ -3648,6 +3700,26 @@ enum ReadAloudCommand {
     }
 }
 
+/// A counting semaphore for async code: bounds how far synthesis runs ahead of playback.
+actor Permits {
+    private var available: Int
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(_ count: Int) { available = count }
+
+    func acquire() async {
+        if available > 0 {
+            available -= 1
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        if waiters.isEmpty { available += 1 } else { waiters.removeFirst().resume() }
+    }
+}
+
 /// Whole-percent progress, printed only when it changes.
 final class Percent: @unchecked Sendable {
     private let lock = NSLock()
@@ -3675,7 +3747,7 @@ In `Sources/Plume/CLI.swift`:
 ```swift
         case "read-aloud":
             // plume read-aloud [--summary] [--text|--json] [--engine id] < text
-            guard let options = ReadAloudCommand.parse(rest) else {
+            guard let options = ReadAloudCommand.parse(Array(args.dropFirst(2))) else {
                 printError(tr("Usage: plume read-aloud [--summary] [--text] [--json] [--engine <model>] < text"))
                 return 2
             }
@@ -3688,16 +3760,17 @@ In `Sources/Plume/CLI.swift`:
             return await ReadAloudCommand.run(options, context: context, input: input, emit: emit, fail: printError)
 ```
 
-(`json` is taken from `rest` at the top of `run`; re-insert it for this command: `if json { rest.append("--json") }` before parsing, or parse `args.dropFirst(2)` directly. Pick the second: `ReadAloudCommand.parse(Array(args.dropFirst(2)))`.)
+(`run` already took `--json` out of `rest` at its top, so this command parses the raw arguments, `args.dropFirst(2)`. Also set, before calling `run`: `LlamaSummaryService.log = { Log.write("llama.cpp: " + $0) }`, so llama.cpp's warnings reach Plume's log as the spec says.)
 
 3. Add to `usage`, after the `polish`/`transform` line:
 
 ```
           plume read-aloud [--summary] [--text|--json] < text  read a text aloud, or a summary of it
           plume read-aloud --download voice|<model>            download the voice or a summary model
+          plume read-aloud --eval <folder> --engines a,b --out f  quality eval (bench/read-aloud-eval)
 ```
 
-The usage is one `tr()` key: update its French entry in `L10nTable` with the same two lines translated (`lire un texte à voix haute, ou son résumé` / `télécharger la voix ou un modèle de résumé`), keeping the alignment of the existing French usage.
+The usage is one multi-line `tr()` key, which the completeness test skips: in `L10nTable`, replace the old English **key** with the new full usage text (copy it exactly from `CLI.swift`) and update its French value with the same three lines translated (third: `évaluation de la qualité`) (`lire un texte à voix haute, ou son résumé` / `télécharger la voix ou un modèle de résumé`), keeping the alignment of the existing French usage.
 
 4. Add to `L10nTable.french`:
 
@@ -3709,7 +3782,7 @@ The usage is one `tr()` key: update its French entry in `L10nTable` with the sam
 
 - [ ] **Step 6: Run the tests**
 
-Run: `./scripts/test.sh --filter "plume read-aloud"` then `./scripts/test.sh`
+Run: `./scripts/test.sh --filter ReadAloudCommandTests` then `./scripts/test.sh`
 Expected: PASS, whole suite green.
 
 - [ ] **Step 7: Commit**
@@ -3750,7 +3823,7 @@ import Testing
 struct ReadAloudEvalTests {
     @Test func everyFileGetsEveryEngine() async throws {
         let a = FakeSummaryService(pieces: ["Summary A."])
-        let b = FakeSummaryService(pieces: ["<think>x</think>"])  // b fails: empty summary
+        let b = FakeSummaryService(pieces: ["<|channel>thought x<channel|>"])  // b (Gemma's markers) fails: empty summary
         let results = await ReadAloudEval.run(
             files: [("mail.txt", "A first text to summarize here."), ("article.txt", "Another text to summarize.")],
             engines: [(SummaryEngineCatalog.qwen35_4b, a), (SummaryEngineCatalog.gemma4_e2b, b)],
@@ -3762,6 +3835,8 @@ struct ReadAloudEvalTests {
             #expect(item.results["qwen3.5-4b-q4km"]?.summary == "Summary A.")
             #expect(item.results["gemma4-e2b-q4"]?.error != nil)
         }
+        #expect(results.items[0].results["qwen3.5-4b-q4km"]?.cold == true)
+        #expect(results.items[1].results["qwen3.5-4b-q4km"]?.cold == false)
         let data = try JSONEncoder().encode(results)
         #expect(try JSONDecoder().decode(ReadAloudEval.Results.self, from: data) == results)
     }
@@ -3796,7 +3871,7 @@ struct ReadAloudEvalTests {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `./scripts/test.sh --filter "Read-aloud eval"`
+Run: `./scripts/test.sh --filter ReadAloudEvalTests`
 Expected: build errors.
 
 - [ ] **Step 3: Write the runner**
@@ -3832,6 +3907,8 @@ public enum ReadAloudEval {
         public var sentences: Int
         public var language: String
         public var truncated: Bool
+        /// The engine's first file, right after its cold load (`EngineRun.coldLoadSeconds`).
+        public var cold: Bool
         public var readingInputSeconds: Double
         public var firstSentenceSeconds: Double
         public var totalSeconds: Double
@@ -3849,12 +3926,21 @@ public enum ReadAloudEval {
             let loadError: String?
             do { try await service.load(); loadError = nil } catch { loadError = error.localizedDescription }
             runs.append(EngineRun(id: entry.id, name: entry.name, coldLoadSeconds: seconds(since: loadStart)))
+            var durations: [Double] = []
             for (index, file) in files.enumerated() {
-                progress("\(entry.name): \(index + 1)/\(files.count) \(file.name)")
-                items[index].results[entry.id] = loadError.map {
-                    Outcome(summary: "", sentences: 0, language: "", truncated: false, readingInputSeconds: 0,
-                            firstSentenceSeconds: 0, totalSeconds: 0, error: $0)
-                } ?? (await outcome(file.text, entry: entry, service: service, options: options, interface: interface))
+                let left = durations.isEmpty ? "" : " (~\(Int(median(durations) * Double(files.count - index))) s left)"
+                progress("\(entry.name): \(index + 1)/\(files.count) \(file.name)\(left)")
+                if let loadError {
+                    items[index].results[entry.id] = Outcome(
+                        summary: "", sentences: 0, language: "", truncated: false, cold: index == 0,
+                        readingInputSeconds: 0, firstSentenceSeconds: 0, totalSeconds: 0, error: loadError)
+                } else {
+                    // The first file runs right after the cold load: its timings are the cold ones.
+                    var result = await outcome(file.text, entry: entry, service: service, options: options, interface: interface)
+                    result.cold = index == 0
+                    items[index].results[entry.id] = result
+                    durations.append(result.totalSeconds)
+                }
             }
             await service.unload()
         }
@@ -3883,18 +3969,24 @@ public enum ReadAloudEval {
                 }
             }
             return Outcome(summary: sentences.joined(separator: " "), sentences: sentences.count, language: language,
-                           truncated: truncated, readingInputSeconds: readingInput, firstSentenceSeconds: firstSentence,
-                           totalSeconds: seconds(since: start), error: nil)
+                           truncated: truncated, cold: false, readingInputSeconds: readingInput,
+                           firstSentenceSeconds: firstSentence, totalSeconds: seconds(since: start), error: nil)
         } catch {
             return Outcome(summary: sentences.joined(separator: " "), sentences: sentences.count, language: language,
-                           truncated: truncated, readingInputSeconds: readingInput, firstSentenceSeconds: firstSentence,
-                           totalSeconds: seconds(since: start), error: error.localizedDescription)
+                           truncated: truncated, cold: false, readingInputSeconds: readingInput,
+                           firstSentenceSeconds: firstSentence, totalSeconds: seconds(since: start),
+                           error: error.localizedDescription)
         }
     }
 
     static func seconds(since start: ContinuousClock.Instant) -> Double {
         let duration = ContinuousClock.now - start
         return Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18
+    }
+
+    static func median(_ values: [Double]) -> Double {
+        let sorted = values.sorted()
+        return sorted.count % 2 == 1 ? sorted[sorted.count / 2] : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
     }
 }
 ```
@@ -4138,7 +4230,7 @@ Then store the source text in the results so the judge sees it: add `public var 
 
 - [ ] **Step 7: Run the tests**
 
-Run: `./scripts/test.sh --filter "Read-aloud eval"` then `./scripts/test.sh`
+Run: `./scripts/test.sh --filter ReadAloudEvalTests` then `./scripts/test.sh`
 Expected: PASS.
 
 - [ ] **Step 8: Commit**
@@ -4182,8 +4274,8 @@ for engine in qwen3.5-4b-q4km gemma4-e2b-q4; do
   echo "<the invented French email from the spike: bench/selection-summary/corpus/fr_email_thread.txt on branch spike/selection-summary>" \
     | .build/release/Plume read-aloud --summary --json --engine $engine
 done
-READ_ALOUD_TEST_GGUF="$PLUME_SUPPORT/Models/Qwen3.5-4B-Q4_K_M.gguf" READ_ALOUD_TEST_ENGINE=qwen3.5-4b-q4km ./scripts/test.sh --filter "Llama summary service"
-READ_ALOUD_TEST_GGUF="$PLUME_SUPPORT/Models/gemma-4-E2B-it-Q4_0.gguf" READ_ALOUD_TEST_ENGINE=gemma4-e2b-q4 ./scripts/test.sh --filter "Llama summary service"
+READ_ALOUD_TEST_GGUF="$PLUME_SUPPORT/Models/Qwen3.5-4B-Q4_K_M.gguf" READ_ALOUD_TEST_ENGINE=qwen3.5-4b-q4km ./scripts/test.sh --filter LlamaSummaryServiceTests
+READ_ALOUD_TEST_GGUF="$PLUME_SUPPORT/Models/gemma-4-E2B-it-Q4_0.gguf" READ_ALOUD_TEST_ENGINE=gemma4-e2b-q4 ./scripts/test.sh --filter LlamaSummaryServiceTests
 ```
 
 (`./scripts/test.sh` unsets `PLUME_*` but not `READ_ALOUD_*`.) Get the email text with `git show spike/selection-summary:bench/selection-summary/corpus/fr_email_thread.txt`.
