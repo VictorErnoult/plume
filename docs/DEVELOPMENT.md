@@ -29,7 +29,7 @@ and the `launch:` line of `~/Library/Logs/Plume/plume.log` show `<version>-dev+<
 example `1.0.2-dev+8553033`, ending in `.dirty` when the tree had uncommitted or untracked
 files. `<version>` is the top heading of `CHANGELOG.md`.
 
-Its build number is the time it was built (`YYYYMMDDHHMM`; `PLUME_DEV_BUILD=<number>` overrides
+A dev build's build number is the time it was built (`YYYYMMDDHHMM`; `PLUME_DEV_BUILD=<number>` overrides
 it). It checks the same update feed as releases, so a release built after it is offered over it,
 and an older one is not. "After" means when `release.sh` ran, on that Mac's clock, not when the
 release was published. The release is only offered: a dev build never downloads or installs an
@@ -44,10 +44,10 @@ and sound choices, #16). Two ways back:
 - Install the latest disk image. This works even if the dev build does not launch, and `curl`
   adds no quarantine flag, so there is no Gatekeeper prompt:
   ```sh
-  curl -fL -o /tmp/Plume.dmg https://github.com/soyAkil/plume/releases/latest/download/Plume.dmg
-  hdiutil attach -nobrowse -mountpoint /tmp/plume-dmg /tmp/Plume.dmg
-  pkill -x Plume; sleep 0.6
-  rm -rf /Applications/Plume.app && ditto /tmp/plume-dmg/Plume.app /Applications/Plume.app
+  curl -fL -o /tmp/Plume.dmg https://github.com/soyAkil/plume/releases/latest/download/Plume.dmg &&
+  hdiutil attach -nobrowse -mountpoint /tmp/plume-dmg /tmp/Plume.dmg &&
+  { pkill -x Plume; sleep 0.6; } &&
+  rm -rf /Applications/Plume.app && ditto /tmp/plume-dmg/Plume.app /Applications/Plume.app &&
   hdiutil detach /tmp/plume-dmg && open /Applications/Plume.app
   ```
 - From a `main` checkout, run `PLUME_DEV_BUILD=1 ./scripts/build.sh --install`, then menu bar ›
