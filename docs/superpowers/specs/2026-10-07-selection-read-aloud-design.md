@@ -1,6 +1,6 @@
 # Read the selection aloud: design
 
-Status: draft for review, 2026-10-07 (revision 4, after three independent reviews).
+Status: draft for the owner's review, 2026-10-07 (revision 5; the fourth independent review found no blocker or important issue).
 
 ## Goal
 
@@ -132,8 +132,11 @@ Settings › Shortcuts.
    setting), and **Show text**.
 5. **Show text** pins open a text panel under the island with the summary, the sentence being
    read highlighted, and a Copy button. Unlike the hover controls, it stays open when the pointer
-   leaves, until it is closed or the read ends. A setting, "Show the text while reading", opens
-   it by default.
+   leaves, until it is closed or the read ends. It shows up to about six lines and scrolls
+   beyond; the island's window and its clickable area grow to include it, so Copy and the
+   scroll receive clicks. A setting, "Show the text while reading", opens it by default. While
+   the panel is open, Esc stays held (as the owner asked); with that setting on, that means the
+   whole read, which the setting's help text says.
 6. Pressing the shortcut again stops at any moment. Esc also stops, but only from "Loading the
    model…" until the first sound (not during a download, which can last minutes), and
    afterwards while the pointer is on the island or the text is shown: Esc is a
@@ -295,6 +298,8 @@ name, languages) lists `supertonic3-f1` and `supertonic3-m2` in v1.
   use ChatML). Renders with `llama_chat_apply_template(add_ass: true)` and appends the prefix; a
   return of −1 fails with "Unsupported chat template". `.explicit`: substitutes the
   placeholders.
+- **Trimming.** The system text and the selection are trimmed of surrounding whitespace before
+  formatting, as both official templates do (`| trim`) and llama.cpp's C formatter does not.
 - **Tokenization.** The prompt is rendered with a unique sentinel string in place of the
   selection, then split on it. The template parts are tokenized with `parse_special = true`, the
   selection with `parse_special = false` (so a selection containing `<|im_end|>` stays plain
@@ -310,10 +315,12 @@ name, languages) lists `supertonic3-f1` and `supertonic3-m2` in v1.
   a full-size sliding-window cache for Gemma; `llama-server`, used in the bench, sets false),
   flash attention on automatic. `llama_memory_clear` at the start of every read: Qwen3.5 keeps
   recurrent state, and a stopped read can leave it half-written.
-- **Sampling** (reproduces what the bench ran): llama-server's default chain (top-k 40,
-  top-p 0.95, min-p 0.05, then random draw, repetition penalty off), overridden by the model's
-  own recommendations when its GGUF carries `general.sampling.*` metadata (Gemma 4: top-k 64,
-  top-p 0.95; read with `llama_model_meta_val_str`), and always the entry's temperature (0.3).
+- **Sampling** (reproduces what the bench ran): the chain top-k → top-p → min-p → temperature →
+  random draw, repetition penalty off. Values: llama-server's defaults (top-k 40, top-p 0.95,
+  min-p 0.05), replaced by the GGUF's `general.sampling.top_k`, `top_p` and `min_p` when present
+  (Gemma 4: top-k 64; read with `llama_model_meta_val_str`); temperature is always the entry's
+  (0.3), whatever the GGUF says. Other `general.sampling.*` keys (sequence, penalties, mirostat,
+  xtc) are ignored; the two candidates set none of them.
 - **Generation** stops on end-of-generation, a token cap of 60 tokens per budgeted sentence +
   100, or cancellation.
 - **Detokenization** renders special tokens as text (`llama_token_to_piece(…, special: true)`),
@@ -327,7 +334,10 @@ name, languages) lists `supertonic3-f1` and `supertonic3-m2` in v1.
 **`SummaryCleaner`** (pure)
 
 - Removes the entry's reasoning blocks (its `reasoningMarkers`, including a block still open at
-  the end of the stream), any remaining control-token text, markdown markup (headings, bullets,
+  the end of the stream). Markers can arrive split across pieces (Gemma 4's `<|channel>thought`
+  spans two tokens), so the cleaner holds back any tail that could be the start of a marker; a
+  close marker without a matching open is dropped too. It also removes any remaining
+  control-token text, markdown markup (headings, bullets,
   bold, italics, code fences) and leading labels like "Summary:".
 - Ends the stream once the sentence budget + 2 is reached.
 - An empty result raises "Couldn't summarize this text."
@@ -360,14 +370,16 @@ protocol Voice: Sendable {
 - One constant fixes the voice variant for both the download and the manager:
   `vectorEstimator: .aneBucketed(.int4)` and `veVariant: "ane-int4"` (the variant the bench
   measured; FluidAudio's `downloadVariant` is internal, so the string is repeated, and a test
-  checks `ModelNames.Supertonic3.requiredFiles(veVariant: "ane-int4")` against the files the
-  `.aneBucketed(.int4)` manager loads). `load()` checks that the files and the completion marker
+  checks that the string equals `"ane-" + Supertonic3Quantization.int4.rawValue`, the only part of
+  FluidAudio's internal naming that is public). `load()` checks that the files and the completion marker
   exist before calling `initialize()`, and reads the voice style with
   `Supertonic3VoiceStyle.load(from:)` (not `loadVoiceStyle`, which downloads a missing file), so
   loading can never start a download.
 - The voice files are pinned: Plume sets
   `ModelRegistry.revisionOverrides["FluidInference/supertonic-3-coreml"]` to a fixed commit
-  before downloading (FluidAudio otherwise fetches `main`).
+  once at process start (app launch and command-line entry), before any FluidAudio call:
+  the dictionary is read unsynchronized by every FluidAudio download, including the speech
+  model's, so it must never be written while one runs. (FluidAudio otherwise fetches `main`.)
 - Speed is applied by the player, never here.
 
 **`ReadAloudModels`** (downloads)
@@ -388,7 +400,11 @@ protocol Voice: Sendable {
   succeed; "ready" requires the marker, and without it the voice folder is deleted before any
   retry. Cancel deletes it too.
 - One lock (`flock` on `<support directory>/Models/.download.lock`) covers a whole download, model
-  and voice, so the app and the command line never write the same files at once.
+  and voice, so the app and the command line never write the same files at once. It is taken
+  without waiting (`LOCK_NB`): a second taker fails with "A download is already running". Remove,
+  Cancel and the resume at launch take the same lock.
+- The command line's `--download` writes neither `readAloudEngine` nor `readAloudPendingEngine`:
+  downloading for the quality eval never turns the feature on in the app.
 - **Lifecycle.** The engine being downloaded is stored in `readAloudPendingEngine`. Quitting
   mid-download keeps the `.partial`; at the next launch, if a pending engine is set, the
   download resumes automatically and the island shows nothing until a read is requested. When
@@ -505,13 +521,16 @@ device:
   quotes, a sentence split across pieces) and the plain sentence closest to each, which must
   not change.
 - `SummaryCleaner`: think blocks, markdown, labels, over-long output, empty output.
-- Engine catalog: unique ids; pinned 40-character revisions; 64-character SHA-256; positive
+- Engine catalog (reasoning samples fed token by token, not as one string): unique ids; pinned 40-character revisions; 64-character SHA-256; positive
   sizes; each `.explicit` template contains `{system}` and `{user}`; each `.embedded` entry
   renders a sample request through the same formatting code (with the template string stored
   in the test); an unknown id resolves to "no model"; no `.explicit` template contains a literal BOS token; for each entry, a sample output wrapped in
   its `reasoningMarkers` comes out of the cleaner without the reasoning;
   the voice variant constant matches FluidAudio's `.aneBucketed(.int4)` download name.
 - Recommendation: a table of chips × memory → expected entry, including a one-entry catalog.
+- Keep-loaded default: memory size passed in (no implicit hardware read in tests): ≥ 16 GB →
+  30 min, below → 5 min; `readAloudKeepLoaded` absent from a backup when unset, exported once
+  set (in the style of `backupExportsEnglishValues`).
 - `ReadAloudModels`: resume with `206`, restart on `200`, checksum mismatch, insufficient disk
   space, cancel, the lock held by another process; with a stub `URLProtocol` and temporary
   folders.
@@ -524,8 +543,9 @@ device:
   backup fixture of the unreleased version (1.0.2, no tag) regenerated; French translations
   present; the new shortcut.
 - Command line and Remote: `read-aloud` in `CLI.commands`, `toggle-read-aloud` in
-  `RemoteTests`. The "no model" case is tested on the in-process function behind the command
-  (it fails with the expected message and starts no download), not by launching the binary,
+  `RemoteTests`. The "no model" case is tested on the in-process function behind the command,
+  which takes the settings and the models folder as parameters (`PlumeSettings.shared` is not
+  allowed in tests); it fails with the expected message and starts no download, not by launching the binary,
   which `AGENTS.md` allows only for read commands.
 
 Real models are exercised by hand: the quality eval, then a PR checklist (French and English
