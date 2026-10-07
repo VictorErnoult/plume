@@ -38,7 +38,12 @@ public enum SettingsBackup {
     ]
 
     public static func snapshot(settings: PlumeSettings = .shared) -> File {
-        let defaults = settings.defaults
+        snapshot(defaults: settings.defaults, replacements: ReplacementStore.load(), rules: AppRuleStore.load())
+    }
+
+    /// The stores are passed in so tests never read the real ones. French values stored
+    /// by older versions are exported as English; an unset value stays absent.
+    static func snapshot(defaults: UserDefaults, replacements: [Replacement], rules: [AppRule]) -> File {
         var shortcuts: [String: Shortcut] = [:]
         for key in shortcutKeys {
             if let data = defaults.data(forKey: key), let shortcut = try? JSONDecoder().decode(Shortcut.self, from: data) {
@@ -50,9 +55,18 @@ public enum SettingsBackup {
             shortcuts: shortcuts,
             booleans: Dictionary(uniqueKeysWithValues: booleanKeys.map { ($0, defaults.bool(forKey: $0)) }),
             numbers: Dictionary(uniqueKeysWithValues: numberKeys.map { ($0, defaults.double(forKey: $0)) }),
-            strings: Dictionary(uniqueKeysWithValues: stringKeys.compactMap { key in defaults.string(forKey: key).map { (key, $0) } }),
-            replacements: ReplacementStore.load(),
-            rules: AppRuleStore.load())
+            strings: Dictionary(
+                uniqueKeysWithValues: stringKeys.compactMap { key in
+                    defaults.string(forKey: key).map { raw in
+                        switch key {
+                        case PlumeSettings.Key.appearance: return (key, PlumeSettings.normalizedAppearance(raw))
+                        case PlumeSettings.Key.soundPack: return (key, PlumeSettings.normalizedSoundPack(raw))
+                        default: return (key, raw)
+                        }
+                    }
+                }),
+            replacements: replacements,
+            rules: rules)
     }
 
     public static func export(to url: URL, settings: PlumeSettings = .shared) throws {

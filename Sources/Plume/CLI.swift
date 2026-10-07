@@ -7,7 +7,7 @@ enum CLI {
     static let commands: Set<String> = [
         "transcribe", "last", "list", "show", "search", "path", "mcp", "live", "render", "toggle", "stop", "cancel",
         "diarize", "doctor", "selftest", "simulate-chord", "open", "sounds", "aec", "words", "reprocess", "mictest",
-        "snapshot", "tiroir-ouvert", "tiroir-ferme", "cancelled", "restore",
+        "snapshot", "drawer-open", "drawer-close", "tiroir-ouvert", "tiroir-ferme", "cancelled", "restore",
         "format", "export", "summarize", "polish", "transform", "listen", "pause", "paste", "settings", "calls",
         "help", "--help", "-h",
     ]
@@ -175,7 +175,8 @@ enum CLI {
             Remote.send(target == .meeting ? "toggle-reunion" : "toggle-dictee")
             return 0
 
-        case "stop", "cancel", "open", "pause", "snapshot", "tiroir-ouvert", "tiroir-ferme":
+        case "stop", "cancel", "open", "pause", "snapshot", "drawer-open", "drawer-close",
+            "tiroir-ouvert", "tiroir-ferme":
             Remote.send(command)
             return 0
 

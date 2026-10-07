@@ -364,6 +364,27 @@ struct RecoveryTests {
         #expect(Recovery.pending(in: store, excluding: ["2026-10-02_10-00-00"]).count == 1)
         #expect(TranscriptStore.date(fromID: "2026-10-02_10-00-00b") != nil)
     }
+
+    /// 1.0.1 named a dictation's backup `_dictee.wav`: one left by a crash before the
+    /// upgrade is still recovered.
+    @Test func findsDictationBackupsUnderBothNames() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
+        let store = TranscriptStore(root: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let directory = try store.ensureDirectory(forID: "2026-10-02_10-00-00")
+        let silence = [Float](repeating: 0, count: 1600)
+        Recovery.stash(silence, at: directory.appendingPathComponent("2026-10-02_10-00-00_dictee.wav"))
+        Recovery.stash(silence, at: directory.appendingPathComponent("2026-10-02_11-00-00_dictation.wav"))
+
+        let pending = Recovery.pending(in: store)
+        #expect(pending.map(\.id) == ["2026-10-02_10-00-00", "2026-10-02_11-00-00"])
+        #expect(pending.allSatisfy { $0.mode == .dictation })
+        #expect(Recovery.isDictationBackup("2026-10-02_10-00-00_dictee.wav"))
+        #expect(Recovery.isDictationBackup("2026-10-02_11-00-00_dictation.wav"))
+        #expect(!Recovery.isDictationBackup("2026-10-02_11-00-00_mic.wav"))
+        #expect(try Recovery.dictationURL(id: "2026-10-02_12-00-00", store: store).lastPathComponent
+            == "2026-10-02_12-00-00_dictation.wav")
+    }
 }
 
 @Suite("Cancelled recordings")
@@ -728,7 +749,7 @@ struct SettingsBackupTests {
     @Test func roundTrip() throws {
         let file = SettingsBackup.File(
             date: Date(), shortcuts: ["dictationShortcut": Shortcut(keyCode: 49, modifiers: ModifierMask.option)],
-            booleans: ["voiceCommands": false, "pasInconnu": true], numbers: ["audioRetentionDays": 30], strings: ["soundPack": "bips"],
+            booleans: ["voiceCommands": false, "pasInconnu": true], numbers: ["audioRetentionDays": 30], strings: ["soundPack": "beeps"],
             replacements: [Replacement(original: "a", with: "b")], rules: [AppRule(bundleID: "*", name: "Autres", style: .message)])
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -738,6 +759,39 @@ struct SettingsBackupTests {
         #expect(decoded.shortcuts["dictationShortcut"]?.keyCode == 49)
         #expect(decoded.rules.first?.style == .message)
         #expect(decoded.replacements == file.replacements)
+    }
+}
+
+@Suite("Appearance and sound pack values")
+struct SettingsValueTests {
+    @Test func appearanceReadsOldAndNewValues() {
+        let cases: [(String?, String)] = [
+            ("sombre", "dark"), ("clair", "light"), ("systeme", "system"), ("dark", "dark"), ("light", "light"),
+            ("system", "system"), (nil, "dark"), ("autre", "dark"),
+        ]
+        for (raw, expected) in cases { #expect(PlumeSettings.normalizedAppearance(raw) == expected) }
+    }
+
+    @Test func soundPackReadsOldAndNewValues() {
+        let cases: [(String?, String)] = [
+            ("bips", "beeps"), ("clics", "clicks"), ("melodie", "melody"), ("glisse", "glide"), ("bois", "wood"),
+            ("pluck", "pluck"), ("beeps", "beeps"), ("wood", "wood"), (nil, "pluck"), ("inconnu", "inconnu"),
+        ]
+        for (raw, expected) in cases { #expect(PlumeSettings.normalizedSoundPack(raw) == expected) }
+    }
+
+    @Test func backupExportsEnglishValues() {
+        let name = "plume-tests-\(UUID())"
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        func strings() -> [String: String] { SettingsBackup.snapshot(defaults: defaults, replacements: [], rules: []).strings }
+
+        let appearance = PlumeSettings.Key.appearance, soundPack = PlumeSettings.Key.soundPack
+        #expect(strings()[appearance] == nil)
+        defaults.set("sombre", forKey: appearance)
+        defaults.set("bips", forKey: soundPack)
+        #expect(strings()[appearance] == "dark")
+        #expect(strings()[soundPack] == "beeps")
     }
 }
 

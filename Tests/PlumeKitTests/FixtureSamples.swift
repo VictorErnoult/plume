@@ -100,10 +100,10 @@ enum FixtureSamples {
         try CancelledStore(library: library).keep(cancelled, mic: [Float](repeating: 0, count: 16_000))
 
         let support = folder.appendingPathComponent("support", isDirectory: true)
-        try ReplacementStore.write(replacements, to: support.appendingPathComponent("remplacements.json"))
+        try ReplacementStore.write(replacements, to: support.appendingPathComponent(Fixtures.SupportFile.replacements.rawValue))
         try AppRuleStore.write(rules, to: support.appendingPathComponent("applications.json"))
-        try VoiceprintStore.write(voiceprint, to: support.appendingPathComponent("empreinte-vocale.json"))
-        try SettingsBackup.write(backup, to: folder.appendingPathComponent("reglages.json"))
+        try VoiceprintStore.write(voiceprint, to: support.appendingPathComponent(Fixtures.SupportFile.voiceprint.rawValue))
+        try SettingsBackup.write(backup, to: folder.appendingPathComponent(Fixtures.settingsFile))
 
         let fm = FileManager.default
         let everything = (fm.enumerator(at: folder, includingPropertiesForKeys: nil)?.allObjects as? [URL]) ?? []
@@ -160,7 +160,41 @@ enum Fixtures {
         .map { root.appendingPathComponent($0, isDirectory: true) }
     }
 
-    /// All JSON files in a folder, hidden folders included (`.annules`).
+    /// Support files renamed in 1.0.2: each version folder holds the name its version wrote.
+    enum SupportFile: String {
+        case replacements = "replacements.json"
+        case voiceprint = "voiceprint.json"
+
+        var legacyName: String {
+            switch self {
+            case .replacements: "remplacements.json"
+            case .voiceprint: "empreinte-vocale.json"
+            }
+        }
+    }
+
+    static func supportFile(_ kind: SupportFile, version: URL) -> String {
+        wroteFrenchNames(version) ? kind.legacyName : kind.rawValue
+    }
+
+    /// The settings backup the generator writes; up to 1.0.1 it was `reglages.json`.
+    static let settingsFile = "settings.json"
+
+    static func settingsFile(version: URL) -> String {
+        wroteFrenchNames(version) ? "reglages.json" : settingsFile
+    }
+
+    /// The cancelled recordings' folder in a version's library.
+    static func cancelledFolder(version: URL) -> String {
+        wroteFrenchNames(version) ? ".annules" : ".cancelled"
+    }
+
+    /// Up to 1.0.1, these files and folders had French names.
+    private static func wroteFrenchNames(_ version: URL) -> Bool {
+        version.lastPathComponent.compare("1.0.1", options: .numeric) != .orderedDescending
+    }
+
+    /// All JSON files in a folder, hidden folders included (`.cancelled`).
     static func jsonFiles(in folder: URL) -> [URL] {
         let enumerator = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil)
         let urls = (enumerator?.allObjects as? [URL]) ?? []

@@ -13,7 +13,7 @@ struct StoreFileTests {
     }
 
     @Test func vocabularyReadsBackAsWritten() throws {
-        let url = temporaryFile("remplacements.json")
+        let url = temporaryFile("replacements.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let items = [Replacement(original: "sitié", with: "CTA"), Replacement(original: "ma signature", with: "Paul\nÉquipe")]
         try ReplacementStore.write(items, to: url)
@@ -29,7 +29,7 @@ struct StoreFileTests {
     }
 
     @Test func voiceprintReadsBackAsWritten() throws {
-        let url = temporaryFile("empreinte-vocale.json")
+        let url = temporaryFile("voiceprint.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         try VoiceprintStore.write(Voiceprint(embedding: [0.125, -0.5], samples: 2), to: url)
         let read = try #require(VoiceprintStore.read(from: url))
@@ -38,7 +38,7 @@ struct StoreFileTests {
     }
 
     @Test func settingsBackupReadsBackAsWritten() throws {
-        let url = temporaryFile("reglages.json")
+        let url = temporaryFile("settings.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         // Like `export`, `write` writes into a folder that exists.
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -52,7 +52,7 @@ struct StoreFileTests {
     }
 
     @Test func aMissingOrUnreadableFileIsNotRead() throws {
-        let url = temporaryFile("remplacements.json")
+        let url = temporaryFile("replacements.json")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         #expect(ReplacementStore.read(from: url) == nil)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

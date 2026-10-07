@@ -77,10 +77,10 @@ What to test:
   the one for a not-yet-released version (no `v<version>` tag) is deleted and regenerated. A
   field or setting removed on purpose goes in `removedOnPurpose` (`SavedFormatTests`), with its
   `CHANGELOG.md` line.
-- Command line (`--json`), MCP server tools, `index.jsonl` and `dernier.md`: scripts and AIs
-  read them. Adding a key or a tool is fine; renaming or removing one breaks them: note it in
-  `CHANGELOG.md` and `docs/GUIDE.md`, and reflect it in the tests (`CommandLineTests`,
-  `MCPServerTests`; the binary is only launched through `PlumeBinary.run`).
+- Command line (`--json`), MCP server tools, `index.jsonl` and `latest.md` (and its deprecated copy
+  `dernier.md`): scripts and AIs read them. Adding a key or a tool is fine; renaming or removing
+  one breaks them: note it in `CHANGELOG.md` and `docs/GUIDE.md`, and reflect it in the tests
+  (`CommandLineTests`, `MCPServerTests`; the binary is only launched through `PlumeBinary.run`).
 - Dictation text (clean-up, voice commands, vocabulary, styles): each fix or new command adds
   rows to the `DictationCorpusTests` table, the case handled and the closest ordinary sentence,
   which must not change. A known defect is noted there with `withKnownIssue`, around the one

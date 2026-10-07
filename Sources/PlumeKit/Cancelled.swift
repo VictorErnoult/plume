@@ -41,10 +41,11 @@ public struct CancelledRecording: Codable, Sendable, Identifiable, Equatable {
 }
 
 /// Cancelled recordings, stored apart in a hidden folder of the library
-/// (`~/Plume/.annules/`): they appear neither in the index, nor in `dernier.md`, nor in
-/// `plume last`, and they disappear on their own after the delay chosen in the settings.
+/// (`~/Plume/.cancelled/`, `.annules` up to 1.0.1): they appear neither in the index, nor in
+/// `latest.md`, nor in `plume last`, and they disappear on their own after the delay chosen
+/// in the settings.
 ///
-///     ~/Plume/.annules/
+///     ~/Plume/.cancelled/
 ///       2026-10-05_14-31-05.json       what is known about the recording
 ///       2026-10-05_14-31-05_mic.m4a    the microphone audio
 ///       2026-10-05_14-31-05_sys.m4a    the system audio (meeting)
@@ -59,7 +60,11 @@ public final class CancelledStore: @unchecked Sendable {
     private static let lock = NSRecursiveLock()
 
     public init(library: URL) {
-        root = library.appendingPathComponent(".annules", isDirectory: true)
+        let old = library.appendingPathComponent(".annules", isDirectory: true)
+        root = Migration.resolve(old: old, new: library.appendingPathComponent(".cancelled", isDirectory: true))
+        // An older version run after the upgrade recreates `.annules`: fold it back in, so
+        // nothing escapes the list or the purge.
+        if root != old { Migration.merge(folder: old, into: root) }
     }
 
     private func jsonURL(forID id: String) -> URL { root.appendingPathComponent(id + ".json") }

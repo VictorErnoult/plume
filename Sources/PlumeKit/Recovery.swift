@@ -14,13 +14,21 @@ public enum Recovery {
         public var system: URL?
     }
 
-    static let dictationSuffix = "_dictee.wav"
+    /// Suffix of a dictation backup file.
+    public static let dictationSuffix = "_dictation.wav"
+    /// Name used up to 1.0.1: a backup left by a crash before the upgrade is still recovered.
+    static let legacyDictationSuffix = "_dictee.wav"
     static let micSuffix = "_mic.wav"
     static let systemSuffix = "_sys.wav"
 
     /// File where the audio of an untranscribed dictation is set aside.
     public static func dictationURL(id: String, store: TranscriptStore) throws -> URL {
         try store.ensureDirectory(forID: id).appendingPathComponent(id + dictationSuffix)
+    }
+
+    /// A dictation's backup file, under its current or its 1.0.1 name.
+    public static func isDictationBackup(_ name: String) -> Bool {
+        name.hasSuffix(dictationSuffix) || name.hasSuffix(legacyDictationSuffix)
     }
 
     /// Writes samples to a recovery file.
@@ -44,9 +52,9 @@ public enum Recovery {
                 if name.hasSuffix(micSuffix) {
                     mode = .meeting
                     id = String(name.dropLast(micSuffix.count))
-                } else if name.hasSuffix(dictationSuffix) {
+                } else if let suffix = [dictationSuffix, legacyDictationSuffix].first(where: name.hasSuffix) {
                     mode = .dictation
-                    id = String(name.dropLast(dictationSuffix.count))
+                    id = String(name.dropLast(suffix.count))
                 } else {
                     continue
                 }

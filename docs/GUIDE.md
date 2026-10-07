@@ -144,10 +144,10 @@ recordings are kept (90, 30 or 7 days): older audio is deleted at launch, the te
 ### Cancelled recordings
 
 A cancelled dictation or meeting (shortcut, notch button, menu) isn't thrown away right away:
-it is set aside in `~/Plume/.annules/`, out of the history and the index. It can be found with
+it is set aside in `~/Plume/.cancelled/`, out of the history and the index. It can be found with
 the `↶` button at the top of the history (you can listen to it, copy it, restore it or delete
 it), with the **Restore the last cancelled recording** shortcut, the menu bar menu,
-`plume restore` or `plume://recuperer`. A cancelled dictation is transcribed in the background
+`plume restore` or `plume://restore`. A cancelled dictation is transcribed in the background
 (restoring it pastes it right away, from the notch or the shortcut); a meeting is only
 transcribed when you restore it. **Settings › Library › Keep cancelled recordings**: *Don't
 keep*, 1 hour, 24 hours, 7 days (default) or 30 days; after that delay, they are deleted. A
@@ -164,7 +164,8 @@ panels, update dialogs) follow the Mac's language. The choice applies to the win
 the menus, transcript titles ("Meeting, Oct 2, 2026 at 11:30 AM" / "Réunion du 2 oct. 2026 à
 11:30"), speaker names ("Me", "Speaker 1" / "Moi", "Interlocuteur 1") and the meeting notes
 written by the local AI. Voice commands work in both languages whatever the setting. Command-line
-messages follow the setting; `--json` keys are always French.
+messages follow the setting; some saved keys stay French whatever the setting (see
+[Field names](#field-names)).
 
 ## Transcription models
 
@@ -202,18 +203,67 @@ The app is signed with a stable local certificate: permissions survive updates.
 
 ```
 ~/Plume/
-  LISEZMOI.md                          how-to for the folder, for AIs
-  dernier.md                           the most recent transcription
+  README.md                            how-to for the folder, for AIs
+  latest.md                            the most recent transcription
+  dernier.md                           deprecated copy of latest.md, for older scripts
   index.jsonl                          one JSON line per transcription
+  .cancelled/                          cancelled recordings, kept for a while
   2026-10/
     2026-10-02_14-31-05_dictee.md      text, with a header (date, duration, speakers)
     2026-10-02_14-31-05_dictee.json    full data (timestamped segments, raw text)
     2026-10-02_14-31-05_mic.m4a        original audio (mic = microphone, sys = system audio)
 ```
 
+`dernier.md` is only there for scripts written before `latest.md`; it may go in a later
+version (announced in the changelog), so use `latest.md`. `README.md` is written only if
+missing: a `README.md` of your own is never touched. The French `LISEZMOI.md` of earlier
+versions is removed only if you never edited it and `README.md` is Plume's own.
+
+### Field names
+
+The keys of `index.jsonl`, of the Markdown header and of `plume list` / `plume search --json`
+are French and stay so: scripts read them. `plume last`, `show` and `transcribe --json` and the
+per-transcript `.json` files use English camelCase keys instead, and the mode values
+`dictation`, `meeting` and `imported` (see [below](#english-json-keys)).
+
+| Key | Meaning |
+|---|---|
+| `id` | Transcription id, also the file name prefix (`2026-10-02_14-31-05`) |
+| `date` | Start of the recording, ISO 8601 |
+| `mode` | `dictee` (dictation), `reunion` (meeting) or `import` (imported audio) |
+| `appareil` | Device that recorded it (`mac`) |
+| `duree_s` | Duration in seconds (`index.jsonl`); the Markdown header has `duree`, the same text as a phrase ("2 min 05 s") |
+| `interlocuteurs` | Speakers: names or labels such as "Me", "Speaker 1" (French UI: "Moi", "Interlocuteur 1") |
+| `fichier` | Path of the `.md` file, relative to the library |
+| `titre` | Title, only when one was set |
+| `apercu` | Preview: the first words of the text |
+| `application` | Header only: the app the text was pasted into |
+| `moteur` | Header only: the transcription engine |
+| `audio` | Header only: the audio files kept |
+
+The mode also shows in file names (`_dictee`, `_reunion`, `_import`). The MCP tools' `mode`
+filter and `plume --mode` accept `dictation`, `meeting` and `imported` as well as these slugs.
+
+### English JSON keys
+
+The per-transcript `.json` file and `plume last` / `show` / `transcribe --json` hold one
+transcription with these keys:
+
+| Key | Meaning |
+|---|---|
+| `id`, `createdAt` | Id and start of the recording (ISO 8601) |
+| `mode` | `dictation`, `meeting` or `imported` |
+| `device`, `engine` | Device and transcription engine |
+| `duration` | Duration in seconds |
+| `text`, `rawText` | Final text, and the model's raw output before cleanup |
+| `segments` | Timestamped parts: `id`, `speaker`, `channel` (`mic` or `system`), `start`, `end`, `text` |
+| `speakers` | Speaker names or labels |
+| `audioFiles` | Audio file names, relative to the transcription's folder |
+| `app`, `title`, `summary` | Only when set: target app, title, summary |
+
 ## Access for an AI
 
-1. **The folder.** "Read `~/Plume/dernier.md`" is enough for any agent with file access.
+1. **The folder.** "Read `~/Plume/latest.md`" is enough for any agent with file access.
 2. **The `plume` command line**:
    ```sh
    plume last                 # latest transcription
@@ -236,8 +286,9 @@ The app is signed with a stable local certificate: permissions survive updates.
 `plume toggle dictee|reunion`, `plume stop`, `plume cancel`, `plume pause`, `plume paste`
 (paste the last dictation again), `plume restore` (restore the last cancelled recording;
 `plume cancelled` lists them) and `plume open` drive the running app from a script, Raycast or
-a Stream Deck. The links `plume://dictee`, `plume://reunion`, `plume://stop`, `plume://pause`,
-`plume://recoller`, `plume://recuperer`, `plume://transformer` and `plume://ouvrir` do the same
-from Shortcuts or any app. `plume doctor` shows the state of permissions, model, local AI and
-screens; `plume format "text"` shows what the formatting does to raw text; `plume polish` and
-`plume transform` try the local AI.
+a Stream Deck. The links `plume://dictation`, `plume://meeting`, `plume://stop`, `plume://pause`,
+`plume://paste`, `plume://restore`, `plume://transform`, `plume://cancel` and `plume://open` do
+the same from Shortcuts or any app (the French `dictee`, `reunion`, `recoller`, `recuperer`,
+`transformer`, `annuler` and `ouvrir` still work). `plume doctor` shows the state of
+permissions, model, local AI and screens; `plume format "text"` shows what the formatting
+does to raw text; `plume polish` and `plume transform` try the local AI.

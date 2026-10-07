@@ -1,0 +1,107 @@
+{
+  "booleans" : {
+    "autoSummary" : true,
+    "cleanup" : true,
+    "keepAudio" : true,
+    "keepHistory" : false,
+    "liveTranscript" : true,
+    "meetingDetection" : true,
+    "modeSwitchAtStart" : true,
+    "muteWhileDictating" : true,
+    "pasteAfterDictation" : true,
+    "polish" : true,
+    "restoreClipboard" : true,
+    "smartInsert" : true,
+    "sounds" : true,
+    "streamingPaste" : true,
+    "systemAudioInMeeting" : true,
+    "voiceCommands" : true
+  },
+  "date" : "2026-10-03T09:00:00Z",
+  "numbers" : {
+    "audioRetentionDays" : 30,
+    "cancelledRetentionHours" : 48,
+    "soundVolume" : 0.5
+  },
+  "replacements" : [
+    {
+      "id" : "6F1C2A10-0000-4000-8000-000000000001",
+      "original" : "sitié",
+      "with" : "CTA"
+    },
+    {
+      "id" : "6F1C2A10-0000-4000-8000-000000000002",
+      "original" : "ma signature",
+      "with" : "Paul\nÉquipe Plume"
+    }
+  ],
+  "rules" : [
+    {
+      "bundleID" : "com.apple.mail",
+      "id" : "6F1C2A10-0000-4000-8000-000000000003",
+      "instructions" : "Ton cordial.",
+      "name" : "Mail",
+      "polish" : true,
+      "pressReturn" : false,
+      "style" : "standard",
+      "typeText" : false
+    },
+    {
+      "bundleID" : "com.tinyspeck.slackmacgap",
+      "id" : "6F1C2A10-0000-4000-8000-000000000004",
+      "instructions" : "",
+      "name" : "Slack",
+      "polish" : false,
+      "pressReturn" : true,
+      "style" : "message",
+      "typeText" : false
+    },
+    {
+      "bundleID" : "*",
+      "id" : "6F1C2A10-0000-4000-8000-000000000005",
+      "instructions" : "",
+      "name" : "Toutes les autres",
+      "polish" : false,
+      "pressReturn" : false,
+      "style" : "casual",
+      "typeText" : true
+    }
+  ],
+  "shortcuts" : {
+    "cancelShortcut" : {
+      "keyCode" : 53,
+      "modifiers" : 0
+    },
+    "dictationShortcut" : {
+      "keyCode" : 49,
+      "modifiers" : 2
+    },
+    "meetingShortcut" : {
+      "modifiers" : 5
+    },
+    "openShortcut" : {
+      "keyCode" : 35,
+      "modifiers" : 3
+    },
+    "pasteLastShortcut" : {
+      "keyCode" : 9,
+      "modifiers" : 3
+    },
+    "restoreShortcut" : {
+      "keyCode" : 15,
+      "modifiers" : 3
+    },
+    "transformShortcut" : {
+      "keyCode" : 17,
+      "modifiers" : 3
+    }
+  },
+  "strings" : {
+    "appearance" : "dark",
+    "language" : "fr",
+    "model" : "parakeet-ultra",
+    "polishInstructions" : "Phrases courtes.",
+    "soundPack" : "pluck"
+  },
+  "version" : 1
+}

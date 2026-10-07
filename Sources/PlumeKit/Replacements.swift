@@ -14,7 +14,11 @@ public struct Replacement: Codable, Sendable, Identifiable, Equatable {
 }
 
 public enum ReplacementStore {
-    public static var url: URL { PlumeSettings.supportDirectory.appendingPathComponent("remplacements.json") }
+    public static var url: URL {
+        let folder = PlumeSettings.supportDirectory
+        return Migration.resolve(
+            old: folder.appendingPathComponent("remplacements.json"), new: folder.appendingPathComponent("replacements.json"))
+    }
 
     public static func load() -> [Replacement] {
         if let items = read(from: url) {

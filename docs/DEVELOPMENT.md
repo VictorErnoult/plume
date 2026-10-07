@@ -41,7 +41,7 @@ Sources/PlumeKit/      core independent of the interface (reusable for an iOS ap
   Library.swift          on-disk library (md + json + index), audio maintenance
   Stats.swift            home page figures
   Recovery.swift         recovery of interrupted recordings
-  Cancelled.swift        cancelled recordings kept aside (~/Plume/.annules), purge, restore
+  Cancelled.swift        cancelled recordings kept aside (~/Plume/.cancelled), purge, restore
   Importer.swift         transcription of an existing file
 Sources/Plume/         the macOS app
   SessionController.swift conductor of a recording (dictation ↔ meeting, pause, AI instruction)
@@ -101,6 +101,9 @@ PLUME_FAKE_MIC=me.wav PLUME_FAKE_SYSTEM=them.wav PLUME_NO_PASTE=1 PLUME_VERBOSE=
 (`studio.brigode.plume.trial`): without it, the development binary shares the installed app's
 settings. `PLUME_FAKE_CALL=zoom.us` simulates a call that starts five seconds after launch, to
 see the meeting offer in the island.
+`PLUME_SCREEN=notch|alternate|external` forces the screen the island appears on (the notched one,
+each screen in turn, the one without a notch); `plume drawer-open` and `plume drawer-close` open and
+close the island's drawer without the mouse.
 
 `plume transcribe mic.wav --system computer.wav` processes a two-channel meeting from two
 files; `plume aec mic.wav computer.wav clean.wav` isolates echo cancellation. `plume live

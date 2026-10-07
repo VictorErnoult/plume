@@ -33,29 +33,59 @@ enum Remote {
     /// Diagnostic: open (true) or close (false) the island's drawer without the mouse.
     nonisolated(unsafe) static var onDrawer: ((Bool) -> Void)?
 
+    /// What a command word asks the app to do.
+    enum Action: Equatable {
+        case toggleDictation, toggleMeeting, toggleCapture, toggleTransform
+        case stop, cancel, pause, pasteLast, restore, open, snapshot
+        case drawer(open: Bool)
+        case selftestSystemAudio, selftestMic
+    }
+
+    /// Maps a command word to its action. The channel words `toggle-dictee`/`toggle-reunion`
+    /// stay French (both ends ship together); the drawer words are English, with the old
+    /// French ones still accepted.
+    static func action(for command: String) -> Action? {
+        switch command {
+        case "toggle-dictee": return .toggleDictation
+        case "toggle-reunion": return .toggleMeeting
+        case "toggle-capture": return .toggleCapture
+        case "toggle-transform": return .toggleTransform
+        case "stop": return .stop
+        case "cancel": return .cancel
+        case "pause": return .pause
+        case "paste-last": return .pasteLast
+        case "restore": return .restore
+        case "open": return .open
+        case "snapshot": return .snapshot
+        case "drawer-open", "tiroir-ouvert": return .drawer(open: true)
+        case "drawer-close", "tiroir-ferme": return .drawer(open: false)
+        case "selftest-system-audio": return .selftestSystemAudio
+        case "selftest-mic": return .selftestMic
+        default: return nil
+        }
+    }
+
     @MainActor
     static func listen(session: SessionController, onOpen: @escaping @MainActor () -> Void) -> NSObjectProtocol {
         DistributedNotificationCenter.default().addObserver(forName: notification, object: nil, queue: .main) { note in
-            guard let command = note.object as? String else { return }
+            guard let command = note.object as? String, let action = action(for: command) else { return }
             Task { @MainActor in
-                switch command {
-                case "toggle-dictee": session.toggle(.dictation)
-                case "toggle-reunion": session.toggle(.meeting)
+                switch action {
+                case .toggleDictation: session.toggle(.dictation)
+                case .toggleMeeting: session.toggle(.meeting)
                 // Dictation without pasting: the text waits in the library (`plume listen`, MCP tool).
-                case "toggle-capture": session.toggle(.dictation, intent: .capture)
-                case "toggle-transform": session.toggle(.dictation, intent: .transform)
-                case "stop": session.stop()
-                case "cancel": session.cancel()
-                case "pause": session.togglePause()
-                case "paste-last": session.pasteLast()
-                case "restore": session.restoreCancelled()
-                case "open": onOpen()
-                case "snapshot": onSnapshot?()
-                case "tiroir-ouvert": onDrawer?(true)
-                case "tiroir-ferme": onDrawer?(false)
-                case "selftest-system-audio": SelfTest.systemAudio()
-                case "selftest-mic": SelfTest.microphone()
-                default: break
+                case .toggleCapture: session.toggle(.dictation, intent: .capture)
+                case .toggleTransform: session.toggle(.dictation, intent: .transform)
+                case .stop: session.stop()
+                case .cancel: session.cancel()
+                case .pause: session.togglePause()
+                case .pasteLast: session.pasteLast()
+                case .restore: session.restoreCancelled()
+                case .open: onOpen()
+                case .snapshot: onSnapshot?()
+                case .drawer(let open): onDrawer?(open)
+                case .selftestSystemAudio: SelfTest.systemAudio()
+                case .selftestMic: SelfTest.microphone()
                 }
             }
         }

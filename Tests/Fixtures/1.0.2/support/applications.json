@@ -1,0 +1,32 @@
+[
+  {
+    "bundleID" : "com.apple.mail",
+    "id" : "6F1C2A10-0000-4000-8000-000000000003",
+    "instructions" : "Ton cordial.",
+    "name" : "Mail",
+    "polish" : true,
+    "pressReturn" : false,
+    "style" : "standard",
+    "typeText" : false
+  },
+  {
+    "bundleID" : "com.tinyspeck.slackmacgap",
+    "id" : "6F1C2A10-0000-4000-8000-000000000004",
+    "instructions" : "",
+    "name" : "Slack",
+    "polish" : false,
+    "pressReturn" : true,
+    "style" : "message",
+    "typeText" : false
+  },
+  {
+    "bundleID" : "*",
+    "id" : "6F1C2A10-0000-4000-8000-000000000005",
+    "instructions" : "",
+    "name" : "Toutes les autres",
+    "polish" : false,
+    "pressReturn" : false,
+    "style" : "casual",
+    "typeText" : true
+  }
+]

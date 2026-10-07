@@ -30,7 +30,7 @@ It started as a free alternative to Superwhisper, designed around what people ac
 - **Vocabulary.** Replacements for names and jargon. An entry whose "Written" column spans several lines becomes a voice snippet: say "my signature", get your signature.
 - **Local AI, if you ask.** On a Mac with Apple Intelligence (macOS 26 or later), Apple's on-device language model can clean up a dictation (punctuation, false starts, "no sorry, at four"), summarise a meeting into key points, decisions and actions, and rewrite a selection on instruction: select text anywhere, press a shortcut, say "translate to English" or "make it shorter". All of it is off by default, nothing leaves the Mac, and if an answer looks wrong — empty, far longer or shorter — Plume keeps the deterministic text. The raw transcript stays in the history either way.
 - **A history that is a folder.** Every transcription is a Markdown file, a JSON file and the audio, in `~/Plume`, one folder per month. Search it in the window or with `grep`. Give it a title, export to Markdown, plain text, SRT, WebVTT or JSON, or re-transcribe the kept audio with a newer model. Audio can be kept 90, 30 or 7 days; the text stays.
-- **Made for agents.** `plume last`, `plume search budget`, `plume transcribe meeting.m4a`. An MCP server, wired into Claude Code or Claude Desktop from Settings in one click, with a `listen` tool: the agent opens the mic, you answer out loud, it gets the text. `plume://dictee` and friends drive the app from Shortcuts, Raycast or a Stream Deck.
+- **Made for agents.** `plume last`, `plume search budget`, `plume transcribe meeting.m4a`. An MCP server, wired into Claude Code or Claude Desktop from Settings in one click, with a `listen` tool: the agent opens the mic, you answer out loud, it gets the text. `plume://dictation` and friends drive the app from Shortcuts, Raycast or a Stream Deck.
 - **The clipboard is yours.** It is restored after every paste, and the dictation is marked transient so clipboard managers don't keep it.
 - **Light.** The island in the notch and one window: home, history, vocabulary, applications, settings. A sound at the start and end of each recording, with a few packs to choose from. If the app quits mid-recording, the audio is already on disk and is transcribed at the next launch.
 - **Updates itself, quietly.** It checks the GitHub release feed for a newer build, verifies the signature, and installs it for the next launch.
@@ -55,7 +55,7 @@ On purpose:
 
 | What | Where it is | Who can read it |
 |---|---|---|
-| Transcriptions and audio | `~/Plume/`: Markdown, JSON and `.m4a` files, one folder per month, plus `dernier.md` (the latest) and `index.jsonl` | You, `grep`, and any app or AI you point at the folder. |
+| Transcriptions and audio | `~/Plume/`: Markdown, JSON and `.m4a` files, one folder per month, plus `latest.md` (the latest) and `index.jsonl` | You, `grep`, and any app or AI you point at the folder. |
 | Settings, vocabulary, per-app rules | macOS defaults under `studio.brigode.plume`, and small files in `~/Library/Application Support/Plume/` | You. |
 | Your voiceprint | One JSON file in that same folder | Plume, to label "Me" in meetings. |
 | Speech models | `~/Library/Application Support/FluidAudio/Models/`, about 600 MB, downloaded once | — |

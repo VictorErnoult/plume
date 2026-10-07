@@ -321,7 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "t":
                 Sounds.play(.tab)
                 let dark = window.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                self.app.settings.appearance = dark ? "clair" : "sombre"
+                self.app.settings.appearance = dark ? "light" : "dark"
             case "s":
                 self.app.settings.sounds.toggle()
                 if self.app.settings.sounds { Sounds.play(.confirm) }
@@ -334,8 +334,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func applyAppearance() {
         switch settings.appearance {
-        case "clair": window?.appearance = NSAppearance(named: .aqua)
-        case "systeme": window?.appearance = nil
+        case "light": window?.appearance = NSAppearance(named: .aqua)
+        case "system": window?.appearance = nil
         default: window?.appearance = NSAppearance(named: .darkAqua)
         }
     }
