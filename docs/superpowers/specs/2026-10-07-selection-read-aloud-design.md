@@ -1,6 +1,6 @@
 # Read the selection aloud: design
 
-Status: draft for review, 2026-10-07 (revision 3, after two independent reviews).
+Status: draft for review, 2026-10-07 (revision 4, after three independent reviews).
 
 ## Goal
 
@@ -109,7 +109,9 @@ Settings › Local AI gets a new block, "Read a summary of the selection aloud":
 - **Switching model**: downloading another model from Settings replaces the current one once it
   is ready (Settings keeps one summary model on disk). The command line's `--download` keeps
   other models, so the quality eval can compare them.
-- **Remove**: deletes the summary model and the voice, and turns the feature off.
+- **Remove**: cancels any download, deletes every summary model in Plume's models folder
+  (including extra ones kept by the command line's `--download`, and any `.partial`) and the
+  voice, and turns the feature off.
 
 The shortcut is unassigned by default, like "Transform the selection", and is also listed in
 Settings › Shortcuts.
@@ -128,10 +130,13 @@ Settings › Shortcuts.
    icon and the progress ("2/4").
 4. Hovering the island shows: pause/resume, replay, − and + for speed (saved as the new speed
    setting), and **Show text**.
-5. **Show text** opens the drawer with the summary, the sentence being read highlighted, and a
-   Copy button. A setting, "Show the text while reading", opens it by default.
-6. Pressing the shortcut again stops at any moment. Esc also stops, but only until the first
-   sound, and afterwards while the pointer is on the island or the text is shown: Esc is a
+5. **Show text** pins open a text panel under the island with the summary, the sentence being
+   read highlighted, and a Copy button. Unlike the hover controls, it stays open when the pointer
+   leaves, until it is closed or the read ends. A setting, "Show the text while reading", opens
+   it by default.
+6. Pressing the shortcut again stops at any moment. Esc also stops, but only from "Loading the
+   model…" until the first sound (not during a download, which can last minutes), and
+   afterwards while the pointer is on the island or the text is shown: Esc is a
    system-wide key, and holding it for a whole read would break it in every other app (Plume
    already releases it outside dictations for that reason). Stopping takes effect within one
    input batch (≤ ~2 s on an M2, see `LlamaSummaryService`).
@@ -224,8 +229,12 @@ struct LlamaModelSpec: Sendable {
     let download: ModelDownload   // repo, pinned revision, file name, byte size, SHA-256
     let promptFormat: PromptFormat
     let contextTokens: Int        // 16,384
-    let sampling: Sampling        // see LlamaSummaryService
+    let temperature: Float        // 0.3; other sampling values come from the GGUF (see below)
+    let reasoningMarkers: [ReasoningMarkers]  // e.g. Qwen <think>…</think>,
+                                              // Gemma 4 <|channel>thought … <channel|>
 }
+
+struct ReasoningMarkers: Sendable { let open: String; let close: String }
 
 enum PromptFormat: Sendable {
     /// The template embedded in the GGUF, applied by llama.cpp's built-in formatter.
@@ -242,8 +251,10 @@ enum PromptFormat: Sendable {
   model a data change either way.
 - Qwen3.5 uses `.embedded(assistantPrefix: "<think>\n\n</think>\n\n")`: the empty think block
   turns its reasoning off, exactly as its own template does when `enable_thinking` is false.
-- Gemma 4 E2B uses `.explicit(…)` with its turn markers; the exact string is copied from its
-  official template during PR 1 and checked by the catalog test.
+- Gemma 4 E2B uses `.explicit(…)` with its turn markers (`<|turn>system` … `<turn|>`); the
+  exact string is copied from its official template during PR 1 and checked by the catalog
+  test. Its reasoning, if any, is wrapped in `<|channel>thought` … `<channel|>`: those go in its
+  `reasoningMarkers`.
 
 The selected engine is stored by id (`readAloudEngine`). An id that is no longer in the catalog
 resolves to "no model": the feature turns off and Settings offers the current models, so
@@ -299,18 +310,25 @@ name, languages) lists `supertonic3-f1` and `supertonic3-m2` in v1.
   a full-size sliding-window cache for Gemma; `llama-server`, used in the bench, sets false),
   flash attention on automatic. `llama_memory_clear` at the start of every read: Qwen3.5 keeps
   recurrent state, and a stopped read can leave it half-written.
-- **Sampling** (what the bench ran: `llama-server`'s default chain with temperature set to 0.3):
-  top-k 40, top-p 0.95, min-p 0.05, temperature 0.3, then random draw; repetition penalty off.
+- **Sampling** (reproduces what the bench ran): llama-server's default chain (top-k 40,
+  top-p 0.95, min-p 0.05, then random draw, repetition penalty off), overridden by the model's
+  own recommendations when its GGUF carries `general.sampling.*` metadata (Gemma 4: top-k 64,
+  top-p 0.95; read with `llama_model_meta_val_str`), and always the entry's temperature (0.3).
 - **Generation** stops on end-of-generation, a token cap of 60 tokens per budgeted sentence +
   100, or cancellation.
+- **Detokenization** renders special tokens as text (`llama_token_to_piece(…, special: true)`),
+  so reasoning markers reach the cleaner instead of vanishing and leaving the thoughts to be
+  spoken. Bytes are buffered and only complete UTF-8 characters are emitted in `.text` (a token
+  can end in the middle of a multi-byte character, as in "é").
 - `llama_backend_init` once per process; llama.cpp's own log goes through `llama_log_set` into
   Plume's log (sizes and timings only).
 - `unload()` frees the model and context; it waits for any decode to stop first.
 
 **`SummaryCleaner`** (pure)
 
-- Removes any `<think>…</think>` block, markdown markup (headings, bullets, bold, italics, code
-  fences) and leading labels like "Summary:".
+- Removes the entry's reasoning blocks (its `reasoningMarkers`, including a block still open at
+  the end of the stream), any remaining control-token text, markdown markup (headings, bullets,
+  bold, italics, code fences) and leading labels like "Summary:".
 - Ends the stream once the sentence budget + 2 is reached.
 - An empty result raises "Couldn't summarize this text."
 
@@ -342,8 +360,14 @@ protocol Voice: Sendable {
 - One constant fixes the voice variant for both the download and the manager:
   `vectorEstimator: .aneBucketed(.int4)` and `veVariant: "ane-int4"` (the variant the bench
   measured; FluidAudio's `downloadVariant` is internal, so the string is repeated, and a test
-  checks the two match). `load()` checks that the files and the completion marker exist before
-  calling `initialize()`, so loading can never start a download.
+  checks `ModelNames.Supertonic3.requiredFiles(veVariant: "ane-int4")` against the files the
+  `.aneBucketed(.int4)` manager loads). `load()` checks that the files and the completion marker
+  exist before calling `initialize()`, and reads the voice style with
+  `Supertonic3VoiceStyle.load(from:)` (not `loadVoiceStyle`, which downloads a missing file), so
+  loading can never start a download.
+- The voice files are pinned: Plume sets
+  `ModelRegistry.revisionOverrides["FluidInference/supertonic-3-coreml"]` to a fixed commit
+  before downloading (FluidAudio otherwise fetches `main`).
 - Speed is applied by the player, never here.
 
 **`ReadAloudModels`** (downloads)
@@ -363,8 +387,8 @@ protocol Voice: Sendable {
   and still pass. So Plume writes a `.complete` marker in the voice folder once all three calls
   succeed; "ready" requires the marker, and without it the voice folder is deleted before any
   retry. Cancel deletes it too.
-- The download is owned by the app. A lock file next to the `.partial` (`flock`) prevents a
-  second process (the command line) from writing the same file.
+- One lock (`flock` on `<support directory>/Models/.download.lock`) covers a whole download, model
+  and voice, so the app and the command line never write the same files at once.
 - **Lifecycle.** The engine being downloaded is stored in `readAloudPendingEngine`. Quitting
   mid-download keeps the `.partial`; at the next launch, if a pending engine is set, the
   download resumes automatically and the island shows nothing until a read is requested. When
@@ -408,18 +432,25 @@ entry if there is one. The chip name comes from `machdep.cpu.brand_string`.
 - The island gets a combined state: if the session is not idle, the session wins (a dictation
   always takes the island); otherwise the read-aloud state is shown.
 - New renderings: downloading, loading, reading the input (with %), summarizing, reading (icon,
-  "2/4", hover controls), finished (Replay, Show text, 8 s), failed; the drawer with the summary
+  "2/4", hover controls), finished (Replay, Show text, 8 s), failed; the pinned text panel with the summary
   text and the highlighted sentence.
-- Shortcut routing: `onPress`/`onRelease` dispatch on the hotkey action. The cancel key (Esc by
-  default) is enabled during a read only until the first sound, and while the pointer is on the
-  island or the drawer is open; `onCancelShortcut` stops the read when no dictation is running.
+- Shortcut routing: `onPress`/`onRelease` today send every action except open and restore to
+  `session.handlePress` (AppDelegate.swift); `readAloud` is routed to the controller instead.
+- The cancel key (Esc by default): `updateCancelShortcut` (AppDelegate.swift) is the single place
+  that decides, and it is recomputed on every session phase change. Its condition becomes
+  "dictating, or a read is between loading and its first sound, or the pointer is on the island
+  or the text panel is open during a read"; it is also recomputed on read-aloud state and hover
+  changes. `onCancelShortcut` stops the read when no dictation is running.
+- The text panel is a new pinned state of the island, separate from the hover controls
+  (`pinnedControls`).
 - `UIRender` gets demo states for each new rendering (`plume render … --demo`), as `AGENTS.md`
   requires for interface changes.
 
 **Shortcut and triggers**
 
 - New `HotkeyAction.readAloud`, registered when a model is ready or downloading.
-- `plume://read-aloud` and the Remote action `read-aloud` trigger a read of the current
+- `plume://read-aloud` and the Remote action `toggle-read-aloud` (matching the existing
+  `toggle-*` names) trigger a read of the current
   selection (through the app, which has the permissions).
 
 **Command line** (`plume read-aloud`, in-process, no app needed)
@@ -443,7 +474,7 @@ Through `PlumeSettings` and `SettingsModel`. New fields are optional when read f
 |---|---|---|---|
 | `readAloudEngine` | engine id or empty | empty (no model) | **no**: restoring a backup on a new Mac must not start a 3 GB download; the user picks again |
 | `readAloudPendingEngine` | engine id or empty | empty | no (same reason) |
-| `readAloudKeepLoaded` | 5 min / 30 min / always | 30 min with ≥ 16 GB of memory, 5 min below | yes |
+| `readAloudKeepLoaded` | string: `5min` / `30min` / `always`; absent = default | absent, which means 30 min with ≥ 16 GB of memory, 5 min below | yes, only when set: as a string key with no registered default, `SettingsBackup.snapshot` exports it only if the user chose a value, so a 24 GB Mac's backup does not impose 30 min on an 8 GB Mac |
 | `readAloudShortcut` | Shortcut | none | yes |
 | `readAloudLength` | `short` / `automatic` / `detailed` | `automatic` | yes |
 | `readAloudLanguage` | `sameAsText` / `interface` / `fr` / `en` | `sameAsText` | yes |
@@ -477,7 +508,8 @@ device:
 - Engine catalog: unique ids; pinned 40-character revisions; 64-character SHA-256; positive
   sizes; each `.explicit` template contains `{system}` and `{user}`; each `.embedded` entry
   renders a sample request through the same formatting code (with the template string stored
-  in the test); an unknown id resolves to "no model"; no `.explicit` template contains a literal BOS token;
+  in the test); an unknown id resolves to "no model"; no `.explicit` template contains a literal BOS token; for each entry, a sample output wrapped in
+  its `reasoningMarkers` comes out of the cleaner without the reasoning;
   the voice variant constant matches FluidAudio's `.aneBucketed(.int4)` download name.
 - Recommendation: a table of chips × memory → expected entry, including a one-entry catalog.
 - `ReadAloudModels`: resume with `206`, restart on `200`, checksum mismatch, insufficient disk
@@ -491,8 +523,10 @@ device:
   `settingsOutsideTheBackupKeepTheirName`; the
   backup fixture of the unreleased version (1.0.2, no tag) regenerated; French translations
   present; the new shortcut.
-- Command line and Remote: `read-aloud` in `CLI.commands` and in `RemoteTests`; without a
-  downloaded model it fails with the expected message and starts no download.
+- Command line and Remote: `read-aloud` in `CLI.commands`, `toggle-read-aloud` in
+  `RemoteTests`. The "no model" case is tested on the in-process function behind the command
+  (it fails with the expected message and starts no download), not by launching the binary,
+  which `AGENTS.md` allows only for read commands.
 
 Real models are exercised by hand: the quality eval, then a PR checklist (French and English
 selections, Esc during input reading, pause, speed, Show text, unplugging headphones,
@@ -527,13 +561,15 @@ quitting mid-download and resuming).
 
 1. **PlumeKit pipeline and command line**: prompt, cleaner, splitter, `SummaryService` +
    `LlamaSummaryService`, engine catalog, `Voice` + `SupertonicVoice`, `ReadAloudModels`, a
-   minimal player (play and stop), the llama.cpp dependency and packaging, and
+   minimal player (play and stop), **all the settings keys** (`PlumeSettings`, the backup lists,
+   `FixtureSamples.backup`, the regenerated 1.0.2 fixture, `settingsOutsideTheBackupKeepTheirName`;
+   the command line needs them), the llama.cpp dependency and packaging, and
    `plume read-aloud` with `--download`, `--engine`, `--text`, `--json`. **The quality eval runs
    on this PR**, and its outcome fixes the catalog before merging.
 2. **App**: full `ReadAloudPlayer`, `ReadAloudController`, island states and controls, shortcut,
    URL and Remote action, render demo states.
-3. **Settings and docs**: the model list with the recommendation, download, switch and remove,
-   doctor, documentation.
+3. **Settings UI and docs**: the rows in Settings (model list with the recommendation, download,
+   switch, remove, and the options), doctor, documentation. No new settings keys.
 
 ## Risks
 
