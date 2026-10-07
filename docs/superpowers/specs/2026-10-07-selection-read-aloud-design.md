@@ -1,7 +1,7 @@
 # Read the selection aloud: design
 
-Status: 2026-10-07, revision 14: the owner's review answers applied to revision 5 (which four
-independent reviews had brought to clean), then the fifth to twelfth reviews' findings.
+Status: 2026-10-07, revision 15: the owner's review answers applied to revision 5 (which four
+independent reviews had brought to clean), then the fifth to thirteenth reviews' findings (the thirteenth found it clean).
 
 ## Goal
 
@@ -503,7 +503,7 @@ protocol Voice: Sendable {
   only checks that files exist, and an interrupted bundle can leave `weight.bin.partial` behind
   and still pass. So Plume writes a `.complete` marker in the voice folder once all three calls
   succeed; "installed" requires the marker. An unmarked folder is deleted at the failure or the
-  Cancel, and **every voice download starts by deleting an unmarked folder** (Download, Retry,
+  Cancel, and **every voice download, once it holds the lock, starts by deleting an unmarked folder** (Download, Retry,
   an engine's Resume, the launch resume, `--download`), so a bundle left by an interrupted
   command line can never be marked complete.
 - One lock (`flock` on `<support directory>/Models/.download.lock`) covers any download or
@@ -535,7 +535,9 @@ protocol Voice: Sendable {
   3 GB at every launch): only the user's Resume retries it. The mismatch is remembered by a
   marker file next to the model (`<file>.mismatch`), written by `ReadAloudModels` when the
   check fails, holding the error message (so the paused item shows its reason after a
-  relaunch), and removed by a successful download, Delete or Cancel. A read waiting for that download
+  relaunch). It is removed when a download of that file starts (and by Delete or Cancel), and
+  written again only on a new mismatch: a later failure of another kind resumes at launch as
+  usual. A read waiting for that download
   moves to `failed` with the error and Retry; a shortcut pressed for a read that needs that
   pending item (see "What a read needs") goes to `failed` with Retry too. Retry, from
   the island or from Settings, restarts the download and, if a read was waiting, waits again

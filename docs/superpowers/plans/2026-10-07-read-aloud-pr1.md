@@ -2630,7 +2630,13 @@ struct ReadAloudModelsTests {
         #expect(!models.isInstalled(entry))
         #expect(!FileManager.default.fileExists(atPath: models.modelURL(for: entry).appendingPathExtension("partial").path))
         #expect(models.checksumMismatchMessage(entry) == ReadAloudError.checksumMismatch.localizedDescription)
-        // A good download clears the mark.
+        // A new attempt that fails differently clears the mark: it resumes at launch as usual.
+        StubProtocol.register(host) { _ in (503, [:], Data()) }
+        await #expect(throws: ReadAloudError.httpStatus(503)) {
+            try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
+        }
+        #expect(models.checksumMismatchMessage(entry) == nil)
+        // A good download leaves no mark either.
         serveWhole()
         try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
         #expect(models.checksumMismatchMessage(entry) == nil)
@@ -2966,6 +2972,9 @@ public final class ReadAloudModels: @unchecked Sendable {
             let already = (try? ModelFileDownloader.size(of: partial)) ?? 0
             try checkSpace(needed: voiceBytes + spec.download.bytes - max(already, 0))
             let total = Double(voiceBytes + spec.download.bytes)
+            // A new attempt clears an old mismatch: only a new mismatch writes it again, so a later
+            // failure of another kind resumes at launch as usual.
+            try? FileManager.default.removeItem(at: mismatchMarker(for: entry))
             if voiceBytes > 0 {
                 try await ensureVoice { progress($0 * Double(voiceBytes) / total) }
             }
@@ -3003,7 +3012,8 @@ public final class ReadAloudModels: @unchecked Sendable {
         if isVoiceInstalled { progress(1); return }
         let folder = VoiceAssets.folder(in: directory)
         // Without the marker the folder may hold a bundle cut off mid-download, which
-        // FluidAudio would take for complete.
+        // FluidAudio would take for complete. Callers hold the lock (`download`), so this never
+        // removes a folder another process is still writing.
         try? FileManager.default.removeItem(at: folder)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         do {
