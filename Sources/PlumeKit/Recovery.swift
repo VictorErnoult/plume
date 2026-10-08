@@ -55,6 +55,25 @@ public enum Recovery {
         writer.close()
     }
 
+    /// Makes a crashed recording's header count all of its samples, before anything reads it.
+    /// The header is rewritten only every ~5 s and on close, so after a crash it lags: CoreAudio
+    /// would drop the last seconds, and read a recording's first seconds as silence. Only the
+    /// two sizes are written, RIFF first: if the second write never happens, the data size is
+    /// still the old one, so the next launch computes the same repair and finishes it.
+    static func repairHeader(at url: URL) {
+        guard let handle = try? FileHandle(forUpdating: url) else { return }
+        defer { try? handle.close() }
+        guard let header = try? handle.read(upToCount: 4_096), let fileSize = try? handle.seekToEnd(),
+            let repair = WavWriter.headerRepair(header, fileSize: fileSize)
+        else { return }
+        func write(_ value: UInt32, at position: Int) throws {
+            try handle.seek(toOffset: UInt64(position))
+            try handle.write(contentsOf: withUnsafeBytes(of: value.littleEndian) { Data($0) })
+        }
+        guard (try? write(repair.riffSize, at: 4)) != nil else { return }
+        try? write(repair.dataSize, at: repair.dataSizeAt)
+    }
+
     /// Audio recordings without a transcript, outside the current session.
     public static func pending(in store: TranscriptStore, excluding active: Set<String> = []) -> [Pending] {
         let fm = FileManager.default
@@ -105,6 +124,9 @@ public enum Recovery {
     ) async throws -> Transcript? {
         let fm = FileManager.default
         let store = settings.store
+        // Before the model: the backups become whole even if the model is unavailable.
+        repairHeader(at: pending.mic)
+        if let system = pending.system { repairHeader(at: system) }
         try await engine.prepare(model: settings.model)
         let files = [pending.mic, pending.system].compactMap { $0 }
         func discard() { files.forEach { try? fm.removeItem(at: $0) } }

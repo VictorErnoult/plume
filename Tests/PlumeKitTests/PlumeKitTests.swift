@@ -702,6 +702,169 @@ struct RecoveredChannelsTests {
     }
 }
 
+/// Recovery repairs a crashed recording's header before reading it. Files are written by
+/// `WavWriter` and read while it is still open, as a crash leaves them (`flush()`, no `close`).
+@Suite("Crashed WAV recovery")
+struct CrashedWavTests {
+    /// A 440 Hz A, loud enough not to pass for silence.
+    static func tone(_ count: Int) -> [Float] {
+        (0..<count).map { Float(sin(Double($0) * 2 * .pi * 440 / 16_000)) * 0.3 }
+    }
+
+    static func makeFolder() throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
+
+    /// The little-endian UInt32 at `position`.
+    static func uint32(_ url: URL, at position: Int) throws -> UInt32 {
+        let bytes = [UInt8](try Data(contentsOf: url))
+        return bytes[position..<position + 4].reversed().reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
+    }
+
+    /// A crash in a recording's first 5 s: the header counts 0 bytes, read as silence.
+    @Test func aRecordingsFirstSecondsAreRecovered() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_dictation.wav")
+        let writer = try WavWriter(url: url)
+        defer { writer.close() }
+        writer.append(Self.tone(1_600))
+        writer.flush()
+        #expect(try Self.uint32(url, at: 40) == 0)
+        Recovery.repairHeader(at: url)
+        let samples = try AudioIO.loadSamples(url)
+        #expect(samples.count == 1_600)
+        #expect(zip(samples, Self.tone(1_600)).allSatisfy { abs($0 - $1) <= 2.0 / 32_768 })
+    }
+
+    /// The last samples after the last periodic patch, in a meeting WAV: counted, offset kept.
+    /// 81,000 samples, not 80,000: `setOffset` resets the pending count, so 80,000 + 1,600
+    /// would trigger the patch on the second append and leave nothing to repair.
+    @Test func theTailAfterTheLastPatchIsRecovered() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_mic.wav")
+        let writer = try WavWriter(url: url, recordsOffset: true)
+        defer { writer.close() }
+        writer.setOffset(2.5)
+        writer.append(Self.tone(81_000))
+        writer.append(Self.tone(1_600))
+        writer.flush()
+        #expect(try Self.uint32(url, at: 56) == 162_000)
+        let size = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64
+        #expect(size == 60 + 165_200)
+        Recovery.repairHeader(at: url)
+        let count = try AudioIO.loadSamples(url).count
+        #expect(count == 82_600)
+        #expect(WavWriter.recordedOffset(of: url) == 2.5)
+    }
+
+    /// A crash mid-sample leaves one stray byte: the count stops at the last whole sample.
+    @Test func anOddTrailingByteIsDropped() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_dictation.wav")
+        let writer = try WavWriter(url: url)
+        defer { writer.close() }
+        writer.append(Self.tone(1_600))
+        writer.flush()
+        let extra = try FileHandle(forWritingTo: url)
+        try extra.seekToEnd()
+        try extra.write(contentsOf: Data([0x01]))
+        try extra.close()
+        Recovery.repairHeader(at: url)
+        #expect(try Self.uint32(url, at: 40) == 3_200)
+        let count = try AudioIO.loadSamples(url).count
+        #expect(count == 1_600)
+    }
+
+    /// A file closed normally already counts everything: not a byte changes.
+    @Test func aClosedFileIsLeftAlone() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_mic.wav")
+        let writer = try WavWriter(url: url, recordsOffset: true)
+        writer.setOffset(2.5)
+        writer.append(Self.tone(1_600))
+        writer.close()
+        let before = try Data(contentsOf: url)
+        Recovery.repairHeader(at: url)
+        #expect(try Data(contentsOf: url) == before)
+    }
+
+    @Test func aSecondRepairChangesNothing() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_dictation.wav")
+        let writer = try WavWriter(url: url)
+        defer { writer.close() }
+        writer.append(Self.tone(1_600))
+        writer.flush()
+        Recovery.repairHeader(at: url)
+        let once = try Data(contentsOf: url)
+        Recovery.repairHeader(at: url)
+        #expect(try Data(contentsOf: url) == once)
+    }
+
+    /// A crash before the header (empty file), right after it (no sample), or no file at all:
+    /// nothing is created or changed, nothing traps.
+    @Test func emptyOrMissingFilesAreLeftAlone() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let missing = root.appendingPathComponent("2026-10-08_09-00-00_mic.wav")
+        let empty = root.appendingPathComponent("2026-10-08_10-00-00_mic.wav")
+        try Data().write(to: empty)
+        let headerOnly = root.appendingPathComponent("2026-10-08_11-00-00_mic.wav")
+        let writer = try WavWriter(url: headerOnly, recordsOffset: true)
+        defer { writer.close() }
+        writer.flush()
+        let header = try Data(contentsOf: headerOnly)
+        Recovery.repairHeader(at: missing)
+        Recovery.repairHeader(at: empty)
+        Recovery.repairHeader(at: headerOnly)
+        #expect(!FileManager.default.fileExists(atPath: missing.path))
+        #expect(try Data(contentsOf: empty).isEmpty)
+        #expect(try Data(contentsOf: headerOnly) == header)
+    }
+
+    /// A writer still open on the file (a second instance on the same library): its next patch
+    /// rewrites both sizes, and its offset is never touched.
+    @Test func aWriterStillOpenKeepsWritingCorrectly() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_mic.wav")
+        let writer = try WavWriter(url: url, recordsOffset: true)
+        writer.setOffset(2.5)
+        writer.append(Self.tone(1_600))
+        writer.flush()
+        Recovery.repairHeader(at: url)
+        writer.append(Self.tone(1_600))
+        writer.close()
+        #expect(try Self.uint32(url, at: 4) == 52 + 6_400)
+        #expect(try Self.uint32(url, at: 56) == 6_400)
+        #expect(WavWriter.recordedOffset(of: url) == 2.5)
+        let count = try AudioIO.loadSamples(url).count
+        #expect(count == 3_200)
+    }
+
+    /// A file recovery may not write to: left as it was, no error.
+    @Test func aReadOnlyFileIsLeftAlone() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_dictation.wav")
+        let writer = try WavWriter(url: url)
+        defer { writer.close() }
+        writer.append(Self.tone(1_600))
+        writer.flush()
+        try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: url.path)
+        let before = try Data(contentsOf: url)
+        Recovery.repairHeader(at: url)
+        #expect(try Data(contentsOf: url) == before)
+    }
+}
+
 @Suite("Cancelled recordings")
 struct CancelledTests {
     /// One second of a 440 Hz A, loud enough not to pass for silence.
