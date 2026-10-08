@@ -21,7 +21,7 @@ public struct ChannelAudio: Sendable {
     }
 
     /// The channels a meeting keeps as files: silent ones skipped, with their file label.
-    /// Silence is judged on the samples, not the padded array: a long lead would lower the level.
+    /// Silence is judged on the samples, not the padded array: the lead is silent anyway, and building it just to test would cost memory.
     /// Nothing is padded here: each caller pads one channel at a time, so one padded array is in
     /// memory at once.
     public static func tracksToKeep(_ channels: [ChannelAudio]) -> [(label: String, audio: ChannelAudio)] {

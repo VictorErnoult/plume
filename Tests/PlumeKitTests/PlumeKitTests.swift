@@ -570,8 +570,7 @@ struct KeptAudioTests {
         #expect(tracks[0].audio.paddedSamples == [Float](repeating: 0, count: 8_000) + Self.tone(1_600))
     }
 
-    /// A late switch: ten minutes of lead. Silence is judged on the tone, not on the padded
-    /// array, whose level the lead would bring below the threshold.
+    /// A late switch: ten minutes of lead. The channel is kept and padded in full.
     @Test func aLongLeadDoesNotMakeAChannelSilent() {
         let tracks = ChannelAudio.tracksToKeep([ChannelAudio(channel: .system, samples: Self.tone(16_000), offset: 600)])
         #expect(tracks.map(\.label) == ["sys"])
