@@ -33,7 +33,7 @@ public enum ReadAloudEvent: Sendable, Equatable {
 public enum ReadAloudPipeline {
     /// A selection of punctuation, symbols or emoji has nothing to say: it must fail loudly
     /// ("select some text") rather than start a silent read.
-    static func hasWords(_ text: String) -> Bool {
+    public static func hasWords(_ text: String) -> Bool {
         text.contains { $0.isLetter || $0.isNumber }
     }
 

@@ -205,6 +205,59 @@ struct ReadAloudCommandTests {
         #expect(await service.loads == 0)
     }
 
+    /// "Select some text first." is the app's wording: on the command line the text comes in on stdin.
+    @Test func emptyInputSaysNothingCameInOnStandardInput() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let service = ScriptedSummaryService(pieces: ["Never written."])
+        let summaryContext = try summaryContext(service)
+        for (options, context) in [(ReadAloudCommand.Options(textOnly: true), context()),
+                                   (ReadAloudCommand.Options(summary: true, json: true), summaryContext)] {
+            for input in ["", " \n", "…!"] {
+                var errors: [String] = []
+                let code = await L10n.$override.withValue(.english) {
+                    await ReadAloudCommand.run(options, context: context, input: input, emit: { _ in }, fail: { errors.append($0) })
+                }
+                #expect(code == 1)
+                #expect(errors == ["Nothing to read on standard input."])
+            }
+        }
+        // Nothing to summarize: the model is not loaded for it.
+        #expect(await service.loads == 0)
+    }
+
+    /// Typed with no pipe, the command would wait silently for Ctrl-D.
+    @Test func aTerminalStandardInputIsNotRead() {
+        let read = ReadAloudCommand.Options()
+        #expect(ReadAloudCommand.input(for: read, isTerminal: true, read: { Issue.record("must not read"); return "" }) == nil)
+        #expect(ReadAloudCommand.input(for: read, isTerminal: false, read: { "Piped text." }) == "Piped text.")
+        // Downloads and the eval take no text: a terminal is fine.
+        for options in [ReadAloudCommand.Options(download: "voice"), ReadAloudCommand.Options(evalFolder: "/x")] {
+            #expect(ReadAloudCommand.input(for: options, isTerminal: true, read: { Issue.record("must not read"); return "" }) == "")
+        }
+    }
+
+    /// A mistyped option prints this usage: it must show every option the parser accepts.
+    @Test func theUsageListsEveryOption() {
+        for flag in ["--summary", "--text", "--json", "--engine", "--download", "--eval", "--engines", "--out"] {
+            let alone = ["--summary", "--text", "--json"].contains(flag)
+            #expect(ReadAloudCommand.parse(alone ? [flag] : [flag, "x"]) != nil, "\(flag)")
+            for language in [Language.english, .french] {
+                let usage = L10n.$override.withValue(language) { ReadAloudCommand.usage }
+                #expect(usage.range(of: flag + "(?![a-z])", options: .regularExpression) != nil, "\(language) \(flag)")
+            }
+        }
+    }
+
+    /// Each line of the main usage keeps at least two spaces between the command and what it does.
+    @Test func usageLinesKeepAGapBeforeTheirDescription() {
+        for language in [Language.english, .french] {
+            let usage = L10n.$override.withValue(language) { CLI.usage }
+            for line in usage.split(separator: "\n") where line.hasPrefix("  plume") {
+                #expect(line.dropFirst(2).contains("  "), "\(language): \(line)")
+            }
+        }
+    }
+
     @Test func theCommandWordReachesTheCommandLine() {
         #expect(CLI.commands.contains("read-aloud"))
         #expect(CLI.handles(["plume", "read-aloud"]))

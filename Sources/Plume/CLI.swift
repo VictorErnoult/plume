@@ -33,7 +33,7 @@ enum CLI {
         return commands.contains(args[1])
     }
 
-    static let usage = tr("""
+    static var usage: String { tr("""
         Plume — local dictation and transcription
 
           plume last [--mode dictee|reunion|import] [--json]   latest transcription
@@ -62,7 +62,7 @@ enum CLI {
           plume mcp                                            MCP server (stdio) for AIs
 
         Run with no argument to start the app in the menu bar.
-        """)
+        """) }
 
     static func run(_ args: [String]) async -> Int32 {
         let command = args[1]
@@ -276,10 +276,11 @@ enum CLI {
             }
 
         case "read-aloud":
-            // plume read-aloud [--summary] [--text|--json] [--engine id] < text
             // `run` already took --json out of `rest`: parse the raw arguments.
-            guard let options = ReadAloudCommand.parse(Array(args.dropFirst(2))) else {
-                printError(tr("Usage: plume read-aloud [--summary] [--text] [--json] [--engine <model>] < text"))
+            guard let options = ReadAloudCommand.parse(Array(args.dropFirst(2))),
+                  let input = ReadAloudCommand.input(for: options, isTerminal: isatty(STDIN_FILENO) != 0, read: readStandardInput)
+            else {
+                printError(ReadAloudCommand.usage)
                 return 2
             }
             let context = ReadAloudCommand.Context(
@@ -288,7 +289,6 @@ enum CLI {
                 options: SummaryOptions(length: settings.readAloudLength, language: settings.readAloudLanguage),
                 interface: settings.language)
             LlamaSummaryService.log = { Log.write("llama.cpp: " + $0) }
-            let input = options.download == nil && options.evalFolder == nil ? readStandardInput() : ""
             return await ReadAloudCommand.run(options, context: context, input: input, emit: emit, fail: printError)
 
         case "settings":

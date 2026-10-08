@@ -27,6 +27,18 @@ enum ReadAloudCommand {
         var summaryService: (SummaryEngineEntry, URL) -> any SummaryService = { LlamaSummaryService(entry: $0, modelURL: $1) }
     }
 
+    /// Every option `parse` accepts: printed on a mistyped option and on a terminal stdin.
+    static var usage: String {
+        tr("Usage: plume read-aloud [--summary] [--text|--json] [--engine <model>] < text\n       plume read-aloud --download voice|<model>\n       plume read-aloud --eval <folder> --engines a,b --out <file>")
+    }
+
+    /// The text to read, or `nil` when standard input is the terminal: reading it would wait
+    /// silently for Ctrl-D. Downloads and the eval take no text.
+    static func input(for options: Options, isTerminal: Bool, read: () -> String) -> String? {
+        guard options.download == nil, options.evalFolder == nil else { return "" }
+        return isTerminal ? nil : read()
+    }
+
     static func parse(_ args: [String]) -> Options? {
         var options = Options()
         var rest = args[...]
@@ -57,6 +69,10 @@ enum ReadAloudCommand {
             if let folder = options.evalFolder { return try await ReadAloudEvalCommand.run(options, folder: folder, context: context, emit: emit) }
             if options.summary { return try await summarize(input, options: options, context: context, emit: emit) }
             return try await readAloud(input, options: options, context: context, emit: emit)
+        } catch ReadAloudError.nothingToRead {
+            // The app's "Select some text first." means nothing here: the text comes in on stdin.
+            fail(tr("Nothing to read on standard input."))
+            return 1
         } catch {
             fail(error.localizedDescription)
             return 1
@@ -107,6 +123,7 @@ enum ReadAloudCommand {
             throw id.isEmpty ? ReadAloudError.engineNotInstalled : ReadAloudError.unknownEngine
         }
         guard context.models.isInstalled(entry) else { throw ReadAloudError.engineNotInstalled }
+        guard ReadAloudPipeline.hasWords(input) else { throw ReadAloudError.nothingToRead }
         let printing = options.textOnly || options.json
         // The voice first: loading the model takes seconds of GPU setup, wasted if the voice is missing.
         var voice: SupertonicVoice?
