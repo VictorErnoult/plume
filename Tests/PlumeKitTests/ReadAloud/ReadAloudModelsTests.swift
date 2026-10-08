@@ -247,6 +247,21 @@ struct ReadAloudModelsTests {
         #expect(models.partialBytes(entry) == 0)
     }
 
+    /// The usual case of a quit during the checksum pass: the voice is installed by then, so
+    /// nothing is left to download, yet the partial still needs its check and its rename.
+    @Test func aCompletePartialIsVerifiedWhenTheVoiceIsInstalled() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        serveWholeRefusingRanges()
+        let models = models()
+        try FakeVoiceFiles.write(in: folder)
+        FileManager.default.createFile(atPath: VoiceAssets.folder(in: folder).appendingPathComponent(VoiceAssets.completeMarker).path, contents: nil)
+        try writePartial(body, for: models)
+        try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
+        #expect(models.isInstalled(entry))
+        #expect(models.partialBytes(entry) == 0)
+        #expect(models.checksumMismatchMessage(entry) == nil)
+    }
+
     @Test func aPartialLargerThanTheFileStartsOver() async throws {
         defer { try? FileManager.default.removeItem(at: folder) }
         serveWholeRefusingRanges()
@@ -321,7 +336,7 @@ struct ReadAloudModelsTests {
         let entry = self.entry
         let models = models(installVoice: { directory, _ in
             try FileManager.default.createDirectory(at: VoiceAssets.folder(in: directory), withIntermediateDirectories: true)
-            try await Task.sleep(for: .seconds(2))
+            try await Task.sleep(for: .seconds(60))  // until cancelled
         })
         try writePartial(Data(count: 400), for: models)
         let task = Task { try await models.download(.engine(entry.id), catalog: [entry]) { _ in } }

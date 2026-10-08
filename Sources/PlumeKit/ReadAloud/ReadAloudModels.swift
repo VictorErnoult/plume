@@ -110,7 +110,8 @@ public final class ReadAloudModels: @unchecked Sendable {
             // A partial larger than the file starts over (`ModelFileDownloader`).
             let remaining = already > spec.download.bytes ? spec.download.bytes : spec.download.bytes - already
             let engineBytes = isInstalled(entry) ? 0 : remaining
-            if voiceBytes + engineBytes == 0 { progress(1); return }
+            // Installed, not merely downloaded: a whole partial still needs its check and rename.
+            if voiceBytes == 0, isInstalled(entry) { progress(1); return }
             try checkSpace(needed: voiceBytes + engineBytes)
             let total = Double(voiceBytes + spec.download.bytes)
             // A new attempt clears an old mismatch: only a new mismatch writes it again, so a later
