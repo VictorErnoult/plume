@@ -442,6 +442,112 @@ struct WavOffsetTests {
     }
 }
 
+/// What `WavWriter` writes: the 1.0.1 bytes by default, the `plmo` chunk for a meeting.
+@Suite("Meeting WAV writer")
+struct WavWriterOffsetTests {
+    /// One second of a 440 Hz A, loud enough not to pass for silence.
+    let tone = (0..<16_000).map { Float(sin(Double($0) * 2 * .pi * 440 / 16_000)) * 0.3 }
+
+    static func makeFolder() throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
+
+    /// The first `count` bytes of a file, read while the writer may still be open.
+    static func head(_ url: URL, _ count: Int) throws -> [UInt8] {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        return [UInt8](try handle.read(upToCount: count) ?? Data())
+    }
+
+    @Test func defaultWriterKeepsThe101Header() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_dictation.wav")
+        let writer = try WavWriter(url: url)
+        writer.setOffset(2)  // ignored: not a meeting WAV
+        writer.append([Float](repeating: 0, count: 1_600))
+        writer.close()
+        let expected: [UInt8] =
+            Array("RIFF".utf8) + [0xA4, 0x0C, 0, 0] + Array("WAVE".utf8)  // 36 + 3,200
+            + Array("fmt ".utf8) + [0x10, 0, 0, 0, 0x01, 0, 0x01, 0, 0x80, 0x3E, 0, 0, 0x00, 0x7D, 0, 0, 0x02, 0, 0x10, 0]
+            + Array("data".utf8) + [0x80, 0x0C, 0, 0]  // 3,200 bytes
+        let head = try Self.head(url, 44)
+        #expect(head == expected)
+        #expect(WavWriter.recordedOffset(of: url) == nil)
+        let count = try AudioIO.loadSamples(url).count
+        #expect(count == 1_600)
+    }
+
+    @Test func meetingWriterRecordsTheLatestOffset() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_mic.wav")
+        let writer = try WavWriter(url: url, recordsOffset: true)
+        writer.setOffset(1.5)
+        writer.append(tone)
+        writer.setOffset(3.25)
+        writer.close()
+        #expect(WavWriter.recordedOffset(of: url) == 3.25)
+        let bytes = try Self.head(url, 60)
+        let riffSize: [UInt8] = [0x34, 0x7D, 0, 0]  // 52 + 32,000
+        #expect(Array(bytes[4..<8]) == riffSize)
+        let chunks: [UInt8] =
+            Array("plmo".utf8) + [8, 0, 0, 0] + [0, 0, 0, 0, 0, 0, 0x0A, 0x40]  // 3.25
+            + Array("data".utf8) + [0x00, 0x7D, 0, 0]  // 32,000 bytes
+        #expect(Array(bytes[36..<60]) == chunks)
+        // Read back the way 1.0.1 reads it: the unknown chunk is skipped.
+        let samples = try AudioIO.loadSamples(url)
+        #expect(samples.count == 16_000)
+        #expect(zip(samples, tone).allSatisfy { abs($0 - $1) <= 2.0 / 32_768 })
+    }
+
+    /// After a crash, readers see what the last header counted. A header that counts samples
+    /// must carry the offset, before `close` rewrites it.
+    @Test func aCountedHeaderCarriesTheOffsetBeforeClose() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_sys.wav")
+        let writer = try WavWriter(url: url, recordsOffset: true)
+        defer { writer.close() }
+        writer.setOffset(2.5)
+        // 160,002 bytes: just over the 160,000 that trigger a periodic header rewrite.
+        writer.append([Float](repeating: 0.1, count: 80_001))
+        writer.flush()
+        let bytes = try Self.head(url, 60)
+        let dataBytes: [UInt8] = [0x02, 0x71, 0x02, 0]  // 160,002
+        #expect(Array(bytes[56..<60]) == dataBytes)
+        #expect(WavWriter.recordedOffset(header: Data(bytes)) == 2.5)
+    }
+
+    /// A meeting WAV left by 1.0.1 (no `plmo` chunk, as `Recovery.stash` still writes) is
+    /// recovered at offset 0, as before.
+    @Test func a101MeetingWavHasNoOffset() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_mic.wav")
+        Recovery.stash(tone, at: url)
+        #expect(WavWriter.recordedOffset(of: url) == nil)
+    }
+
+    /// A last offset after `close` (a late tap after stop) leaves the file alone.
+    @Test func anOffsetAfterCloseIsIgnored() throws {
+        let root = try Self.makeFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("2026-10-08_10-00-00_sys.wav")
+        let writer = try WavWriter(url: url, recordsOffset: true)
+        writer.setOffset(1.5)
+        writer.append(tone)
+        writer.close()
+        let before = try Data(contentsOf: url)
+        writer.setOffset(9)
+        writer.flush()
+        #expect(try Data(contentsOf: url) == before)
+        #expect(WavWriter.recordedOffset(of: url) == 1.5)
+    }
+}
+
 @Suite("Cancelled recordings")
 struct CancelledTests {
     /// One second of a 440 Hz A, loud enough not to pass for silence.
