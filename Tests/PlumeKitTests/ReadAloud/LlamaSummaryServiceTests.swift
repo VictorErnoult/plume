@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import llama
 @testable import PlumeKit
 
 @Suite("Llama summary service")
@@ -24,6 +25,16 @@ struct LlamaSummaryServiceTests {
             "<|im_start|>system\nS<|im_end|>\n<|im_start|>user\n", "U",
             "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
         ])
+    }
+
+    /// Warnings and errors only: the default load progress is a hundred INFO and CONT dots.
+    @Test func onlyWarningsAndErrorsReachThePlumeLog() {
+        #expect(LlamaSummaryService.logLine(level: GGML_LOG_LEVEL_WARN, text: " low memory\n") == "low memory")
+        #expect(LlamaSummaryService.logLine(level: GGML_LOG_LEVEL_ERROR, text: "failed\n") == "failed")
+        for level in [GGML_LOG_LEVEL_NONE, GGML_LOG_LEVEL_DEBUG, GGML_LOG_LEVEL_INFO, GGML_LOG_LEVEL_CONT] {
+            #expect(LlamaSummaryService.logLine(level: level, text: ".") == nil)
+        }
+        #expect(LlamaSummaryService.logLine(level: GGML_LOG_LEVEL_WARN, text: " \n") == nil)
     }
 
     @Test func theInputBudgetLeavesRoomForTheSummary() async {

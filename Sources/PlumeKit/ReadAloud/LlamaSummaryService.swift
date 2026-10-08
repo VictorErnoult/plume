@@ -24,15 +24,24 @@ public final class LlamaSummaryService: SummaryService, @unchecked Sendable {
     static let batchSize: Int32 = 512
 
     /// Plume's log, set by the app; llama.cpp warnings and errors only, which carry no text.
+    /// Set it once at process start, before any load: llama.cpp threads read it unsynchronized.
     nonisolated(unsafe) public static var log: (@Sendable (String) -> Void)?
 
     private static let backend: Void = {
         llama_log_set({ level, text, _ in
-            guard level.rawValue >= GGML_LOG_LEVEL_WARN.rawValue, let text else { return }
-            LlamaSummaryService.log?(String(cString: text).trimmingCharacters(in: .whitespacesAndNewlines))
+            guard let text, let line = LlamaSummaryService.logLine(level: level, text: String(cString: text)) else { return }
+            LlamaSummaryService.log?(line)
         }, nil)
         llama_backend_init()
     }()
+
+    /// Warnings and errors only. CONT continues any level (the load progress is INFO plus a
+    /// hundred CONT dots), so it is dropped too.
+    static func logLine(level: ggml_log_level, text: String) -> String? {
+        guard level == GGML_LOG_LEVEL_WARN || level == GGML_LOG_LEVEL_ERROR else { return nil }
+        let line = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return line.isEmpty ? nil : line
+    }
 
     public init(entry: SummaryEngineEntry, modelURL: URL) {
         self.entry = entry
@@ -44,7 +53,10 @@ public final class LlamaSummaryService: SummaryService, @unchecked Sendable {
 
     /// Every queued block holds `self`, so this runs only once no llama.cpp call is pending.
     deinit {
-        if let context { llama_free(context) }
+        if let context {
+            llama_synchronize(context)
+            llama_free(context)
+        }
         if let model { llama_model_free(model) }
     }
 
@@ -111,7 +123,11 @@ public final class LlamaSummaryService: SummaryService, @unchecked Sendable {
 
     public func unload() async {
         _ = try? await onQueue {
-            if let context = self.context { llama_free(context) }
+            if let context = self.context {
+                // `llama_decode` returns before the GPU is done; a stopped read leaves work in flight.
+                llama_synchronize(context)
+                llama_free(context)
+            }
             if let model = self.model { llama_model_free(model) }
             self.context = nil
             self.model = nil
@@ -136,7 +152,9 @@ public final class LlamaSummaryService: SummaryService, @unchecked Sendable {
 
     private func generate(_ request: SummaryRequest, cancelled: CancelFlag, emit: (SummaryEvent) -> Void) throws {
         guard let context, let vocab else { throw ReadAloudError.loadFailed }
-        // Qwen3.5 keeps recurrent state, and a stopped read can leave it half-written.
+        // Qwen3.5 keeps recurrent state, and a stopped read can leave it half-written,
+        // with its last decode still running on the GPU.
+        llama_synchronize(context)
         llama_memory_clear(llama_get_memory(context), true)
 
         let pieces = try PromptRenderer.pieces(for: request, format: spec.promptFormat, applyTemplate: applyEmbeddedTemplate)
@@ -159,12 +177,14 @@ public final class LlamaSummaryService: SummaryService, @unchecked Sendable {
         let sampler = makeSampler()
         defer { llama_sampler_free(sampler) }
         var text = UTF8Accumulator()
-        for _ in 0..<maxTokens {
+        for step in 0..<maxTokens {
             if cancelled.isSet { break }
             let token = llama_sampler_sample(sampler, context, -1)
             if llama_vocab_is_eog(vocab, token) { break }
             let piece = text.append(bytes(of: token))
             if !piece.isEmpty { emit(.text(piece)) }
+            // The last token is never sampled from: no need to decode it.
+            if step == maxTokens - 1 { break }
             var single = [token]
             try decode(&single, from: 0, count: 1, context: context)
         }
