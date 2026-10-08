@@ -387,6 +387,61 @@ struct RecoveryTests {
     }
 }
 
+/// Meeting WAVs carry their channel's offset in a `plmo` chunk, so a recovered meeting keeps its
+/// two channels in time. Headers are literal bytes: they pin both layouts, the 1.0.1 one and
+/// the meeting one, in place of a fixture file.
+@Suite("Meeting WAV offset")
+struct WavOffsetTests {
+    /// `RIFF` and `WAVE` around a given RIFF size (little-endian).
+    static func riff(_ size: [UInt8]) -> [UInt8] { Array("RIFF".utf8) + size + Array("WAVE".utf8) }
+    /// The `fmt ` chunk of a 16 kHz mono 16-bit WAV, as `WavWriter` writes it.
+    static let fmt: [UInt8] =
+        Array("fmt ".utf8) + [0x10, 0, 0, 0, 0x01, 0, 0x01, 0, 0x80, 0x3E, 0, 0, 0x00, 0x7D, 0, 0, 0x02, 0, 0x10, 0]
+    /// A `data` chunk header counting 0 bytes.
+    static let data0: [UInt8] = Array("data".utf8) + [0, 0, 0, 0]
+    /// `plmo`, size 8, then a Float64 (little-endian).
+    static func plmo(_ value: [UInt8]) -> [UInt8] { Array("plmo".utf8) + [8, 0, 0, 0] + value }
+    static let v42_5: [UInt8] = [0, 0, 0, 0, 0, 0x40, 0x45, 0x40]
+    static let vMinus1: [UInt8] = [0, 0, 0, 0, 0, 0, 0xF0, 0xBF]
+    static let vNaN: [UInt8] = [0, 0, 0, 0, 0, 0, 0xF8, 0x7F]
+    static let vInfinity: [UInt8] = [0, 0, 0, 0, 0, 0, 0xF0, 0x7F]
+
+    @Test(arguments: [
+        ("1.0.1 header, 44 bytes", riff([36, 0, 0, 0]) + fmt + data0, nil),
+        ("meeting header, 42.5 s", riff([52, 0, 0, 0]) + fmt + plmo(v42_5) + data0, 42.5),
+        ("offset not known yet", riff([52, 0, 0, 0]) + fmt + plmo(vMinus1) + data0, nil),
+        ("NaN", riff([52, 0, 0, 0]) + fmt + plmo(vNaN) + data0, nil),
+        ("infinity", riff([52, 0, 0, 0]) + fmt + plmo(vInfinity) + data0, nil),
+        ("plmo of size 4", riff([48, 0, 0, 0]) + fmt + Array("plmo".utf8) + [4, 0, 0, 0, 0, 0, 0x2A, 0x42] + data0, nil),
+        ("cut inside plmo", riff([52, 0, 0, 0]) + fmt + Array("plmo".utf8) + [8, 0, 0, 0, 0, 0, 0, 0], nil),
+        ("odd-sized LIST before plmo",
+            riff([64, 0, 0, 0]) + fmt + Array("LIST".utf8) + [3, 0, 0, 0, 0x61, 0x62, 0x63, 0] + plmo(v42_5) + data0,
+            42.5),
+        ("plmo after data", riff([52, 0, 0, 0]) + fmt + data0 + plmo(v42_5), nil),
+        ("not RIFF", Array("RIFX".utf8) + [52, 0, 0, 0] + Array("WAVE".utf8) + fmt + plmo(v42_5) + data0, nil),
+        ("chunk size 0xFFFFFFFF before plmo",
+            riff([52, 0, 0, 0]) + fmt + Array("LIST".utf8) + [0xFF, 0xFF, 0xFF, 0xFF] + plmo(v42_5) + data0, nil),
+        ("not WAVE", Array("RIFF".utf8) + [52, 0, 0, 0] + Array("AVI ".utf8) + fmt + plmo(v42_5) + data0, nil),
+    ] as [(String, [UInt8], Double?)])
+    func readsTheRecordedOffset(_ name: String, header: [UInt8], expected: Double?) {
+        #expect(WavWriter.recordedOffset(header: Data(header)) == expected, "\(name)")
+    }
+
+    /// A missing file, an empty one (crash before the header) or a cut header: nil, no crash.
+    @Test func unreadableFilesHaveNoOffset() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let empty = root.appendingPathComponent("empty_mic.wav")
+        let cut = root.appendingPathComponent("cut_mic.wav")
+        try Data().write(to: empty)
+        try Data(Array("RIFF".utf8) + [52, 0]).write(to: cut)
+        #expect(WavWriter.recordedOffset(of: root.appendingPathComponent("missing_mic.wav")) == nil)
+        #expect(WavWriter.recordedOffset(of: empty) == nil)
+        #expect(WavWriter.recordedOffset(of: cut) == nil)
+    }
+}
+
 @Suite("Cancelled recordings")
 struct CancelledTests {
     /// One second of a 440 Hz A, loud enough not to pass for silence.

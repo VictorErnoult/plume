@@ -114,4 +114,37 @@ public final class WavWriter: @unchecked Sendable {
             closed = true
         }
     }
+
+    /// The offset a meeting WAV recorded, or nil (1.0.1 file, not known yet, unreadable).
+    static func recordedOffset(header: Data) -> Double? {
+        let bytes = [UInt8](header)
+        func tag(at i: Int) -> String? {
+            i + 4 <= bytes.count ? String(decoding: bytes[i..<i + 4], as: UTF8.self) : nil
+        }
+        func integer(at i: Int, size: Int) -> UInt64? {
+            guard i + size <= bytes.count else { return nil }
+            return (0..<size).reduce(UInt64(0)) { $0 | UInt64(bytes[i + $1]) << (8 * UInt64($1)) }
+        }
+        guard tag(at: 0) == "RIFF", tag(at: 8) == "WAVE" else { return nil }
+        var position = 12
+        // Chunks up to `data`: the samples follow it, so nothing after it is read.
+        while let id = tag(at: position), id != "data", let size = integer(at: position + 4, size: 4) {
+            if id == "plmo" {
+                guard size == 8, let bits = integer(at: position + 8, size: 8) else { return nil }
+                let value = Double(bitPattern: bits)
+                return value.isFinite && value >= 0 ? value : nil
+            }
+            // A chunk of odd size is followed by one padding byte.
+            position += 8 + Int(size) + Int(size % 2)
+        }
+        return nil
+    }
+
+    /// The offset a meeting WAV file recorded, read from its first 4,096 bytes.
+    static func recordedOffset(of url: URL) -> Double? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: 4_096) else { return nil }
+        return recordedOffset(header: data)
+    }
 }
