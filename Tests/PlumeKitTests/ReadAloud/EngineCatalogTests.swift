@@ -62,13 +62,22 @@ struct EngineCatalogTests {
         #expect(VoiceAssets.vectorEstimator == .aneBucketed(.int4))
     }
 
-    @Test func voiceIsInstalledOnlyWithItsMarker() throws {
+    /// The marker and every file: either alone could make loading download what is missing.
+    @Test func voiceIsInstalledOnlyWithItsMarkerAndItsFiles() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("plume-tests-\(UUID())")
         defer { try? FileManager.default.removeItem(at: folder) }
+        let marker = VoiceAssets.folder(in: folder).appendingPathComponent(VoiceAssets.completeMarker)
         try FileManager.default.createDirectory(at: VoiceAssets.folder(in: folder), withIntermediateDirectories: true)
         #expect(!VoiceAssets.isInstalled(in: folder))
-        FileManager.default.createFile(atPath: VoiceAssets.folder(in: folder).appendingPathComponent(VoiceAssets.completeMarker).path, contents: nil)
+        FileManager.default.createFile(atPath: marker.path, contents: nil)
+        #expect(!VoiceAssets.isInstalled(in: folder))
+        try FakeVoiceFiles.write(in: folder)
         #expect(VoiceAssets.isInstalled(in: folder))
+        try FileManager.default.removeItem(at: VoiceAssets.styleURL(.m2, in: folder))
+        #expect(!VoiceAssets.isInstalled(in: folder))
+        try FakeVoiceFiles.write(in: folder)
+        try FileManager.default.removeItem(at: marker)
+        #expect(!VoiceAssets.isInstalled(in: folder))
     }
 
     @Test func pinningTheVoiceRevisionKeepsOtherOverrides() {

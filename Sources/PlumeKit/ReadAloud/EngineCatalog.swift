@@ -167,8 +167,20 @@ public enum VoiceAssets {
         modelsDirectory.appendingPathComponent(folderName, isDirectory: true)
     }
 
+    /// The marker and every file: FluidAudio downloads whatever is missing when it loads, so a
+    /// folder that lost a file after its marker must count as absent.
     public static func isInstalled(in modelsDirectory: URL) -> Bool {
-        FileManager.default.fileExists(atPath: folder(in: modelsDirectory).appendingPathComponent(completeMarker).path)
+        let folder = folder(in: modelsDirectory)
+        return FileManager.default.fileExists(atPath: folder.appendingPathComponent(completeMarker).path)
+            && hasAllFiles(in: modelsDirectory)
+    }
+
+    /// FluidAudio's own list for the pinned variant, and every voice's style.
+    static func hasAllFiles(in modelsDirectory: URL) -> Bool {
+        let folder = folder(in: modelsDirectory)
+        let models = ModelNames.Supertonic3.requiredFiles(veVariant: variant).map { folder.appendingPathComponent($0) }
+        let styles = VoiceCatalog.all.map { styleURL($0.style, in: modelsDirectory) }
+        return (models + styles).allSatisfy { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     public static func styleURL(_ voice: Supertonic3Voice, in modelsDirectory: URL) -> URL {
