@@ -300,26 +300,27 @@ public actor SpeechEngine {
         let result = try await asr.transcribe(audio, decoderState: &state)
         let words = Self.words(from: result.tokenTimings ?? [])
         return EngineOutput(
-            text: result.text.trimmingCharacters(in: .whitespacesAndNewlines),
+            text: Self.removingUnknownTokens(result.text.trimmingCharacters(in: .whitespacesAndNewlines)),
             words: words,
             duration: Double(samples.count) / Double(Self.sampleRate),
             processing: result.processingTime
         )
     }
 
-    /// Timestamped words. An isolated punctuation mark ("?", "!", ":" in the French style) is
-    /// attached to the preceding word, so it never opens a speaker turn.
+    /// Timestamped words, without unknown-token markers. An isolated punctuation mark ("?", "!",
+    /// ":" in the French style) is attached to the preceding word, so it never opens a speaker turn.
     static func words(from timings: [TokenTiming]) -> [Word] {
+        let base = buildWordTimings(from: timings).map { Word(text: $0.word, start: $0.startTime, end: $0.endTime) }
         var words: [Word] = []
-        for timing in buildWordTimings(from: timings) {
-            let isPunctuation = timing.word.allSatisfy { ".,;:!?…»".contains($0) }
+        for word in removingUnknownTokens(base) {
+            let isPunctuation = word.text.allSatisfy { attachedPunctuation.contains($0) }
             if isPunctuation, var last = words.popLast() {
-                let separator = timing.word.first.map { "?!:;»".contains($0) } == true ? " " : ""
-                last.text += separator + timing.word
-                last.end = timing.endTime
+                let separator = word.text.first.map { "?!:;»".contains($0) } == true ? " " : ""
+                last.text += separator + word.text
+                last.end = word.end
                 words.append(last)
             } else {
-                words.append(Word(text: timing.word, start: timing.startTime, end: timing.endTime))
+                words.append(word)
             }
         }
         return words

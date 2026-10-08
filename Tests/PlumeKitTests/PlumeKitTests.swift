@@ -1,3 +1,4 @@
+import FluidAudio
 import Foundation
 import Testing
 
@@ -945,5 +946,36 @@ struct UnknownTokenTests {
 
     @Test(arguments: wordRows) func markersLeaveTheWords(words: [Word], expected: [Word]) {
         #expect(SpeechEngine.removingUnknownTokens(words) == expected)
+    }
+
+    /// Token pieces as FluidAudio gives them ("▁" opens a word), one second each.
+    private static func tokens(_ pieces: [String]) -> [TokenTiming] {
+        pieces.enumerated().map {
+            TokenTiming(token: $1, tokenId: 0, startTime: Double($0), endTime: Double($0 + 1), confidence: 1)
+        }
+    }
+
+    @Test func markersLeaveTheWordsFromTokens() {
+        let bench = SpeechEngine.words(from: Self.tokens(["▁mot", "▁", "<unk>", "ssi", "<unk>", "▁", "<unk>", "▁qui"]))
+        #expect(bench.map(\.text) == ["mot", "ssi", "qui"])
+
+        let apart = SpeechEngine.words(from: Self.tokens(["▁cité", "▁", "<unk>", ",", "▁puis"]))
+        #expect(apart.map(\.text) == ["cité,", "puis"])
+        #expect(apart.first?.end == 1)  // "cité" keeps its own end
+
+        let inside = SpeechEngine.words(from: Self.tokens(["▁cité", "<unk>", ",", "▁puis"]))
+        #expect(inside.map(\.text) == ["cité,", "puis"])
+    }
+
+    /// `text` and the joined `words` follow one rule, so they agree. Each text is the same pieces
+    /// joined with "▁" read as a space; the first adds a double space, which must collapse.
+    @Test(arguments: [
+        (["▁mot", "▁", "<unk>", "ssi", "<unk>", "▁", "<unk>", "▁qui"], "mot  <unk>ssi<unk> <unk> qui"),
+        (["▁cité", "▁", "<unk>", ",", "▁puis"], "cité <unk>, puis"),
+        (["▁connais", "▁", "<unk>", "▁?"], "connais <unk> ?"),
+    ])
+    func textAndWordsAgree(pieces: [String], text: String) {
+        let words = SpeechEngine.words(from: Self.tokens(pieces)).map(\.text).joined(separator: " ")
+        #expect(SpeechEngine.removingUnknownTokens(text) == words)
     }
 }
