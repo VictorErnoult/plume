@@ -30,11 +30,17 @@ struct ReadAloudEvalTests {
     /// A model that cannot load (corrupt file, no memory) must not sink the other engine's run.
     @Test func aLoadFailureStillLetsTheOtherEngineFinish() async throws {
         let healthy = FakeSummaryService(pieces: ["Summary A."])
-        let results = await ReadAloudEval.run(
-            files: [("one.txt", "A first text to summarize here."), ("two.txt", "Another text to summarize.")],
-            engines: [(SummaryEngineCatalog.gemma4_e2b, FailingLoadService()), (SummaryEngineCatalog.qwen35_4b, healthy)],
-            options: SummaryOptions(length: .automatic, language: .sameAsText), interface: .english,
-            created: Date(timeIntervalSince1970: 0), progress: { _ in })
+        let progress = Lines()
+        let results = await L10n.$override.withValue(.english) {
+            await ReadAloudEval.run(
+                files: [("one.txt", "A first text to summarize here."), ("two.txt", "Another text to summarize.")],
+                engines: [(SummaryEngineCatalog.gemma4_e2b, FailingLoadService()), (SummaryEngineCatalog.qwen35_4b, healthy)],
+                options: SummaryOptions(length: .automatic, language: .sameAsText), interface: .english,
+                created: Date(timeIntervalSince1970: 0), progress: { progress.append($0) })
+        }
+        // Said once, as it happens: otherwise the owner only learns of it on the judge page.
+        let loadLine = "\(SummaryEngineCatalog.gemma4_e2b.name): \(ReadAloudError.loadFailed.localizedDescription)"
+        #expect(progress.all.filter { $0 == loadLine }.count == 1)
         #expect(results.engines.map(\.id) == ["gemma4-e2b-q4", "qwen3.5-4b-q4km"])
         for item in results.items {
             #expect(item.results.count == 2)
@@ -96,4 +102,12 @@ private struct FailingLoadService: SummaryService {
         AsyncThrowingStream { $0.finish(throwing: ReadAloudError.loadFailed) }
     }
     func unload() async {}
+}
+
+/// Progress lines, collected from the eval's callback.
+private final class Lines: @unchecked Sendable {
+    private let lock = NSLock()
+    private var lines: [String] = []
+    func append(_ line: String) { lock.withLock { lines.append(line) } }
+    var all: [String] { lock.withLock { lines } }
 }

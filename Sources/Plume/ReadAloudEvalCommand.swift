@@ -17,10 +17,10 @@ enum ReadAloudEvalCommand {
         let engines = try options.evalEngines.map { id -> (entry: SummaryEngineEntry, service: any SummaryService) in
             guard let entry = SummaryEngineCatalog.entry(id: id, in: context.catalog) else { throw ReadAloudError.unknownEngine }
             guard context.models.isInstalled(entry) else { throw ReadAloudError.engineNotInstalled }
-            return (entry, LlamaSummaryService(entry: entry, modelURL: context.models.modelURL(for: entry)))
+            return (entry, context.summaryService(entry, context.models.modelURL(for: entry)))
         }
         let results = await ReadAloudEval.run(
-            files: files, engines: engines, options: context.options, interface: context.interface, created: Date(),
+            files: files, engines: engines, options: ReadAloudEval.options, interface: context.interface, created: Date(),
             progress: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) })
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]

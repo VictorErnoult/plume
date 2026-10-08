@@ -4,6 +4,10 @@ import Foundation
 /// The quality eval: every selection summarized by every engine, with timings. The owner
 /// judges the summaries blind on the judge page (bench/read-aloud-eval).
 public enum ReadAloudEval {
+    /// What the judge page grades against ("right length", "right language"), whatever the
+    /// user's own read-aloud settings are.
+    public static let options = SummaryOptions(length: .automatic, language: .sameAsText)
+
     public struct Results: Codable, Equatable {
         public var created: Date
         public var engines: [EngineRun]
@@ -48,6 +52,7 @@ public enum ReadAloudEval {
             let loadStart = ContinuousClock.now
             let loadError: String?
             do { try await service.load(); loadError = nil } catch { loadError = error.localizedDescription }
+            if let loadError { progress("\(entry.name): \(loadError)") }
             runs.append(EngineRun(id: entry.id, name: entry.name, coldLoadSeconds: seconds(since: loadStart)))
             var durations: [Double] = []
             for (index, file) in files.enumerated() {

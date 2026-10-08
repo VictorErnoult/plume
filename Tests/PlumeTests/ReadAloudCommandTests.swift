@@ -258,6 +258,33 @@ struct ReadAloudCommandTests {
         }
     }
 
+    /// The judge page grades length and language against automatic and "same as the text":
+    /// the user's own settings must not reach the eval.
+    @Test func theEvalIgnoresTheUsersSummarySettings() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let (eval, valid) = try evalSetup()
+        try "The release moves to Friday because two blocking bugs remain open.".write(
+            to: URL(fileURLWithPath: valid.evalFolder!).appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+        var options = valid
+        options.evalEngines = ["qwen3.5-4b-q4km", "gemma4-e2b-q4"]
+        var context = context()
+        context.options = SummaryOptions(length: .short, language: .fr)
+        let services = ["qwen3.5-4b-q4km": ScriptedSummaryService(pieces: ["Friday."]), "gemma4-e2b-q4": ScriptedSummaryService(pieces: ["Friday."])]
+        for id in services.keys {
+            let entry = try #require(SummaryEngineCatalog.entry(id: id, in: context.catalog))
+            FileManager.default.createFile(atPath: context.models.modelURL(for: entry).path, contents: Data())
+        }
+        context.summaryService = { entry, _ in services[entry.id]! }
+        let code = await ReadAloudCommand.run(options, context: context, input: "", emit: { _ in }, fail: { Issue.record("\($0)") })
+        #expect(code == 0)
+        #expect(FileManager.default.fileExists(atPath: eval.appendingPathComponent("results.json").path))
+        for service in services.values {
+            let requests = await service.requests
+            #expect(requests.map(\.language) == ["en"])
+            #expect(requests.map(\.maxSentences) == [SummaryPrompt.sentenceBudget(words: 11, length: .automatic)])
+        }
+    }
+
     @Test func theCommandWordReachesTheCommandLine() {
         #expect(CLI.commands.contains("read-aloud"))
         #expect(CLI.handles(["plume", "read-aloud"]))
