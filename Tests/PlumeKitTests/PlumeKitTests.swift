@@ -592,6 +592,30 @@ struct KeptAudioTests {
     }
 }
 
+/// A recovered meeting gets the offsets its WAVs recorded, as the live session would have used.
+@Suite("Recovered meeting channels")
+struct RecoveredChannelsTests {
+    @Test(arguments: [
+        // 1.0.1 files: no recorded offset, so 0 as before.
+        (nil, 16_000, (nil, 16_000), [0, 0], 1.0),
+        (0.12, 16_000, (0.31, 16_000), [0.12, 0.31], 1.31),
+        // Dictation switched to a meeting ten minutes in: the system channel starts there.
+        (0.05, 160_000, (600.0, 32_000), [0.05, 600.0], 602.0),
+        // No system channel.
+        (0.2, 16_000, nil, [0.2], 1.2),
+    ] as [(Double?, Int, (Double?, Int)?, [Double], Double)])
+    func channelsKeepTheirOffsets(
+        micOffset: Double?, micCount: Int, system: (Double?, Int)?, offsets: [Double], maxDuration: Double
+    ) {
+        let channels = Recovery.meetingChannels(
+            mic: ([Float](repeating: 0, count: micCount), micOffset),
+            system: system.map { ([Float](repeating: 0, count: $0.1), $0.0) })
+        #expect(channels.map(\.channel) == (system == nil ? [.mic] : [.mic, .system]))
+        #expect(channels.map(\.offset) == offsets)
+        #expect(abs((channels.map(\.duration).max() ?? 0) - maxDuration) < 1e-9)
+    }
+}
+
 @Suite("Cancelled recordings")
 struct CancelledTests {
     /// One second of a 440 Hz A, loud enough not to pass for silence.
