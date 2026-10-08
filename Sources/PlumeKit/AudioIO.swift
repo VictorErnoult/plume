@@ -153,26 +153,67 @@ public final class WavWriter: @unchecked Sendable {
     /// The offset a meeting WAV recorded, or nil (1.0.1 file, not known yet, unreadable).
     static func recordedOffset(header: Data) -> Double? {
         let bytes = [UInt8](header)
-        func tag(at i: Int) -> String? {
-            i + 4 <= bytes.count ? String(decoding: bytes[i..<i + 4], as: UTF8.self) : nil
-        }
-        func integer(at i: Int, size: Int) -> UInt64? {
-            guard i + size <= bytes.count else { return nil }
-            return (0..<size).reduce(UInt64(0)) { $0 | UInt64(bytes[i + $1]) << (8 * UInt64($1)) }
-        }
-        guard tag(at: 0) == "RIFF", tag(at: 8) == "WAVE" else { return nil }
+        guard let plmo = chunks(in: bytes)?.first(where: { $0.id == "plmo" }),
+            integer(in: bytes, at: plmo.position + 4, size: 4) == 8,
+            let bits = integer(in: bytes, at: plmo.position + 8, size: 8)
+        else { return nil }
+        let value = Double(bitPattern: bits)
+        return value.isFinite && value >= 0 && value <= maxRecordedOffset ? value : nil
+    }
+
+    /// The sizes a crashed WAV's header must hold to count every whole sample on disk.
+    struct HeaderRepair: Equatable {
+        var riffSize: UInt32
+        /// Where the `data` size is: byte 40 in the 1.0.1 layout, 56 in a meeting's.
+        var dataSizeAt: Int
+        var dataSize: UInt32
+    }
+
+    /// The sizes a crashed WAV's header should hold: the `data` size raised to the whole samples
+    /// the file really holds after it. Nil when there is nothing to raise or the file is not one
+    /// we can read. Only sizes: a `plmo` value is never written back from a stale read.
+    static func headerRepair(_ header: Data, fileSize: UInt64) -> HeaderRepair? {
+        let bytes = [UInt8](header)
+        guard let chunks = chunks(in: bytes), let data = chunks.last, data.id == "data",
+            let counted = integer(in: bytes, at: data.position + 4, size: 4),
+            let fmt = chunks.first(where: { $0.id == "fmt " }),
+            integer(in: bytes, at: fmt.position + 8, size: 2) == 1,  // PCM
+            let blockAlign = integer(in: bytes, at: fmt.position + 20, size: 2), blockAlign > 0
+        else { return nil }
+        let dataStart = UInt64(data.position + 8)
+        guard fileSize > dataStart else { return nil }
+        // Whole samples only (a crash mid-sample leaves a stray byte), and a RIFF size that fits.
+        let fitting = min(fileSize - dataStart, UInt64(UInt32.max) - (dataStart - 8))
+        let available = fitting - fitting % blockAlign
+        // A header that already counts everything, or more than the file holds, is left alone.
+        guard available > counted else { return nil }
+        return HeaderRepair(
+            riffSize: UInt32(dataStart - 8 + available), dataSizeAt: data.position + 4, dataSize: UInt32(available))
+    }
+
+    /// A RIFF/WAVE header's chunks in order, up to and including `data` (the samples follow it,
+    /// so nothing after it is read) or the end of the bytes. Nil when not RIFF/WAVE.
+    private static func chunks(in bytes: [UInt8]) -> [(id: String, position: Int)]? {
+        guard tag(in: bytes, at: 0) == "RIFF", tag(in: bytes, at: 8) == "WAVE" else { return nil }
+        var found: [(id: String, position: Int)] = []
         var position = 12
-        // Chunks up to `data`: the samples follow it, so nothing after it is read.
-        while let id = tag(at: position), id != "data", let size = integer(at: position + 4, size: 4) {
-            if id == "plmo" {
-                guard size == 8, let bits = integer(at: position + 8, size: 8) else { return nil }
-                let value = Double(bitPattern: bits)
-                return value.isFinite && value >= 0 && value <= maxRecordedOffset ? value : nil
-            }
+        while let id = tag(in: bytes, at: position) {
+            found.append((id, position))
+            guard id != "data", let size = integer(in: bytes, at: position + 4, size: 4) else { break }
             // A chunk of odd size is followed by one padding byte.
             position += 8 + Int(size) + Int(size % 2)
         }
-        return nil
+        return found
+    }
+
+    private static func tag(in bytes: [UInt8], at i: Int) -> String? {
+        i + 4 <= bytes.count ? String(decoding: bytes[i..<i + 4], as: UTF8.self) : nil
+    }
+
+    /// A little-endian unsigned integer of `size` bytes, or nil past the end.
+    private static func integer(in bytes: [UInt8], at i: Int, size: Int) -> UInt64? {
+        guard i + size <= bytes.count else { return nil }
+        return (0..<size).reduce(UInt64(0)) { $0 | UInt64(bytes[i + $1]) << (8 * UInt64($1)) }
     }
 
     /// The offset a meeting WAV file recorded, read from its first 4,096 bytes.

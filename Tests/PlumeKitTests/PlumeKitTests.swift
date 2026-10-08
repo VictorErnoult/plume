@@ -624,6 +624,60 @@ struct KeptAudioTests {
     }
 }
 
+/// After a crash, a WAV's header lags its samples: it is rewritten only every ~5 s and on close.
+/// Recovery raises the `data` size to the whole samples on disk. Headers are literal bytes, in
+/// both layouts: 1.0.1's 44 bytes and the 60-byte meeting one.
+@Suite("Crashed WAV header repair")
+struct HeaderRepairTests {
+    typealias Bytes = WavOffsetTests
+    /// A little-endian UInt32.
+    static func le32(_ value: UInt32) -> [UInt8] { withUnsafeBytes(of: value.littleEndian) { Array($0) } }
+    /// The 1.0.1 header, counting `n` data bytes.
+    static func h44(_ n: UInt32) -> [UInt8] {
+        Bytes.riff(le32(36 + n)) + Bytes.fmt + Array("data".utf8) + le32(n)
+    }
+    /// The meeting header at offset `offset`, counting `n` data bytes.
+    static func h60(_ n: UInt32, _ offset: Double) -> [UInt8] {
+        Bytes.riff(le32(52 + n)) + Bytes.fmt + Bytes.plmo(Bytes.bytes(offset)) + Array("data".utf8) + le32(n)
+    }
+    /// `fmt ` with format tag 3 (float), and with a block align of 0.
+    static let fmtFloat: [UInt8] =
+        Array("fmt ".utf8) + [0x10, 0, 0, 0, 0x03, 0, 0x01, 0, 0x80, 0x3E, 0, 0, 0x00, 0x7D, 0, 0, 0x02, 0, 0x10, 0]
+    static let fmtAlign0: [UInt8] =
+        Array("fmt ".utf8) + [0x10, 0, 0, 0, 0x01, 0, 0x01, 0, 0x80, 0x3E, 0, 0, 0x00, 0x7D, 0, 0, 0x00, 0, 0x10, 0]
+    static func repair(_ riffSize: UInt32, at dataSizeAt: Int, _ dataSize: UInt32) -> WavWriter.HeaderRepair {
+        WavWriter.HeaderRepair(riffSize: riffSize, dataSizeAt: dataSizeAt, dataSize: dataSize)
+    }
+
+    @Test(arguments: [
+        ("H44(0)", h44(0), 44 + 3_200, repair(3_236, at: 40, 3_200)),
+        ("H60(0, 2.5)", h60(0, 2.5), 60 + 3_200, repair(3_252, at: 56, 3_200)),
+        ("H60(160,000, 2.5): the tail after the last patch", h60(160_000, 2.5), 60 + 163_200,
+            repair(163_252, at: 56, 163_200)),
+        ("odd trailing byte", h44(0), 44 + 3_201, repair(3_236, at: 40, 3_200)),
+        ("already right", h44(3_200), 44 + 3_200, nil),
+        ("counts more than the file", h44(3_200), 44 + 1_600, nil),
+        ("no sample", h60(0, 2.5), 60, nil),
+        ("file shorter than its header", h60(0, 2.5), 50, nil),
+        ("cut at 30 bytes: no data chunk", Array(h44(0).prefix(30)), 10_000, nil),
+        ("format tag 3: not PCM", Bytes.riff(le32(36)) + fmtFloat + Bytes.data0, 44 + 3_200, nil),
+        ("block align 0", Bytes.riff(le32(36)) + fmtAlign0 + Bytes.data0, 44 + 3_200, nil),
+        ("odd-sized LIST before fmt",
+            Bytes.riff(le32(48)) + Array("LIST".utf8) + [3, 0, 0, 0, 0x61, 0x62, 0x63, 0] + Bytes.fmt + Bytes.data0,
+            56 + 3_200, repair(3_248, at: 52, 3_200)),
+        ("not RIFF/WAVE", Array("RIFX".utf8) + h44(0).dropFirst(4), 10_000, nil),
+        ("over 4 GB: capped to whole samples", h44(0), 44 + 5_000_000_000, repair(4_294_967_294, at: 40, 4_294_967_258)),
+        // Recovery stopped between its two writes: the next launch finishes the repair.
+        ("RIFF raised, data not", Bytes.riff(le32(3_236)) + Bytes.fmt + Bytes.data0, 44 + 3_200,
+            repair(3_236, at: 40, 3_200)),
+    ] as [(String, [UInt8], UInt64, WavWriter.HeaderRepair?)])
+    func raisesTheCountToTheSamplesOnDisk(
+        _ name: String, header: [UInt8], fileSize: UInt64, expected: WavWriter.HeaderRepair?
+    ) {
+        #expect(WavWriter.headerRepair(Data(header), fileSize: fileSize) == expected, "\(name)")
+    }
+}
+
 /// A recovered meeting gets the offsets its WAVs recorded, as the live session would have used.
 @Suite("Recovered meeting channels")
 struct RecoveredChannelsTests {
