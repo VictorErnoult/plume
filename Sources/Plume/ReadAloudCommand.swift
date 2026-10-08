@@ -52,8 +52,7 @@ enum ReadAloudCommand {
     ) async -> Int32 {
         do {
             if let item = options.download { return try await download(item, context: context, fail: fail) }
-            // Task 14 replaces this with ReadAloudEvalCommand.
-            if options.evalFolder != nil { throw ReadAloudError.unknownEngine }
+            if let folder = options.evalFolder { return try await ReadAloudEvalCommand.run(options, folder: folder, context: context, emit: emit) }
             if options.summary { return try await summarize(input, options: options, context: context, emit: emit) }
             return try await readAloud(input, options: options, context: context, emit: emit)
         } catch {
