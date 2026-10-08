@@ -956,11 +956,9 @@ final class SessionController: ObservableObject {
                 var transcript = draft
                 let store = settings.store
                 if settings.keepAudio, let directory = try? store.ensureDirectory(forID: id) {
-                    for audio in recorded where !AudioLevel.isSilent(audio.samples) {
-                        let name = "\(id)_\(audio.channel == .mic ? "mic" : "sys").m4a"
-                        // Initial silence equal to the channel's offset: the audio stays aligned with the timestamps.
-                        let lead = [Float](repeating: 0, count: Int(audio.offset * Double(SpeechEngine.sampleRate)))
-                        if (try? AudioIO.writeM4A(lead + audio.samples, to: directory.appendingPathComponent(name))) != nil {
+                    for (label, audio) in ChannelAudio.tracksToKeep(recorded) {
+                        let name = "\(id)_\(label).m4a"
+                        if (try? AudioIO.writeM4A(audio.paddedSamples, to: directory.appendingPathComponent(name))) != nil {
                             transcript.audioFiles.append(name)
                         }
                     }

@@ -548,6 +548,51 @@ struct WavWriterOffsetTests {
     }
 }
 
+/// A meeting's kept `.m4a` files start with the channel's offset in silence, so reprocessing,
+/// which reads them at offset 0, stays on the session timeline. Shared by the live meeting and
+/// recovery.
+@Suite("Kept meeting audio")
+struct KeptAudioTests {
+    /// A 440 Hz A, loud enough not to pass for silence.
+    static func tone(_ count: Int) -> [Float] {
+        (0..<count).map { Float(sin(Double($0) * 2 * .pi * 440 / 16_000)) * 0.3 }
+    }
+
+    @Test func micAtZeroKeepsItsSamples() {
+        let tracks = ChannelAudio.tracksToKeep([ChannelAudio(channel: .mic, samples: Self.tone(1_600))])
+        #expect(tracks.map(\.label) == ["mic"])
+        #expect(tracks[0].audio.paddedSamples == Self.tone(1_600))
+    }
+
+    @Test func systemIsPaddedByItsOffset() {
+        let tracks = ChannelAudio.tracksToKeep([ChannelAudio(channel: .system, samples: Self.tone(1_600), offset: 0.5)])
+        #expect(tracks.map(\.label) == ["sys"])
+        #expect(tracks[0].audio.paddedSamples == [Float](repeating: 0, count: 8_000) + Self.tone(1_600))
+    }
+
+    /// A late switch: ten minutes of lead. Silence is judged on the tone, not on the padded
+    /// array, whose level the lead would bring below the threshold.
+    @Test func aLongLeadDoesNotMakeAChannelSilent() {
+        let tracks = ChannelAudio.tracksToKeep([ChannelAudio(channel: .system, samples: Self.tone(16_000), offset: 600)])
+        #expect(tracks.map(\.label) == ["sys"])
+        #expect(tracks[0].audio.paddedSamples.count == 9_616_000)
+    }
+
+    @Test func silentChannelsAreSkippedMicFirst() {
+        let silence = [Float](repeating: 0, count: 1_600)
+        let tone = Self.tone(1_600)
+        func labels(_ mic: [Float], _ system: [Float]) -> [String] {
+            ChannelAudio.tracksToKeep([
+                ChannelAudio(channel: .mic, samples: mic), ChannelAudio(channel: .system, samples: system, offset: 0.2),
+            ]).map(\.label)
+        }
+        #expect(labels(tone, silence) == ["mic"])
+        #expect(labels(silence, tone) == ["sys"])
+        #expect(labels(tone, tone) == ["mic", "sys"])
+        #expect(labels(silence, silence).isEmpty)
+    }
+}
+
 @Suite("Cancelled recordings")
 struct CancelledTests {
     /// One second of a 440 Hz A, loud enough not to pass for silence.
