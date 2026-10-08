@@ -965,10 +965,12 @@ struct UnknownTokenTests {
 
         let inside = SpeechEngine.words(from: Self.tokens(["▁cité", "<unk>", ",", "▁puis"]))
         #expect(inside.map(\.text) == ["cité,", "puis"])
+        #expect(inside.first?.end == 3)  // not punctuation-only: "cité<unk>," keeps its own span
     }
 
     /// `text` and the joined `words` follow one rule, so they agree. Each text is the same pieces
-    /// joined with "▁" read as a space; the first adds a double space, which must collapse.
+    /// joined with "▁" read as a space; the first adds a double space FluidAudio would not
+    /// produce, to check that it collapses.
     @Test(arguments: [
         (["▁mot", "▁", "<unk>", "ssi", "<unk>", "▁", "<unk>", "▁qui"], "mot  <unk>ssi<unk> <unk> qui"),
         (["▁cité", "▁", "<unk>", ",", "▁puis"], "cité <unk>, puis"),
