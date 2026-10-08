@@ -23,6 +23,8 @@ enum ReadAloudCommand {
         var speed: Double
         var options: SummaryOptions
         var interface: Language
+        /// The model behind an engine; tests pass a scripted one.
+        var summaryService: (SummaryEngineEntry, URL) -> any SummaryService = { LlamaSummaryService(entry: $0, modelURL: $1) }
     }
 
     static func parse(_ args: [String]) -> Options? {
@@ -76,12 +78,12 @@ enum ReadAloudCommand {
     }
 
     private static func readAloud(_ input: String, options: Options, context: Context, emit: (String) -> Void) async throws -> Int32 {
-        let start = ContinuousClock.now
+        let timings = Timings()
         let (language, sentences) = try ReadAloudPipeline.readAloud(input, interface: context.interface)
         if options.textOnly || options.json {
             if options.json {
-                emit(try json(["mode": "readAloud", "language": language, "sentences": sentences, "truncated": false,
-                               "timings": ["totalSeconds": seconds(since: start)]]))
+                emit(try json(["mode": "readAloud", "engine": NSNull(), "language": language, "sentences": sentences,
+                               "truncated": false, "timings": timings.dictionary()]))
             } else {
                 sentences.forEach(emit)
             }
@@ -99,39 +101,48 @@ enum ReadAloudCommand {
     }
 
     private static func summarize(_ input: String, options: Options, context: Context, emit: (String) -> Void) async throws -> Int32 {
+        var timings = Timings()
         let id = options.engineID ?? context.engineInUse
         guard let entry = SummaryEngineCatalog.entry(id: id, in: context.catalog) else {
             throw id.isEmpty ? ReadAloudError.engineNotInstalled : ReadAloudError.unknownEngine
         }
         guard context.models.isInstalled(entry) else { throw ReadAloudError.engineNotInstalled }
-        let service = LlamaSummaryService(entry: entry, modelURL: context.models.modelURL(for: entry))
+        let printing = options.textOnly || options.json
+        // The voice first: loading the model takes seconds of GPU setup, wasted if the voice is missing.
+        var voice: SupertonicVoice?
+        if !printing {
+            voice = SupertonicVoice(entry: VoiceCatalog.entry(id: context.voiceID), modelsDirectory: context.models.directory)
+            try await voice?.load()
+        }
+        let service = context.summaryService(entry, context.models.modelURL(for: entry))
+        // Loaded here rather than by the pipeline, so the load is timed on its own.
+        let loadStart = ContinuousClock.now
+        try await service.load()
+        timings.loaded(from: loadStart)
         let events = ReadAloudPipeline.summary(input, service: service, markers: entry.markers, options: context.options, interface: context.interface)
-
-        if options.textOnly || options.json {
-            var timings = Timings()
-            var sentences: [String] = []
-            var language = ""
-            var truncated = false
-            for try await event in events {
-                timings.note(event)
-                switch event {
-                case .sentence(let sentence): sentences.append(sentence)
-                case .language(let code): language = code
-                case .truncated: truncated = true
-                default: break
-                }
-            }
-            if options.json {
-                emit(try json(["mode": "summary", "engine": entry.id, "language": language, "sentences": sentences,
-                               "truncated": truncated, "timings": timings.dictionary]))
-            } else {
-                emit(sentences.joined(separator: " "))
-            }
+        if let voice {
+            try await speak(events, voice: voice, speed: context.speed)
             return 0
         }
-        let voice = SupertonicVoice(entry: VoiceCatalog.entry(id: context.voiceID), modelsDirectory: context.models.directory)
-        try await voice.load()
-        try await speak(events, voice: voice, speed: context.speed)
+
+        var sentences: [String] = []
+        var language = ""
+        var truncated = false
+        for try await event in events {
+            timings.note(event)
+            switch event {
+            case .sentence(let sentence): sentences.append(sentence)
+            case .language(let code): language = code
+            case .truncated: truncated = true
+            default: break
+            }
+        }
+        if options.json {
+            emit(try json(["mode": "summary", "engine": entry.id, "language": language, "sentences": sentences,
+                           "truncated": truncated, "timings": timings.dictionary()]))
+        } else {
+            emit(sentences.joined(separator: " "))
+        }
         return 0
     }
 
@@ -173,36 +184,45 @@ enum ReadAloudCommand {
         return String(decoding: data, as: UTF8.self)
     }
 
-    static func seconds(since start: ContinuousClock.Instant) -> Double {
-        let duration = ContinuousClock.now - start
-        return Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18
-    }
-
-    /// Load, input reading, first sentence and total, from the pipeline's events.
+    /// The `--json` timings, each the duration of its own phase so scripts can compare runs:
+    /// the model load, the model reading the input, the first sentence after the load, and
+    /// the whole command. `null` where a phase does not happen (word for word has no model).
     struct Timings {
-        let start = ContinuousClock.now
-        var load: Double?
-        var readingInput: Double?
-        var firstSentence: Double?
-        private var loading = false
+        typealias Instant = ContinuousClock.Instant
+        let start: Instant
+        private var loadEnd: Instant?
+        private var inputReady: Instant?
+        private var load: Duration?
+        private var readingInput: Duration?
+        private var firstSentence: Duration?
 
-        mutating func note(_ event: ReadAloudEvent) {
-            let now = ReadAloudCommand.seconds(since: start)
+        init(start: Instant = .now) { self.start = start }
+
+        mutating func loaded(from loadStart: Instant, at now: Instant = .now) {
+            load = now - loadStart
+            loadEnd = now
+        }
+
+        mutating func note(_ event: ReadAloudEvent, at now: Instant = .now) {
             switch event {
-            case .loading: loading = true
-            case .language: if loading, load == nil { load = now }
-            case .summarizing: if readingInput == nil { readingInput = now }
-            case .sentence: if firstSentence == nil { firstSentence = now }
+            // The prompt is built (tokens counted): the model starts reading it.
+            case .language: if inputReady == nil { inputReady = now }
+            case .summarizing: if readingInput == nil, let inputReady { readingInput = now - inputReady }
+            case .sentence: if firstSentence == nil, let loadEnd { firstSentence = now - loadEnd }
             default: break
             }
         }
 
-        var dictionary: [String: Double] {
-            var values = ["totalSeconds": ReadAloudCommand.seconds(since: start)]
-            if let load { values["loadSeconds"] = load }
-            if let readingInput { values["readingInputSeconds"] = readingInput }
-            if let firstSentence { values["firstSentenceSeconds"] = firstSentence }
-            return values
+        func dictionary(at end: Instant = .now) -> [String: Any] {
+            ["loadSeconds": Self.json(load), "readingInputSeconds": Self.json(readingInput),
+             "firstSentenceSeconds": Self.json(firstSentence), "totalSeconds": Self.json(end - start)]
+        }
+
+        /// Milliseconds as a `Decimal`: a `Double` would print with 17 digits.
+        private static func json(_ duration: Duration?) -> Any {
+            guard let duration else { return NSNull() }
+            let milliseconds = Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) / 1e15
+            return Decimal(milliseconds.rounded()) / 1000
         }
     }
 }
