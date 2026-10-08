@@ -405,6 +405,8 @@ struct WavOffsetTests {
     static let vMinus1: [UInt8] = [0, 0, 0, 0, 0, 0, 0xF0, 0xBF]
     static let vNaN: [UInt8] = [0, 0, 0, 0, 0, 0, 0xF8, 0x7F]
     static let vInfinity: [UInt8] = [0, 0, 0, 0, 0, 0, 0xF0, 0x7F]
+    /// A Float64's little-endian bytes.
+    static func bytes(_ value: Double) -> [UInt8] { withUnsafeBytes(of: value.bitPattern.littleEndian) { Array($0) } }
 
     @Test(arguments: [
         ("1.0.1 header, 44 bytes", riff([36, 0, 0, 0]) + fmt + data0, nil),
@@ -412,6 +414,9 @@ struct WavOffsetTests {
         ("offset not known yet", riff([52, 0, 0, 0]) + fmt + plmo(vMinus1) + data0, nil),
         ("NaN", riff([52, 0, 0, 0]) + fmt + plmo(vNaN) + data0, nil),
         ("infinity", riff([52, 0, 0, 0]) + fmt + plmo(vInfinity) + data0, nil),
+        ("corrupt 1e300", riff([52, 0, 0, 0]) + fmt + plmo(bytes(1e300)) + data0, nil),
+        ("just over a day", riff([52, 0, 0, 0]) + fmt + plmo(bytes(86_400.001)) + data0, nil),
+        ("exactly a day", riff([52, 0, 0, 0]) + fmt + plmo(bytes(86_400)) + data0, 86_400),
         ("plmo of size 4", riff([48, 0, 0, 0]) + fmt + Array("plmo".utf8) + [4, 0, 0, 0, 0, 0, 0x2A, 0x42] + data0, nil),
         ("cut inside plmo", riff([52, 0, 0, 0]) + fmt + Array("plmo".utf8) + [8, 0, 0, 0, 0, 0, 0, 0], nil),
         ("odd-sized LIST before plmo",

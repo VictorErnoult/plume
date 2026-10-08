@@ -146,6 +146,10 @@ public final class WavWriter: @unchecked Sendable {
         }
     }
 
+    /// Longest plausible channel offset (24 h): a larger value is a corrupt header, and
+    /// padding by it would crash recovery.
+    static let maxRecordedOffset: Double = 86_400
+
     /// The offset a meeting WAV recorded, or nil (1.0.1 file, not known yet, unreadable).
     static func recordedOffset(header: Data) -> Double? {
         let bytes = [UInt8](header)
@@ -163,7 +167,7 @@ public final class WavWriter: @unchecked Sendable {
             if id == "plmo" {
                 guard size == 8, let bits = integer(at: position + 8, size: 8) else { return nil }
                 let value = Double(bitPattern: bits)
-                return value.isFinite && value >= 0 ? value : nil
+                return value.isFinite && value >= 0 && value <= maxRecordedOffset ? value : nil
             }
             // A chunk of odd size is followed by one padding byte.
             position += 8 + Int(size) + Int(size % 2)
