@@ -98,13 +98,23 @@ final class RangeDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let http = response as? HTTPURLResponse
+        let status = http?.statusCode ?? 0
         do {
+            // An announced size that is not the file's (a captive portal's page, another file)
+            // fails before a byte is written: the partial stays as it was, for a resume.
             switch status {
             case 206:
+                if let range = http?.value(forHTTPHeaderField: "Content-Range").flatMap(Self.contentRange),
+                   range.start != written || range.total.map({ $0 != limit }) == true {
+                    throw URLError(.badServerResponse)
+                }
                 handle = try FileHandle(forWritingTo: file)
                 try handle?.seekToEnd()
             case 200:
+                if response.expectedContentLength >= 0, response.expectedContentLength != limit {
+                    throw URLError(.badServerResponse)
+                }
                 handle = try FileHandle(forWritingTo: file)
                 try handle?.truncate(atOffset: 0)
                 written = 0
@@ -116,6 +126,17 @@ final class RangeDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable
             failure = error
             completionHandler(.cancel)
         }
+    }
+
+    /// `bytes <start>-<end>/<total>`; `total` is nil when unknown (`*`).
+    static func contentRange(_ value: String) -> (start: Int64, total: Int64?)? {
+        let parts = value.split(separator: " ", maxSplits: 1)
+        guard parts.count == 2, parts[0].lowercased() == "bytes" else { return nil }
+        let rangeAndTotal = parts[1].split(separator: "/", maxSplits: 1)
+        guard rangeAndTotal.count == 2, let dash = rangeAndTotal[0].firstIndex(of: "-"),
+              let start = Int64(rangeAndTotal[0][..<dash])
+        else { return nil }
+        return (start, Int64(rangeAndTotal[1]))
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {

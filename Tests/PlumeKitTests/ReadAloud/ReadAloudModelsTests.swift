@@ -71,7 +71,10 @@ struct ReadAloudModelsTests {
             })
     }
 
-    func serveWhole() { let body = self.body; StubProtocol.register(host) { _ in (200, [:], body) } }
+    func serveWhole() {
+        let body = self.body
+        StubProtocol.register(host) { _ in (200, ["Content-Length": "\(body.count)"], body) }
+    }
 
     /// A real server answers 416 to a range starting at or past the end.
     func serveWholeRefusingRanges() {
@@ -280,6 +283,34 @@ struct ReadAloudModelsTests {
         #expect(!models.isInstalled(entry))
         #expect(models.partialBytes(entry) == 0)
         #expect(models.checksumMismatchMessage(entry) != nil)
+    }
+
+    /// A captive portal's page announces its own size: refused before a byte is written, and
+    /// the earlier partial stays as it was for a resume.
+    @Test func aResponseOfTheWrongSizeLeavesThePartialUntouched() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let page = Data("<html>Log in to the Wi-Fi</html>".utf8)
+        StubProtocol.register(host) { _ in (200, ["Content-Length": "\(page.count)"], page) }
+        let models = models()
+        try writePartial(body.prefix(400), for: models)
+        let error = await #expect(throws: URLError.self) { try await models.download(.engine(entry.id), catalog: [entry]) { _ in } }
+        #expect(error?.code == .badServerResponse)
+        #expect(try Data(contentsOf: models.modelURL(for: entry).appendingPathExtension("partial")) == body.prefix(400))
+        #expect(models.checksumMismatchMessage(entry) == nil)
+    }
+
+    /// Another file's range, or not the range asked for.
+    @Test(arguments: ["bytes 400-999/2000", "bytes 0-999/1000"])
+    func aWrongContentRangeLeavesThePartialUntouched(contentRange: String) async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let rest = body.subdata(in: 400..<1000)
+        StubProtocol.register(host) { _ in (206, ["Content-Range": contentRange], rest) }
+        let models = models()
+        try writePartial(body.prefix(400), for: models)
+        let error = await #expect(throws: URLError.self) { try await models.download(.engine(entry.id), catalog: [entry]) { _ in } }
+        #expect(error?.code == .badServerResponse)
+        #expect(try Data(contentsOf: models.modelURL(for: entry).appendingPathExtension("partial")) == body.prefix(400))
+        #expect(models.checksumMismatchMessage(entry) == nil)
     }
 
     /// Cancel during the voice part of an engine download removes the engine's earlier
