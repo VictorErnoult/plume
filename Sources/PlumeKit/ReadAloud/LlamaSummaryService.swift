@@ -241,7 +241,8 @@ public final class LlamaSummaryService: SummaryService, @unchecked Sendable {
     /// llama.cpp's C formatter on a template string: no model needed, so a test can check that
     /// it recognizes a catalog model's template.
     static func applyTemplate(_ template: String, system: String, user: String) throws -> String {
-        let strings = ["system", system, "user", user].map { strdup($0)! }
+        let texts: [String] = ["system", system, "user", user]
+        let strings = texts.map { strdup($0)! }
         defer { strings.forEach { free($0) } }
         var messages = [
             llama_chat_message(role: strings[0], content: strings[1]),
