@@ -6,7 +6,7 @@ One line per PR or PR stack, grouped by date, newest first. A version takes the 
 
 ### 2026-10-08
 
-- Read aloud: plume read-aloud reads a text aloud word for word, or a summary written by a local model; voice and models are optional downloads (#PR)
+- Read aloud: plume read-aloud reads a text aloud word for word, or a summary written by a local model; voice and models are optional downloads (#22)
 
 ### 2026-10-06
 
