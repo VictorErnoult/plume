@@ -10,12 +10,29 @@ struct ModelFileDownloader {
         let fm = FileManager.default
         if fm.fileExists(atPath: destination.path) { return }
         let partial = destination.appendingPathExtension("partial")
+        var offset = (try? Self.size(of: partial)) ?? 0
+        // Larger than the file: no range can fix it.
+        if offset > expected.bytes {
+            try? fm.removeItem(at: partial)
+            offset = 0
+        }
         if !fm.fileExists(atPath: partial.path) { fm.createFile(atPath: partial.path, contents: nil) }
-        let offset = Int64((try? fm.attributesOfItem(atPath: partial.path)[.size] as? NSNumber)?.int64Value ?? 0)
-        var request = URLRequest(url: url)
-        if offset > 0 { request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range") }
-        try await RangeDownload(file: partial, offset: offset, progress: progress).run(request, configuration: configuration)
-        guard try Self.size(of: partial) == expected.bytes, try Self.sha256(of: partial) == expected.sha256 else {
+        // Whole already (a quit during the checksum pass): a range from its end would get a 416.
+        if offset < expected.bytes {
+            var request = URLRequest(url: url)
+            if offset > 0 { request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range") }
+            do {
+                try await RangeDownload(file: partial, offset: offset, limit: expected.bytes, progress: progress)
+                    .run(request, configuration: configuration)
+            } catch ReadAloudError.checksumMismatch {
+                try? fm.removeItem(at: partial)
+                throw ReadAloudError.checksumMismatch
+            }
+        }
+        let size = try Self.size(of: partial)
+        // Cut short without a network error: a blip, so what arrived stays for a resume.
+        if size < expected.bytes { throw URLError(.networkConnectionLost) }
+        guard size == expected.bytes, try Self.sha256(of: partial) == expected.sha256 else {
             try? fm.removeItem(at: partial)
             throw ReadAloudError.checksumMismatch
         }
@@ -36,10 +53,12 @@ struct ModelFileDownloader {
 }
 
 /// A data task appending to a file: `206` continues the partial file, `200` (the server
-/// ignored the range) starts it over.
+/// ignored the range) starts it over. More than `limit` bytes is a wrong file, stopped before
+/// it fills the disk.
 final class RangeDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let file: URL
     private var written: Int64
+    private let limit: Int64
     private let progress: @Sendable (Int64) -> Void
     private var handle: FileHandle?
     private var continuation: CheckedContinuation<Void, Error>?
@@ -48,9 +67,10 @@ final class RangeDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable
     private var task: URLSessionDataTask?
     private var cancelled = false
 
-    init(file: URL, offset: Int64, progress: @escaping @Sendable (Int64) -> Void) {
+    init(file: URL, offset: Int64, limit: Int64, progress: @escaping @Sendable (Int64) -> Void) {
         self.file = file
         self.written = offset
+        self.limit = limit
         self.progress = progress
     }
 
@@ -99,7 +119,9 @@ final class RangeDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        guard failure == nil else { return }
         do {
+            if written + Int64(data.count) > limit { throw ReadAloudError.checksumMismatch }
             try handle?.write(contentsOf: data)
             written += Int64(data.count)
             progress(written)

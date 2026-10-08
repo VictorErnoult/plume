@@ -73,6 +73,19 @@ struct ReadAloudModelsTests {
 
     func serveWhole() { let body = self.body; StubProtocol.register(host) { _ in (200, [:], body) } }
 
+    /// A real server answers 416 to a range starting at or past the end.
+    func serveWholeRefusingRanges() {
+        let body = self.body
+        StubProtocol.register(host) { request in
+            request.value(forHTTPHeaderField: "Range") == nil ? (200, [:], body) : (416, [:], Data())
+        }
+    }
+
+    func writePartial(_ data: Data, for models: ReadAloudModels) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try data.write(to: models.modelURL(for: entry).appendingPathExtension("partial"))
+    }
+
     @Test func downloadingAnEngineInstallsTheVoiceFirst() async throws {
         defer { try? FileManager.default.removeItem(at: folder) }
         serveWhole()
@@ -112,10 +125,10 @@ struct ReadAloudModelsTests {
         #expect(try Data(contentsOf: models.modelURL(for: entry)) == body)
     }
 
-    /// Review focus: a 200 with the wrong bytes (a captive portal page) installs nothing.
+    /// Review focus: a 200 with the wrong bytes of the right size installs nothing.
     @Test func aWrongFileIsRejectedAndRemoved() async throws {
         defer { try? FileManager.default.removeItem(at: folder) }
-        StubProtocol.register(host) { _ in (200, [:], Data("<html>Log in to the Wi-Fi</html>".utf8)) }
+        StubProtocol.register(host) { _ in (200, [:], Data(repeating: 0x3C, count: 1_000)) }
         let models = models()
         await #expect(throws: ReadAloudError.checksumMismatch) {
             try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
@@ -218,6 +231,86 @@ struct ReadAloudModelsTests {
         await #expect(throws: ReadAloudError.checksumMismatch) { try await models.download(.voice) { _ in } }
         #expect(!FileManager.default.fileExists(atPath: VoiceAssets.folder(in: folder).path))
         #expect(!models.isVoiceInstalled)
+    }
+
+    /// Quitting during the checksum pass leaves a whole `.partial`: no request, just the check.
+    @Test func aCompletePartialIsVerifiedWithoutARequest() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        serveWholeRefusingRanges()
+        let models = models()
+        try writePartial(body, for: models)
+        try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
+        #expect(try Data(contentsOf: models.modelURL(for: entry)) == body)
+        #expect(models.partialBytes(entry) == 0)
+    }
+
+    @Test func aPartialLargerThanTheFileStartsOver() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        serveWholeRefusingRanges()
+        let models = models()
+        try writePartial(Data(count: 1_500), for: models)
+        try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
+        #expect(try Data(contentsOf: models.modelURL(for: entry)) == body)
+    }
+
+    /// A body that ends early without a network error is a blip, not a damaged file: what
+    /// arrived stays for a resume, and nothing blocks the resume at launch.
+    @Test func aBodyCutShortStaysResumable() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let half = body.prefix(500)
+        StubProtocol.register(host) { _ in (200, [:], half) }
+        let models = models()
+        await #expect(throws: URLError.self) { try await models.download(.engine(entry.id), catalog: [entry]) { _ in } }
+        #expect(models.partialBytes(entry) == 500)
+        #expect(models.checksumMismatchMessage(entry) == nil)
+        #expect(!models.isInstalled(entry))
+    }
+
+    /// A server sending more than the pinned size stops at once instead of filling the disk.
+    @Test func aBodyLongerThanTheFileIsRejected() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let longer = body + Data(count: 500)
+        StubProtocol.register(host) { _ in (200, [:], longer) }
+        let models = models()
+        let fractions = Fractions()
+        await #expect(throws: ReadAloudError.checksumMismatch) {
+            try await models.download(.engine(entry.id), catalog: [entry]) { fractions.append($0) }
+        }
+        #expect(fractions.values.allSatisfy { $0 <= 1 })  // nothing written past the size
+        #expect(!models.isInstalled(entry))
+        #expect(models.partialBytes(entry) == 0)
+        #expect(models.checksumMismatchMessage(entry) != nil)
+    }
+
+    /// Cancel during the voice part of an engine download removes the engine's earlier
+    /// partial too: the user cancelled the engine, it must not show as paused.
+    @Test func cancellingDuringTheVoiceDeletesTheEnginePartial() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        serveWhole()
+        let entry = self.entry
+        let models = models(installVoice: { directory, _ in
+            try FileManager.default.createDirectory(at: VoiceAssets.folder(in: directory), withIntermediateDirectories: true)
+            try await Task.sleep(for: .seconds(2))
+        })
+        try writePartial(Data(count: 400), for: models)
+        let task = Task { try await models.download(.engine(entry.id), catalog: [entry]) { _ in } }
+        try await Task.sleep(for: .milliseconds(300))
+        task.cancel()
+        await #expect(throws: (any Error).self) { try await task.value }
+        #expect(models.partialBytes(entry) == 0)
+        #expect(!FileManager.default.fileExists(atPath: VoiceAssets.folder(in: folder).path))
+        _ = try DownloadLock(directory: folder)  // released
+    }
+
+    /// Nothing to download needs no free space.
+    @Test func anInstalledItemNeedsNoSpace() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let models = models(freeSpace: 10)
+        try FakeVoiceFiles.write(in: folder)
+        FileManager.default.createFile(atPath: VoiceAssets.folder(in: folder).appendingPathComponent(VoiceAssets.completeMarker).path, contents: nil)
+        try body.write(to: models.modelURL(for: entry))
+        try await models.download(.voice) { _ in }
+        try await models.download(.engine(entry.id), catalog: [entry]) { _ in }
     }
 
     @Test func deletingRemovesOnlyItsItem() async throws {

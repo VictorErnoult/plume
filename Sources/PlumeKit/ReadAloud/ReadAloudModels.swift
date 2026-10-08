@@ -96,6 +96,8 @@ public final class ReadAloudModels: @unchecked Sendable {
         defer { lock.release() }
         switch item {
         case .voice:
+            // Nothing to download needs no free space.
+            if isVoiceInstalled { progress(1); return }
             try checkSpace(needed: VoiceAssets.approximateBytes)
             try await ensureVoice(progress: progress)
         case .engine(let id):
@@ -104,31 +106,40 @@ public final class ReadAloudModels: @unchecked Sendable {
             }
             let voiceBytes = isVoiceInstalled ? 0 : VoiceAssets.approximateBytes
             let partial = modelURL(for: entry).appendingPathExtension("partial")
-            let already = (try? ModelFileDownloader.size(of: partial)) ?? 0
-            try checkSpace(needed: voiceBytes + spec.download.bytes - max(already, 0))
+            let already = max((try? ModelFileDownloader.size(of: partial)) ?? 0, 0)
+            // A partial larger than the file starts over (`ModelFileDownloader`).
+            let remaining = already > spec.download.bytes ? spec.download.bytes : spec.download.bytes - already
+            let engineBytes = isInstalled(entry) ? 0 : remaining
+            if voiceBytes + engineBytes == 0 { progress(1); return }
+            try checkSpace(needed: voiceBytes + engineBytes)
             let total = Double(voiceBytes + spec.download.bytes)
             // A new attempt clears an old mismatch: only a new mismatch writes it again, so a later
             // failure of another kind resumes at launch as usual.
             try? FileManager.default.removeItem(at: mismatchMarker(for: entry))
-            if voiceBytes > 0 {
-                try await ensureVoice { progress($0 * Double(voiceBytes) / total) }
-            }
             do {
-                try await ModelFileDownloader(configuration: configuration).fetch(
-                    from: urlFor(spec.download), to: modelURL(for: entry), expected: spec.download
-                ) { done in progress((Double(voiceBytes) + Double(done)) / total) }
+                if voiceBytes > 0 {
+                    try await ensureVoice { progress($0 * Double(voiceBytes) / total) }
+                }
+                do {
+                    try await ModelFileDownloader(configuration: configuration).fetch(
+                        from: urlFor(spec.download), to: modelURL(for: entry), expected: spec.download
+                    ) { done in progress((Double(voiceBytes) + Double(done)) / total) }
+                } catch ReadAloudError.checksumMismatch where !Task.isCancelled {
+                    // Remembered across launches, with its reason: a wrong pin must not
+                    // re-download 3 GB at every start. Only the file's own mismatch: the voice's
+                    // failures say nothing about this engine.
+                    FileManager.default.createFile(
+                        atPath: mismatchMarker(for: entry).path,
+                        contents: Data(ReadAloudError.checksumMismatch.localizedDescription.utf8))
+                    throw ReadAloudError.checksumMismatch
+                }
             } catch {
-                // The user's Cancel: delete what is left while the lock is still ours. (Quitting
-                // kills the process instead, and the `.partial` stays for a resume.)
+                // The user's Cancel, during the voice or the file: delete what is left while the
+                // lock is still ours. (Quitting kills the process instead, and the `.partial`
+                // stays for a resume.)
                 if Task.isCancelled {
                     try? FileManager.default.removeItem(at: partial)
                     try? FileManager.default.removeItem(at: mismatchMarker(for: entry))
-                }
-                // Remembered across launches, with its reason: a wrong pin must not re-download
-                // 3 GB at every start.
-                if (error as? ReadAloudError) == .checksumMismatch {
-                    FileManager.default.createFile(
-                        atPath: mismatchMarker(for: entry).path, contents: Data(error.localizedDescription.utf8))
                 }
                 throw error
             }
