@@ -31,6 +31,23 @@ public enum Recovery {
         name.hasSuffix(dictationSuffix) || name.hasSuffix(legacyDictationSuffix)
     }
 
+    /// What the switch to a meeting does with the mic's backup file.
+    public enum MicBackupStep: Equatable {
+        /// The mic already writes this meeting's `_mic.wav`: its writer, header and offset stay.
+        case keep
+        /// Close the current writer, delete `deleting` if set (a dictation backup), open `_mic.wav`.
+        case replace(deleting: URL?)
+    }
+
+    /// What the dictation → meeting switch does with the mic's backup file. A meeting that
+    /// went to dictation and back still writes its own `_mic.wav`: reopening it would empty it.
+    /// Compared by name, so it needs no folder.
+    public static func micBackupStep(current: URL?, sessionID: String) -> MicBackupStep {
+        guard let current else { return .replace(deleting: nil) }
+        if current.lastPathComponent == sessionID + micSuffix { return .keep }
+        return .replace(deleting: isDictationBackup(current.lastPathComponent) ? current : nil)
+    }
+
     /// Writes samples to a recovery file.
     public static func stash(_ samples: [Float], at url: URL) {
         guard let writer = try? WavWriter(url: url) else { return }

@@ -394,18 +394,21 @@ final class SessionController: ObservableObject {
             let micChannel, let sessionID, let startedAt
         else { return }
         if newMode == .meeting {
-            // The backup file changes name: it is now a meeting's,
-            // start included.
             let directory = try? settings.store.ensureDirectory(forID: sessionID)
-            if let old = micChannel.writer?.url, Recovery.isDictationBackup(old.lastPathComponent) {
+            switch Recovery.micBackupStep(current: micChannel.writer?.url, sessionID: sessionID) {
+            case .keep:
+                // Back from a dictation inside a meeting: the mic still writes the meeting's file.
+                break
+            case .replace(let deleting):
+                // The backup file changes name: it is now a meeting's, start included.
                 micChannel.writer?.close()
-                try? FileManager.default.removeItem(at: old)
-            }
-            if let directory,
-                let writer = try? WavWriter(
-                    url: directory.appendingPathComponent("\(sessionID)_mic.wav"), recordsOffset: true)
-            {
-                micChannel.attach(writer)
+                if let deleting { try? FileManager.default.removeItem(at: deleting) }
+                if let directory,
+                    let writer = try? WavWriter(
+                        url: directory.appendingPathComponent("\(sessionID)_mic.wav"), recordsOffset: true)
+                {
+                    micChannel.attach(writer)
+                }
             }
             startSystemCapture(id: sessionID, directory: directory, sessionStart: startedAt)
             keepAwake(true)

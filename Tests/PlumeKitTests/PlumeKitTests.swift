@@ -387,6 +387,33 @@ struct RecoveryTests {
     }
 }
 
+/// The switch to a meeting keeps a meeting's own `_mic.wav` writer: reopening the file would
+/// empty it and rewrite the meeting so far.
+@Suite("Mic backup at the switch to a meeting")
+struct MicBackupStepTests {
+    static let folder = URL(fileURLWithPath: "/plume-tests/2026-10", isDirectory: true)
+
+    static func step(_ name: String?, session: String = "2026-10-08_10-00-00") -> Recovery.MicBackupStep {
+        Recovery.micBackupStep(current: name.map { folder.appendingPathComponent($0) }, sessionID: session)
+    }
+
+    @Test func keepsTheMeetingsOwnFile() {
+        #expect(Self.step("2026-10-08_10-00-00_mic.wav") == .keep)
+        // A second session in the same second gets a letter: only its own file is kept.
+        #expect(Self.step("2026-10-08_10-00-00b_mic.wav", session: "2026-10-08_10-00-00b") == .keep)
+    }
+
+    @Test func replacesEverythingElse() {
+        let dictation = Self.folder.appendingPathComponent("2026-10-08_10-00-00_dictation.wav")
+        let legacy = Self.folder.appendingPathComponent("2026-10-08_10-00-00_dictee.wav")
+        #expect(Self.step("2026-10-08_10-00-00_dictation.wav") == .replace(deleting: dictation))
+        #expect(Self.step("2026-10-08_10-00-00_dictee.wav") == .replace(deleting: legacy))  // 1.0.1 name
+        #expect(Self.step(nil) == .replace(deleting: nil))
+        #expect(Self.step("2026-10-08_09-00-00_mic.wav") == .replace(deleting: nil))  // another session
+        #expect(Self.step("2026-10-08_10-00-00_mic.wav", session: "2026-10-08_10-00-00b") == .replace(deleting: nil))
+    }
+}
+
 /// Meeting WAVs carry their channel's offset in a `plmo` chunk, so a recovered meeting keeps its
 /// two channels in time. Headers are literal bytes: they pin both layouts, the 1.0.1 one and
 /// the meeting one, in place of a fixture file.
