@@ -12,7 +12,7 @@ Compares the two candidate summary models on your own texts, judged blind. Run i
    plume read-aloud --download qwen3.5-4b-q4km
    plume read-aloud --download gemma4-e2b-q4
    ```
-3. **Run.** For each file and each model, this records the summary (length "automatic", language "same as the text"), the cold and warm timings, and whether the input was truncated. It prints progress and the time left on the standard error.
+3. **Run.** For each file and each model, this records the summary (length "automatic", language "same as the text"), the cold and warm timings, and whether the input was truncated. It prints progress and the time left on the standard error. It needs exactly two different models, at least one `.txt` file, and `--out` (no default). It refuses an `--out` inside a Git repository.
    ```
    plume read-aloud --eval <eval folder>/selections --engines qwen3.5-4b-q4km,gemma4-e2b-q4 --out <eval folder>/results.json
    ```

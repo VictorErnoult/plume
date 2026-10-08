@@ -65,6 +65,64 @@ struct ReadAloudCommandTests {
         #expect(errors == [ReadAloudError.unknownEngine.localizedDescription])
     }
 
+    /// An eval folder with one selection, and a results file outside any repository.
+    func evalSetup(selections: Bool = true) throws -> (folder: URL, options: ReadAloudCommand.Options) {
+        let eval = folder.appendingPathComponent("eval")
+        let selectionsFolder = eval.appendingPathComponent("selections")
+        try FileManager.default.createDirectory(at: selectionsFolder, withIntermediateDirectories: true)
+        if selections { try "A text.".write(to: selectionsFolder.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8) }
+        return (eval, ReadAloudCommand.Options(
+            evalFolder: selectionsFolder.path, evalEngines: ["nope-a", "nope-b"], evalOut: eval.appendingPathComponent("results.json").path))
+    }
+
+    func evalError(_ options: ReadAloudCommand.Options) async -> [String] {
+        var errors: [String] = []
+        let code = await L10n.$override.withValue(.english) {
+            await ReadAloudCommand.run(options, context: context(), input: "", emit: { _ in Issue.record("must not write") }, fail: { errors.append($0) })
+        }
+        #expect(code == 1)
+        return errors
+    }
+
+    @Test func theEvalChecksItsArgumentsBeforeAnyModelLoads() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let (eval, valid) = try evalSetup()
+        // Valid arguments get as far as the engine lookup (the catalog has no "nope-a"), which proves the checks passed.
+        #expect(await evalError(valid) == [ReadAloudError.unknownEngine.localizedDescription])
+        for engines in [["qwen3.5-4b-q4km"], ["a", "a"], ["a", "b", "c"], []] {
+            var options = valid
+            options.evalEngines = engines
+            #expect(await evalError(options) == [ReadAloudError.evalNeedsTwoEngines.localizedDescription])
+        }
+        var noOut = valid
+        noOut.evalOut = nil
+        #expect(await evalError(noOut) == [ReadAloudError.evalOutRequired.localizedDescription])
+        var empty = valid
+        empty.evalFolder = eval.path
+        #expect(await evalError(empty) == [ReadAloudError.evalNoSelections.localizedDescription])
+        var missing = valid
+        missing.evalFolder = eval.appendingPathComponent("nothing-here").path
+        #expect(await evalError(missing) == [ReadAloudError.evalNoSelections.localizedDescription])
+    }
+
+    @Test func theEvalRefusesAResultsFileInsideAGitWorkTree() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let (eval, valid) = try evalSetup()
+        // A repository root, then a linked worktree (its .git is a file), then a folder that does not exist yet below one.
+        let repository = folder.appendingPathComponent("repository")
+        try FileManager.default.createDirectory(at: repository.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        let worktree = folder.appendingPathComponent("worktree")
+        try FileManager.default.createDirectory(at: worktree, withIntermediateDirectories: true)
+        try "gitdir: elsewhere".write(to: worktree.appendingPathComponent(".git"), atomically: true, encoding: .utf8)
+        for out in [repository.appendingPathComponent("results.json"), worktree.appendingPathComponent("deep/new/results.json")] {
+            var options = valid
+            options.evalOut = out.path
+            #expect(await evalError(options) == [ReadAloudError.evalOutInsideRepository.localizedDescription])
+        }
+        #expect(ReadAloudEvalCommand.isInsideGitWorkTree(repository.appendingPathComponent("a/b.json")))
+        #expect(!ReadAloudEvalCommand.isInsideGitWorkTree(eval.appendingPathComponent("results.json")))
+    }
+
     @Test func theCommandWordReachesTheCommandLine() {
         #expect(CLI.commands.contains("read-aloud"))
         #expect(CLI.handles(["plume", "read-aloud"]))

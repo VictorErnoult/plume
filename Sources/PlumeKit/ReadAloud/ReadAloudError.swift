@@ -15,6 +15,10 @@ public enum ReadAloudError: LocalizedError, Equatable {
     case notEnoughSpace(neededBytes: Int64)
     case checksumMismatch
     case httpStatus(Int)
+    case evalNeedsTwoEngines
+    case evalNoSelections
+    case evalOutRequired
+    case evalOutInsideRepository
 
     public var errorDescription: String? {
         switch self {
@@ -35,6 +39,11 @@ public enum ReadAloudError: LocalizedError, Equatable {
             return tr("Not enough free space:") + " " + ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
         case .checksumMismatch: return tr("The downloaded file is damaged. Try again.")
         case .httpStatus(let code): return tr("Download failed, HTTP status") + " \(code)"
+        case .evalNeedsTwoEngines: return tr("The eval compares exactly two different models: --engines a,b")
+        case .evalNoSelections: return tr("The eval folder has no .txt files.")
+        case .evalOutRequired: return tr("Give the results file with --out, in your eval folder.")
+        case .evalOutInsideRepository:
+            return tr("The results hold your texts, so they must not be written inside a Git repository. Use a file in your eval folder.")
         }
     }
 }
