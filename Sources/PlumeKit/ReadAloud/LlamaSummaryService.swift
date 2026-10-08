@@ -170,6 +170,9 @@ public final class LlamaSummaryService: SummaryService, @unchecked Sendable {
             if cancelled.isSet { throw CancellationError() }
             let count = min(Int(Self.batchSize), tokens.count - position)
             try decode(&tokens, from: position, count: count, context: context)
+            // `llama_decode` only queues the batch on the GPU: wait for it, so progress reports
+            // the reading itself and a stop takes effect after at most this batch.
+            llama_synchronize(context)
             position += count
             emit(.readingInput(fraction: Double(position) / Double(tokens.count)))
         }
