@@ -325,6 +325,44 @@ public actor SpeechEngine {
         return words
     }
 
+    /// Parakeet's marker for a sound it has no token for. Kept out of everything Plume shows or saves.
+    static let unknownToken = "<unk>"
+
+    /// Marks attached to the previous word, never a word of their own. One set, so `text` and
+    /// `words` treat them alike.
+    static let attachedPunctuation = ".,;:!?…»"
+
+    /// The words without markers. Only a word holding one changes: the markers go, an emptied
+    /// word is dropped, and a word left with punctuation only is glued to the previous word with
+    /// no space (the model wrote none). The previous word keeps its own times: `LiveTranscriber`
+    /// and diarization go by its midpoint. A dropped word's time span is lost; the others keep theirs.
+    static func removingUnknownTokens(_ words: [Word]) -> [Word] {
+        var result: [Word] = []
+        for var word in words {
+            guard word.text.contains(unknownToken) else {
+                result.append(word)
+                continue
+            }
+            word.text = word.text.replacingOccurrences(of: unknownToken, with: "")
+            if word.text.isEmpty { continue }
+            if word.text.allSatisfy({ attachedPunctuation.contains($0) }), var last = result.popLast() {
+                last.text += word.text
+                result.append(last)
+            } else {
+                result.append(word)
+            }
+        }
+        return result
+    }
+
+    /// The same on a text: split on spaces, the word version, joined with single spaces. A text
+    /// without a marker comes back byte for byte.
+    static func removingUnknownTokens(_ text: String) -> String {
+        guard text.contains(unknownToken) else { return text }
+        let words = text.split(separator: " ").map { Word(text: String($0), start: 0, end: 0) }
+        return removingUnknownTokens(words).map(\.text).joined(separator: " ")
+    }
+
     // MARK: - Diarization
 
     /// Diarizer for a given number of voices (`nil`: automatic detection). The models
