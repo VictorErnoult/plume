@@ -74,7 +74,7 @@ Read aloud (`plume read-aloud`): a selection read word for word, or a summary wr
     EngineCatalog.swift        pinned models and voices: repository, revision, size, SHA-256, markers
     ReadAloudModels.swift      download, delete and one-at-a-time lock for the model files
     ModelFileDownloader.swift  resumable download checked by size and SHA-256
-    ReadAloudOptions.swift     summary length, language and keep-in-memory settings
+    ReadAloudOptions.swift     summary length, language, keep-in-memory and speed settings
     ReadAloudError.swift       the errors the command and the app show
     ReadAloudEval.swift        quality eval: every selection summarized by every engine, with timings
   Sources/Plume/
