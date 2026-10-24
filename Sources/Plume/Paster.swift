@@ -135,14 +135,46 @@ enum Paster {
         }
     }
 
+    /// One simulated key event.
+    struct Keystroke: Equatable {
+        var key: CGKeyCode
+        var down: Bool
+        var flags: CGEventFlags
+    }
+
+    private static let modifierKeys: [(CGEventFlags, CGKeyCode)] = [
+        (.maskControl, CGKeyCode(kVK_Control)), (.maskAlternate, CGKeyCode(kVK_Option)),
+        (.maskShift, CGKeyCode(kVK_Shift)), (.maskCommand, CGKeyCode(kVK_Command)),
+    ]
+
+    /// The events for a shortcut: the modifiers are pressed for real before the key and released
+    /// after it, each event carrying the modifiers held so far. Flags on the key alone are enough
+    /// for native apps, but games poll the modifier keys' state (Minecraft, through GLFW) and
+    /// would see a plain V instead of ⌘V.
+    static func keystrokes(key: CGKeyCode, flags: CGEventFlags) -> [Keystroke] {
+        let modifiers = modifierKeys.filter { flags.contains($0.0) }
+        var held: CGEventFlags = []
+        var events: [Keystroke] = []
+        for (flag, code) in modifiers {
+            held.insert(flag)
+            events.append(Keystroke(key: code, down: true, flags: held))
+        }
+        events.append(Keystroke(key: key, down: true, flags: held))
+        events.append(Keystroke(key: key, down: false, flags: held))
+        for (flag, code) in modifiers.reversed() {
+            held.remove(flag)
+            events.append(Keystroke(key: code, down: false, flags: held))
+        }
+        return events
+    }
+
     private static func post(key: CGKeyCode, flags: CGEventFlags) {
         let source = CGEventSource(stateID: .combinedSessionState)
-        let down = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: true)
-        let up = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: false)
-        down?.flags = flags
-        up?.flags = flags
-        down?.post(tap: .cghidEventTap)
-        up?.post(tap: .cghidEventTap)
+        for stroke in keystrokes(key: key, flags: flags) {
+            let event = CGEvent(keyboardEventSource: source, virtualKey: stroke.key, keyDown: stroke.down)
+            event?.flags = stroke.flags
+            event?.post(tap: .cghidEventTap)
+        }
     }
 
     /// Code of the key that carries this letter: it isn't in the same place on all

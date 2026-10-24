@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import Testing
 @testable import Plume
 
@@ -82,6 +83,38 @@ struct PasterTests {
             Paster.restore(saved ?? [], to: pasteboard, ifUnchangedSince: pasteboard.changeCount)
             #expect(pasteboard.string(forType: .string) == nil)
         }
+    }
+
+    /// Games (Minecraft, through GLFW) poll the modifier keys instead of reading the flags on
+    /// the key event: ⌘ has to be pressed for real around the V, and released after.
+    @Test func aShortcutPressesItsModifiersForReal() {
+        let v = CGKeyCode(9)
+        #expect(Paster.keystrokes(key: v, flags: .maskCommand) == [
+            Paster.Keystroke(key: CGKeyCode(kVK_Command), down: true, flags: .maskCommand),
+            Paster.Keystroke(key: v, down: true, flags: .maskCommand),
+            Paster.Keystroke(key: v, down: false, flags: .maskCommand),
+            Paster.Keystroke(key: CGKeyCode(kVK_Command), down: false, flags: []),
+        ])
+    }
+
+    @Test func aPlainKeyIsJustPressedAndReleased() {
+        let enter = CGKeyCode(kVK_Return)
+        #expect(Paster.keystrokes(key: enter, flags: []) == [
+            Paster.Keystroke(key: enter, down: true, flags: []),
+            Paster.Keystroke(key: enter, down: false, flags: []),
+        ])
+    }
+
+    @Test func severalModifiersAreReleasedInReverseOrder() {
+        let enter = CGKeyCode(kVK_Return)
+        #expect(Paster.keystrokes(key: enter, flags: [.maskShift, .maskCommand]) == [
+            Paster.Keystroke(key: CGKeyCode(kVK_Shift), down: true, flags: .maskShift),
+            Paster.Keystroke(key: CGKeyCode(kVK_Command), down: true, flags: [.maskShift, .maskCommand]),
+            Paster.Keystroke(key: enter, down: true, flags: [.maskShift, .maskCommand]),
+            Paster.Keystroke(key: enter, down: false, flags: [.maskShift, .maskCommand]),
+            Paster.Keystroke(key: CGKeyCode(kVK_Command), down: false, flags: .maskShift),
+            Paster.Keystroke(key: CGKeyCode(kVK_Shift), down: false, flags: []),
+        ])
     }
 
     @Test func aCopyMadeInTheMeantimeStays() {
