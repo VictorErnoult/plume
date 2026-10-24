@@ -64,13 +64,16 @@ enum Paster {
     static func paste(_ text: String, restoreClipboard: Bool, typing: Bool = false) -> Bool {
         let pasteboard = NSPasteboard.general
         guard isTrusted else {
+            Log.write("paste: copied only, Accessibility not granted")
             copy(text)
             return false
         }
         if typing {
+            Log.write("paste: typed into \(frontmostName)")
             type(text)
             return true
         }
+        Log.write("paste: ⌘V into \(frontmostName)")
         let saved = stage(text, restoreClipboard: restoreClipboard, on: pasteboard)
         let marker = pasteboard.changeCount
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -148,9 +151,9 @@ enum Paster {
     ]
 
     /// The events for a shortcut: the modifiers are pressed for real before the key and released
-    /// after it, each event carrying the modifiers held so far. Flags on the key alone are enough
-    /// for native apps, but games poll the modifier keys' state (Minecraft, through GLFW) and
-    /// would see a plain V instead of ⌘V.
+    /// after it, each event carrying the modifiers held so far. Native apps read the flags on the
+    /// key alone, but games poll the modifier keys' state (Minecraft, through GLFW) and would see
+    /// a plain V instead of ⌘V.
     static func keystrokes(key: CGKeyCode, flags: CGEventFlags) -> [Keystroke] {
         let modifiers = modifierKeys.filter { flags.contains($0.0) }
         var held: CGEventFlags = []
@@ -174,7 +177,15 @@ enum Paster {
             let event = CGEvent(keyboardEventSource: source, virtualKey: stroke.key, keyDown: stroke.down)
             event?.flags = stroke.flags
             event?.post(tap: .cghidEventTap)
+            // A game polls the keys between frames: give it a moment to see each one.
+            usleep(10_000)
         }
+    }
+
+    /// The frontmost app, for the log: its bundle identifier, or its name (a bare `java` process has none).
+    static var frontmostName: String {
+        let app = NSWorkspace.shared.frontmostApplication
+        return app?.bundleIdentifier ?? app?.localizedName ?? "?"
     }
 
     /// Code of the key that carries this letter: it isn't in the same place on all

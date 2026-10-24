@@ -117,6 +117,16 @@ struct PasterTests {
         ])
     }
 
+    /// A slow transcription (model loading) only leaves the text on the clipboard if the user
+    /// has left the app in the meantime; a game with no bundle identifier counts as the same app.
+    @Test func aLongWaitOnlyCopiesIfTheAppChanged() {
+        #expect(!SessionController.cursorProbablyMoved(waited: 3, startedIn: "a", nowIn: "b"))
+        #expect(!SessionController.cursorProbablyMoved(waited: 20, startedIn: "a", nowIn: "a"))
+        #expect(!SessionController.cursorProbablyMoved(waited: 20, startedIn: nil, nowIn: nil))
+        #expect(SessionController.cursorProbablyMoved(waited: 20, startedIn: "a", nowIn: "b"))
+        #expect(SessionController.cursorProbablyMoved(waited: 20, startedIn: nil, nowIn: "b"))
+    }
+
     @Test func aCopyMadeInTheMeantimeStays() {
         withPasteboard { pasteboard in
             pasteboard.clearContents()
