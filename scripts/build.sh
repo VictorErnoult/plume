@@ -21,15 +21,11 @@ if [[ "${1:-}" == "--install" ]]; then
   mkdir -p "$HOME/.local/bin"
   ln -sf /Applications/Plume.app/Contents/MacOS/Plume "$HOME/.local/bin/plume"
   # The designated requirement (identifier + local certificate) is the same from one build to
-  # the next, so the Accessibility grant survives. It doesn't survive a change of certificate
-  # (a release build was installed before): the switch then looks on but the new binary is
-  # not trusted and its key events are silently dropped. Reset, so Plume asks again.
-  if /Applications/Plume.app/Contents/MacOS/Plume doctor 2>/dev/null | grep -q "Accessibility (this process)  enabled"; then
-    echo "Accessibility: grant kept."
-  else
-    tccutil reset Accessibility studio.brigode.plume >/dev/null 2>&1 || true
-    echo "Accessibility: not granted to this signature. Re-grant it when Plume asks (System Settings › Privacy › Accessibility › Plume)."
-  fi
+  # the next, so the Accessibility grant survives. It does not survive a change of certificate
+  # (a release build was installed before): the switch then looks on but the new binary is not
+  # trusted and its key events are dropped; the island says "Accessibility needed". Then:
+  #   tccutil reset Accessibility studio.brigode.plume   # and grant it again when Plume asks
+  # (`plume doctor` from a terminal reports the terminal's grant, not the app's.)
   open /Applications/Plume.app
   echo "Installed: /Applications/Plume.app (command: plume)"
 else
