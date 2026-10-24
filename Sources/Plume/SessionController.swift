@@ -864,6 +864,7 @@ final class SessionController: ObservableObject {
                 for step in Paster.plan(openKey: rule?.openKey ?? "", pressReturn: pressReturn) {
                     switch step {
                     case .press(let key, let at): Paster.press(key, after: at)
+                    case .erase(let at): Paster.erase(1, after: at)
                     case .paste(let at):
                         pasted = Paster.paste(toPaste, restoreClipboard: settings.restoreClipboard, typing: rule?.typeText == true, after: at)
                     case .pressReturn(let at): if pasted { Paster.pressReturn(after: at) }

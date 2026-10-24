@@ -135,10 +135,11 @@ struct PasterTests {
         #expect(Paster.plan(openKey: "", pressReturn: true) == [.paste(at: 0.05), .pressReturn(at: 0.3)])
     }
 
-    /// Minecraft: T opens the chat, the paste waits for the box, Return sends the message.
-    @Test func anOpeningKeyComesFirstThenPasteThenReturn() {
+    /// Minecraft: T opens the chat and its letter lands in the box, so it is erased once the
+    /// box is there; then the paste, then Return sends the message.
+    @Test func anOpeningKeyIsFollowedByBackspacePasteAndReturn() {
         #expect(Paster.plan(openKey: "T", pressReturn: true) == [
-            .press("T", at: 0), .paste(at: 0.2), .pressReturn(at: 0.45),
+            .press("T", at: 0), .erase(at: 0.2), .paste(at: 0.3), .pressReturn(at: 0.55),
         ])
     }
 

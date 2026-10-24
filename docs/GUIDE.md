@@ -74,8 +74,9 @@ Return** (the message goes out as soon as it is pasted — for Slack, Messages, 
 up with the local AI** with its instructions ("be formal", "no emojis"), and **Type
 the text instead of pasting it** for the few apps that refuse `⌘V` (remote desktop, some
 terminals), and a **Key to press first**, pressed before the paste to open the field. Minecraft
-comes with its rule: `T` opens the chat, the text is pasted, Return sends it, so you talk to the
-game without touching the keyboard (use the shortcut with the chat closed, as while playing).
+comes with its rule: `T` opens the chat (the stray `t` it leaves is erased), the text is pasted,
+Return sends it, so you talk to the game without touching the keyboard. Use the shortcut with
+the chat closed, as while playing: Plume cannot tell whether it is already open.
 "All other applications" sets the default rule. Plume recognizes the frontmost app at the moment
 the dictation starts; an app without a bundle identifier (the Minecraft game is a bare `java`
 process) is known as `process:<name>`.

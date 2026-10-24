@@ -64,29 +64,39 @@ enum Paster {
     enum Step: Equatable {
         /// A key that opens the field first (T, the Minecraft chat).
         case press(String, at: TimeInterval)
+        /// Backspace: the opening key's letter lands in the field it opened (Minecraft).
+        case erase(at: TimeInterval)
         case paste(at: TimeInterval)
         case pressReturn(at: TimeInterval)
     }
 
-    /// The sequence for a dictation: the opening key, if any, gets the field ~150 ms to appear;
-    /// Return comes a beat after the paste.
+    /// The sequence for a dictation: the opening key, if any, gets the field 200 ms to appear,
+    /// then its stray letter is erased; Return comes a beat after the paste.
     static func plan(openKey: String, pressReturn: Bool) -> [Step] {
         var steps: [Step] = []
         var at: TimeInterval = 0.05
         if !openKey.isEmpty {
             steps.append(.press(openKey, at: 0))
-            at = 0.2
+            steps.append(.erase(at: 0.2))
+            at = 0.3
         }
         steps.append(.paste(at: at))
         if pressReturn { steps.append(.pressReturn(at: at + 0.25)) }
         return steps
     }
 
-    /// Presses the key that carries this letter, alone (an app rule's opening key).
+    /// Presses the key that carries this letter, alone (an app rule's opening key). The event
+    /// carries no character, so the apps that honour that don't also type the letter.
     static func press(_ letter: String, after delay: TimeInterval = 0) {
         guard isTrusted, let key = keyCode(for: letter) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            post(key: key, flags: [])
+            let source = CGEventSource(stateID: .combinedSessionState)
+            for down in [true, false] {
+                let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down)
+                event?.keyboardSetUnicodeString(stringLength: 0, unicodeString: [])
+                event?.post(tap: .cghidEventTap)
+                usleep(10_000)
+            }
         }
     }
 
@@ -149,9 +159,14 @@ enum Paster {
         }
     }
 
-    /// Erases the last `count` typed characters (the live text was corrected).
-    static func erase(_ count: Int) {
+    /// Erases the last `count` typed characters (the live text was corrected, or the opening
+    /// key's letter landed in the field).
+    static func erase(_ count: Int, after delay: TimeInterval = 0) {
         guard isTrusted, count > 0 else { return }
+        if delay > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { erase(count) }
+            return
+        }
         for _ in 0..<count {
             post(key: CGKeyCode(kVK_Delete), flags: [])
             usleep(1_500)
