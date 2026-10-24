@@ -85,18 +85,12 @@ enum Paster {
         return steps
     }
 
-    /// Presses the key that carries this letter, alone (an app rule's opening key). The event
-    /// carries no character, so the apps that honour that don't also type the letter.
+    /// Presses the key that carries this letter, alone (an app rule's opening key), as a plain
+    /// key event: an event without its character doesn't open the Minecraft chat.
     static func press(_ letter: String, after delay: TimeInterval = 0) {
         guard isTrusted, let key = keyCode(for: letter) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            let source = CGEventSource(stateID: .combinedSessionState)
-            for down in [true, false] {
-                let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down)
-                event?.keyboardSetUnicodeString(stringLength: 0, unicodeString: [])
-                event?.post(tap: .cghidEventTap)
-                usleep(10_000)
-            }
+            post(key: key, flags: [])
         }
     }
 
