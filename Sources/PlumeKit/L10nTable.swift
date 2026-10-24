@@ -338,6 +338,7 @@ enum L10nTable {
         "Key to press first": "Touche à presser d'abord",
         "Pressed before pasting, to open the field: T opens the Minecraft chat.": "Pressée avant de coller, pour ouvrir le champ : T ouvre le tchat de Minecraft.",
         "built in": "intégrée",
+        "then wait": "puis attendre",
         "Separating speakers": "Séparation des voix",
         "Settings": "Réglages",
         "Settings restored. Restart Plume so they all take effect.": "Réglages restaurés. Relance Plume pour qu'ils soient tous pris en compte.",

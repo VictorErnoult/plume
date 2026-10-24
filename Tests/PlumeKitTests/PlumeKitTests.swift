@@ -664,6 +664,7 @@ struct StyleTests {
     @Test func builtInRulesApplyUnlessReplaced() {
         let minecraft = AppRuleStore.builtIn.first { $0.bundleID == "process:java" }
         #expect(minecraft?.openKey == "T")
+        #expect(minecraft?.openDelay == 0.5)
         #expect(minecraft?.pressReturn == true)
         #expect(minecraft?.isBuiltIn == true)
         let merged = AppRuleStore.withBuiltIn([AppRule(bundleID: "*", name: "Autres")])
@@ -687,6 +688,7 @@ struct StyleTests {
         let json = #"[{"bundleID":"com.apple.mail","name":"Mail"}]"#.data(using: .utf8)!
         let rules = try JSONDecoder().decode([AppRule].self, from: json)
         #expect(rules.first?.openKey == "")
+        #expect(rules.first?.openDelay == 0.5)
     }
 
     @Test func smartInsertion() {

@@ -106,11 +106,13 @@ public struct AppRule: Codable, Sendable, Identifiable, Equatable {
     public var typeText: Bool
     /// A key pressed before pasting, to open the field: `T` opens the Minecraft chat. Empty: none.
     public var openKey: String
+    /// Seconds given to the field to appear after the opening key, before the paste.
+    public var openDelay: Double
 
     public init(
         id: UUID = UUID(), bundleID: String, name: String, style: DictationStyle = .standard,
         pressReturn: Bool = false, polish: Bool = false, instructions: String = "", typeText: Bool = false,
-        openKey: String = ""
+        openKey: String = "", openDelay: Double = 0.5
     ) {
         self.id = id
         self.bundleID = bundleID
@@ -121,6 +123,7 @@ public struct AppRule: Codable, Sendable, Identifiable, Equatable {
         self.instructions = instructions
         self.typeText = typeText
         self.openKey = openKey
+        self.openDelay = openDelay
     }
 
     /// Comes with Plume (`AppRuleStore.builtIn`): editable, not removable.
@@ -134,7 +137,7 @@ public struct AppRule: Codable, Sendable, Identifiable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, bundleID, name, style, pressReturn, polish, instructions, typeText, openKey
+        case id, bundleID, name, style, pressReturn, polish, instructions, typeText, openKey, openDelay
     }
 
     public init(from decoder: Decoder) throws {
@@ -148,6 +151,7 @@ public struct AppRule: Codable, Sendable, Identifiable, Equatable {
         instructions = try values.decodeIfPresent(String.self, forKey: .instructions) ?? ""
         typeText = try values.decodeIfPresent(Bool.self, forKey: .typeText) ?? false
         openKey = try values.decodeIfPresent(String.self, forKey: .openKey) ?? ""
+        openDelay = try values.decodeIfPresent(Double.self, forKey: .openDelay) ?? 0.5
     }
 }
 

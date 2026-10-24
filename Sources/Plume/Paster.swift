@@ -70,27 +70,49 @@ enum Paster {
         case pressReturn(at: TimeInterval)
     }
 
-    /// The sequence for a dictation: the opening key, if any, gets the field 200 ms to appear,
-    /// then its stray letter is erased; Return comes a beat after the paste.
-    static func plan(openKey: String, pressReturn: Bool) -> [Step] {
+    /// Gaps that don't depend on the app: Backspace to ⌘V, and ⌘V to Return.
+    static let eraseToPaste: TimeInterval = 0.15
+    static let pasteToReturn: TimeInterval = 0.3
+
+    /// The sequence for a dictation: the opening key, if any, gets `openDelay` for the field to
+    /// appear (Minecraft opens its chat on a later game tick), then its stray letter is erased;
+    /// Return comes a beat after the paste.
+    static func plan(openKey: String, openDelay: TimeInterval = 0.5, pressReturn: Bool) -> [Step] {
         var steps: [Step] = []
         var at: TimeInterval = 0.05
         if !openKey.isEmpty {
             steps.append(.press(openKey, at: 0))
-            steps.append(.erase(at: 0.2))
-            at = 0.3
+            steps.append(.erase(at: openDelay))
+            at = openDelay + eraseToPaste
         }
         steps.append(.paste(at: at))
-        if pressReturn { steps.append(.pressReturn(at: at + 0.25)) }
+        if pressReturn { steps.append(.pressReturn(at: at + pasteToReturn)) }
         return steps
     }
 
+    /// For the log: `T at 0 ms, Backspace at 500 ms, ⌘V at 650 ms, Return at 950 ms`.
+    static func describe(_ steps: [Step]) -> String {
+        func ms(_ t: TimeInterval) -> String { "\(Int((t * 1000).rounded())) ms" }
+        return steps.map { step in
+            switch step {
+            case .press(let key, let at): "\(key) at \(ms(at))"
+            case .erase(let at): "Backspace at \(ms(at))"
+            case .paste(let at): "⌘V at \(ms(at))"
+            case .pressReturn(let at): "Return at \(ms(at))"
+            }
+        }.joined(separator: ", ")
+    }
+
     /// Presses the key that carries this letter, alone (an app rule's opening key), as a plain
-    /// key event: an event without its character doesn't open the Minecraft chat.
+    /// key event with its character (without it, the Minecraft chat doesn't open), held 50 ms:
+    /// a game that is grabbing the cursor can miss a shorter press.
     static func press(_ letter: String, after delay: TimeInterval = 0) {
         guard isTrusted, let key = keyCode(for: letter) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            post(key: key, flags: [])
+            let source = CGEventSource(stateID: .combinedSessionState)
+            CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: true)?.post(tap: .cghidEventTap)
+            usleep(50_000)
+            CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: false)?.post(tap: .cghidEventTap)
         }
     }
 

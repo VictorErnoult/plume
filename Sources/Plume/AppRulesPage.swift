@@ -121,7 +121,7 @@ private struct RuleCard: View {
                 Rectangle().fill(UI.line).frame(height: 1).padding(.leading, 14)
                 RuleKey(
                     tr("Key to press first"), detail: tr("Pressed before pasting, to open the field: T opens the Minecraft chat."),
-                    key: $rule.openKey)
+                    key: $rule.openKey, delay: $rule.openDelay)
                 Rectangle().fill(UI.line).frame(height: 1).padding(.leading, 14)
                 RuleToggle(
                     tr("Clean up with the local AI"),
@@ -157,11 +157,20 @@ private struct RuleKey: View {
     var title: String
     var detail: String
     @Binding var key: String
+    /// Seconds; shown and typed in milliseconds.
+    @Binding var delay: Double
 
-    init(_ title: String, detail: String, key: Binding<String>) {
+    init(_ title: String, detail: String, key: Binding<String>, delay: Binding<Double>) {
         self.title = title
         self.detail = detail
         _key = key
+        _delay = delay
+    }
+
+    private var milliseconds: Binding<String> {
+        Binding(
+            get: { String(Int((delay * 1000).rounded())) },
+            set: { if let value = Int($0.filter(\.isNumber)) { delay = Double(value) / 1000 } })
     }
 
     var body: some View {
@@ -171,6 +180,18 @@ private struct RuleKey: View {
                 Text(detail).font(UI.sans(13)).foregroundStyle(UI.text2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
+            if !key.isEmpty {
+                Text(tr("then wait")).font(UI.sans(13)).foregroundStyle(UI.text2)
+                TextField("", text: milliseconds)
+                    .textFieldStyle(.plain)
+                    .font(UI.mono(13))
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 44)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 4)
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(UI.hover))
+                Text("ms").font(UI.sans(13)).foregroundStyle(UI.text2)
+            }
             TextField(tr("none"), text: $key)
                 .textFieldStyle(.plain)
                 .font(UI.mono(13))

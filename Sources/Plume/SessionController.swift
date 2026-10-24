@@ -861,7 +861,9 @@ final class SessionController: ObservableObject {
                     toPaste = SmartInsert.adapt(text, context: context)
                 }
                 var pasted = false
-                for step in Paster.plan(openKey: rule?.openKey ?? "", pressReturn: pressReturn) {
+                let steps = Paster.plan(openKey: rule?.openKey ?? "", openDelay: rule?.openDelay ?? 0.5, pressReturn: pressReturn)
+                if steps.count > 1 { Log.write("paste: " + Paster.describe(steps)) }
+                for step in steps {
                     switch step {
                     case .press(let key, let at): Paster.press(key, after: at)
                     case .erase(let at): Paster.erase(1, after: at)
