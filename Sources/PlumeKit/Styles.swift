@@ -129,6 +129,11 @@ public struct AppRule: Codable, Sendable, Identifiable, Equatable {
     /// Comes with Plume (`AppRuleStore.builtIn`): editable, not removable.
     public var isBuiltIn: Bool { AppRuleStore.builtIn.contains { $0.bundleID == bundleID } }
 
+    /// The Minecraft game (a bare `java` process) and its launcher: the game chat shortcut
+    /// opens the chat with `T` there, whatever the rules say.
+    public static let gameIdentifiers: Set<String> = ["process:java", "com.mojang.minecraftlauncher"]
+    public static func isGame(_ identifier: String?) -> Bool { identifier.map(gameIdentifiers.contains) ?? false }
+
     /// What a rule is keyed on: the bundle identifier, or `process:<name>` for an app that has
     /// none (the Minecraft game is a bare `java` process).
     public static func identifier(bundleID: String?, processName: String?) -> String? {
@@ -158,14 +163,14 @@ public struct AppRule: Codable, Sendable, Identifiable, Equatable {
 public enum AppRuleStore {
     public static var url: URL { PlumeSettings.supportDirectory.appendingPathComponent("applications.json") }
 
-    /// Rules that come with Plume, for apps that need one to work at all: in Minecraft the chat
-    /// box has to be opened (T) and the message sent (Return). Shown and edited like the others;
-    /// a saved rule for the same app replaces it.
+    /// Rules that come with Plume: Minecraft, where the game chat shortcut opens the chat box
+    /// with T (the dictation shortcut just pastes, for a chat already open). Shown and edited
+    /// like the others; a saved rule for the same app replaces it.
     public static let builtIn = [
         AppRule(
             id: UUID(uuidString: "4D494E45-4352-4146-5400-000000000001")!,
             bundleID: AppRule.identifier(bundleID: nil, processName: "java")!, name: "Minecraft",
-            style: .message, pressReturn: true, openKey: "T"),
+            style: .message, openKey: "T"),
     ]
 
     /// The saved rules, plus the built-in ones they don't replace.

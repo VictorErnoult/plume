@@ -77,6 +77,7 @@ enum FixtureSamples {
             PlumeSettings.Key.transformShortcut: Shortcut(keyCode: 17, modifiers: ModifierMask.control | ModifierMask.option),
             PlumeSettings.Key.cancelShortcut: Shortcut(keyCode: 53, modifiers: 0),
             PlumeSettings.Key.restoreShortcut: Shortcut(keyCode: 15, modifiers: ModifierMask.control | ModifierMask.option),
+            PlumeSettings.Key.gameChatShortcut: Shortcut(keyCode: nil, modifiers: ModifierMask.control | ModifierMask.option),
         ],
         booleans: Dictionary(uniqueKeysWithValues: SettingsBackup.booleanKeys.map { ($0, $0 != PlumeSettings.Key.keepHistory) }),
         numbers: [

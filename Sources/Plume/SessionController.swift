@@ -39,6 +39,8 @@ final class SessionController: ObservableObject {
     @Published private(set) var displayPhase: Phase = .idle
     @Published private(set) var mode: RecordingMode = .dictation
     @Published private(set) var intent: Intent = .dictation
+    /// Started with the game chat shortcut: open the field, paste, send.
+    private var handsFree = false
     @Published private(set) var elapsed: TimeInterval = 0
     @Published private(set) var paused = false
     /// An instruction is being dictated for a selected text (otherwise, to write from scratch).
@@ -155,7 +157,7 @@ final class SessionController: ObservableObject {
         switch phase {
         case .recording:
             startedByCurrentPress = false
-            if action == .dictation || action == .transform || mode == requested {
+            if action == .dictation || action == .transform || action == .gameChat || mode == requested {
                 // The main shortcut always finishes the recording in progress.
                 stop()
             } else {
@@ -165,7 +167,7 @@ final class SessionController: ObservableObject {
             // While the previous dictation is still being transcribed, another one can be started:
             // the first will finish pasting in the background.
             startedByCurrentPress = true
-            start(requested, intent: action == .transform ? .transform : .dictation)
+            start(requested, intent: action == .transform ? .transform : .dictation, handsFree: action == .gameChat)
         }
     }
 
@@ -173,7 +175,7 @@ final class SessionController: ObservableObject {
     func handleRelease(_ action: HotkeyAction, held: TimeInterval) {
         defer { startedByCurrentPress = false }
         guard startedByCurrentPress, phase == .recording, mode == .dictation, held >= 0.7,
-            action == .dictation || action == .transform
+            action == .dictation || action == .transform || action == .gameChat
         else { return }
         stop()
     }
@@ -196,8 +198,10 @@ final class SessionController: ObservableObject {
 
     // MARK: - Start
 
-    func start(_ mode: RecordingMode, intent: Intent = .dictation) {
+    /// - Parameter handsFree: the game chat shortcut: the field is opened, the text pasted and sent.
+    func start(_ mode: RecordingMode, intent: Intent = .dictation, handsFree: Bool = false) {
         guard phase != .recording else { return }
+        self.handsFree = handsFree
         switch TestHooks.fakeMic == nil ? AVCaptureDevice.authorizationStatus(for: .audio) : .authorized {
         case .notDetermined:
             let asked = Date()
@@ -283,7 +287,8 @@ final class SessionController: ObservableObject {
         frontBundleID = AppRule.identifier(bundleID: front?.bundleIdentifier, processName: front?.localizedName)
         selection = ""
         hasSelection = false
-        streaming = intent == .dictation && mode == .dictation && settings.streamingPaste && settings.pasteAfterDictation
+        // Not as it goes when hands-free: the field isn't open yet (and a game drops typed text).
+        streaming = intent == .dictation && mode == .dictation && settings.streamingPaste && settings.pasteAfterDictation && !handsFree
         typed = ""
         streamContext = nil
         streamPressReturn = false
@@ -703,6 +708,7 @@ final class SessionController: ObservableObject {
         let systemChannel = self.systemChannel
         let app = frontApp
         let bundleID = frontBundleID
+        let handsFree = self.handsFree
         let stoppedAt = Date()
         // The live transcription survives the teardown: it still has the end of the dictation to write.
         let live = streaming ? micLive : nil
@@ -733,7 +739,7 @@ final class SessionController: ObservableObject {
                 if mode == .dictation {
                     await finishDictation(
                         id: sessionID, date: startedAt, duration: duration, samples: micChannel.buffer.all(),
-                        app: app, bundleID: bundleID, intent: intent, stoppedAt: stoppedAt,
+                        app: app, bundleID: bundleID, intent: intent, handsFree: handsFree, stoppedAt: stoppedAt,
                         safety: micChannel.writer?.url, live: live)
                 } else {
                     await finishMeeting(
@@ -790,9 +796,20 @@ final class SessionController: ObservableObject {
         waited > 8 && startedIn != nowIn
     }
 
+    /// What to press around the paste. Hands-free (game chat shortcut) in the game: T, the
+    /// rule's wait, Return, whatever the rule says; hands-free elsewhere: the rule's opening key,
+    /// if any. Otherwise nothing is opened, Return follows the rule or the voice command.
+    static func sequence(handsFree: Bool, appNow: String?, rule: AppRule?, pressReturn: Bool)
+        -> (openKey: String, openDelay: TimeInterval, pressReturn: Bool)
+    {
+        if handsFree, AppRule.isGame(appNow) { return ("T", rule?.openDelay ?? 0.5, true) }
+        if handsFree, let rule, !rule.openKey.isEmpty { return (rule.openKey, rule.openDelay, true) }
+        return ("", 0, pressReturn)
+    }
+
     private func finishDictation(
         id: String, date: Date, duration: Double, samples: [Float], app: String?, bundleID: String?,
-        intent: Intent, stoppedAt: Date, safety: URL?, live: LiveTranscriber? = nil
+        intent: Intent, handsFree: Bool = false, stoppedAt: Date, safety: URL?, live: LiveTranscriber? = nil
     ) async {
         defer { activeSessions.remove(id) }
         let rule = AppRuleStore.rule(for: bundleID, in: AppRuleStore.load())
@@ -861,8 +878,15 @@ final class SessionController: ObservableObject {
                     toPaste = SmartInsert.adapt(text, context: context)
                 }
                 var pasted = false
-                let steps = Paster.plan(openKey: rule?.openKey ?? "", openDelay: rule?.openDelay ?? 0.5, pressReturn: pressReturn)
-                if steps.count > 1 { Log.write("paste: " + Paster.describe(steps)) }
+                let front = NSWorkspace.shared.frontmostApplication
+                let appNow = AppRule.identifier(bundleID: front?.bundleIdentifier, processName: front?.localizedName)
+                // Hands-free, the app in front now decides: the one at the start may differ.
+                let ruleNow = handsFree ? AppRuleStore.rule(for: appNow, in: AppRuleStore.load()) : rule
+                let sequence = Self.sequence(handsFree: handsFree, appNow: appNow, rule: ruleNow, pressReturn: pressReturn)
+                let steps = Paster.plan(openKey: sequence.openKey, openDelay: sequence.openDelay, pressReturn: sequence.pressReturn)
+                Log.write(
+                    "paste: rule \(ruleNow?.bundleID ?? "none"), app at start \(bundleID ?? "?"), now \(appNow ?? "?")"
+                        + (handsFree ? ", game chat" : "") + ": " + Paster.describe(steps))
                 for step in steps {
                     switch step {
                     case .press(let key, let at): Paster.press(key, after: at)
@@ -873,6 +897,9 @@ final class SessionController: ObservableObject {
                     }
                 }
                 finish(.done(pasted ? tr("Pasted") : tr("Copied · ⌘V to paste")), hideAfter: pasted ? 1.0 : 2.5)
+                if !pasted {
+                    finish(.done(tr("Accessibility needed: System Settings › Privacy › Accessibility › Plume")), hideAfter: 8)
+                }
                 if !pasted, !askedForAccessibility {
                     // Without the Accessibility permission, pasting is impossible: ask for it once.
                     askedForAccessibility = true

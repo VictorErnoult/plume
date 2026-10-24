@@ -665,7 +665,7 @@ struct StyleTests {
         let minecraft = AppRuleStore.builtIn.first { $0.bundleID == "process:java" }
         #expect(minecraft?.openKey == "T")
         #expect(minecraft?.openDelay == 0.5)
-        #expect(minecraft?.pressReturn == true)
+        #expect(minecraft?.pressReturn == false)
         #expect(minecraft?.isBuiltIn == true)
         let merged = AppRuleStore.withBuiltIn([AppRule(bundleID: "*", name: "Autres")])
         #expect(merged.map(\.bundleID) == ["*", "process:java"])
@@ -674,6 +674,13 @@ struct StyleTests {
         #expect(AppRuleStore.withBuiltIn([own]).count == 1)
         #expect(AppRuleStore.rule(for: "process:java", in: AppRuleStore.withBuiltIn([own]))?.openKey == "")
         #expect(AppRule(bundleID: "com.apple.mail", name: "Mail").isBuiltIn == false)
+    }
+
+    @Test func theGameAndItsLauncherAreKnown() {
+        #expect(AppRule.isGame("process:java"))
+        #expect(AppRule.isGame("com.mojang.minecraftlauncher"))
+        #expect(!AppRule.isGame("com.apple.mail"))
+        #expect(!AppRule.isGame(nil))
     }
 
     @Test func anAppWithoutBundleIdentifierIsKnownByItsProcess() {

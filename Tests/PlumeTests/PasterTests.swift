@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import PlumeKit
 import Testing
 @testable import Plume
 
@@ -147,6 +148,26 @@ struct PasterTests {
         #expect(Paster.plan(openKey: "T", openDelay: 1, pressReturn: false) == [
             .press("T", at: 0), .erase(at: 1), .paste(at: 1.15),
         ])
+    }
+
+    /// The game chat shortcut opens the Minecraft chat whatever the rule says, elsewhere it
+    /// follows the rule's opening key; the dictation shortcut never opens anything.
+    @Test func theGameChatShortcutDecidesFromTheAppInFront() {
+        let minecraft = AppRule(bundleID: "process:java", name: "Minecraft", openKey: "", openDelay: 0.8)
+        let slack = AppRule(bundleID: "com.tinyspeck.slackmacgap", name: "Slack", pressReturn: true)
+        let other = AppRule(bundleID: "x", name: "X", openKey: "I", openDelay: 0.3)
+        var s = SessionController.sequence(handsFree: true, appNow: "process:java", rule: minecraft, pressReturn: false)
+        #expect(s.openKey == "T" && s.openDelay == 0.8 && s.pressReturn)
+        s = SessionController.sequence(handsFree: true, appNow: "com.mojang.minecraftlauncher", rule: nil, pressReturn: false)
+        #expect(s.openKey == "T" && s.openDelay == 0.5 && s.pressReturn)
+        s = SessionController.sequence(handsFree: true, appNow: "x", rule: other, pressReturn: false)
+        #expect(s.openKey == "I" && s.openDelay == 0.3 && s.pressReturn)
+        s = SessionController.sequence(handsFree: true, appNow: "com.tinyspeck.slackmacgap", rule: slack, pressReturn: true)
+        #expect(s.openKey == "" && s.pressReturn)
+        s = SessionController.sequence(handsFree: false, appNow: "process:java", rule: other, pressReturn: false)
+        #expect(s.openKey == "" && !s.pressReturn)
+        s = SessionController.sequence(handsFree: false, appNow: "process:java", rule: slack, pressReturn: true)
+        #expect(s.openKey == "" && s.pressReturn)
     }
 
     @Test func aCopyMadeInTheMeantimeStays() {

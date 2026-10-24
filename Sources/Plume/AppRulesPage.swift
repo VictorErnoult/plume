@@ -120,7 +120,7 @@ private struct RuleCard: View {
                     tr("Send with Return"), detail: tr("The message is sent as soon as the text is pasted."), isOn: $rule.pressReturn)
                 Rectangle().fill(UI.line).frame(height: 1).padding(.leading, 14)
                 RuleKey(
-                    tr("Key to press first"), detail: tr("Pressed before pasting, to open the field: T opens the Minecraft chat."),
+                    tr("Key to press first"), detail: tr("For the game chat shortcut: pressed before pasting, to open the field (T opens the Minecraft chat)."),
                     key: $rule.openKey, delay: $rule.openDelay)
                 Rectangle().fill(UI.line).frame(height: 1).padding(.leading, 14)
                 RuleToggle(

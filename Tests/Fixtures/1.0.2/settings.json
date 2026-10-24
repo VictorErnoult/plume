@@ -94,6 +94,9 @@
       "keyCode" : 49,
       "modifiers" : 2
     },
+    "gameChatShortcut" : {
+      "modifiers" : 3
+    },
     "meetingShortcut" : {
       "modifiers" : 5
     },
