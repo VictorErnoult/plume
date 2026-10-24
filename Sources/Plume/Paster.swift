@@ -60,8 +60,38 @@ enum Paster {
     ///   apps that don't paste (remote desktop, some games or terminals).
     /// - Returns: `true` if the paste was started, `false` if the text is only copied
     ///   (Accessibility permission missing).
+    /// What happens around a paste, and when (seconds from now).
+    enum Step: Equatable {
+        /// A key that opens the field first (T, the Minecraft chat).
+        case press(String, at: TimeInterval)
+        case paste(at: TimeInterval)
+        case pressReturn(at: TimeInterval)
+    }
+
+    /// The sequence for a dictation: the opening key, if any, gets the field ~150 ms to appear;
+    /// Return comes a beat after the paste.
+    static func plan(openKey: String, pressReturn: Bool) -> [Step] {
+        var steps: [Step] = []
+        var at: TimeInterval = 0.05
+        if !openKey.isEmpty {
+            steps.append(.press(openKey, at: 0))
+            at = 0.2
+        }
+        steps.append(.paste(at: at))
+        if pressReturn { steps.append(.pressReturn(at: at + 0.25)) }
+        return steps
+    }
+
+    /// Presses the key that carries this letter, alone (an app rule's opening key).
+    static func press(_ letter: String, after delay: TimeInterval = 0) {
+        guard isTrusted, let key = keyCode(for: letter) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            post(key: key, flags: [])
+        }
+    }
+
     @discardableResult
-    static func paste(_ text: String, restoreClipboard: Bool, typing: Bool = false) -> Bool {
+    static func paste(_ text: String, restoreClipboard: Bool, typing: Bool = false, after delay: TimeInterval = 0.05) -> Bool {
         let pasteboard = NSPasteboard.general
         guard isTrusted else {
             Log.write("paste: copied only, Accessibility not granted")
@@ -76,8 +106,8 @@ enum Paster {
         Log.write("paste: ⌘V into \(frontmostName)")
         let saved = stage(text, restoreClipboard: restoreClipboard, on: pasteboard)
         let marker = pasteboard.changeCount
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            post(key: keyCode(for: "V"), flags: .maskCommand)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            post(key: keyCode(for: "V") ?? CGKeyCode(kVK_ANSI_V), flags: .maskCommand)
             guard let saved else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 restore(saved, to: pasteboard, ifUnchangedSince: marker)
@@ -190,8 +220,8 @@ enum Paster {
 
     /// Code of the key that carries this letter: it isn't in the same place on all
     /// layouts (Bépo, Dvorak).
-    private static func keyCode(for letter: String) -> CGKeyCode {
-        CGKeyCode((0..<50).first { HotkeyManager.keyName($0) == letter } ?? kVK_ANSI_V)
+    private static func keyCode(for letter: String) -> CGKeyCode? {
+        (0..<50).first { HotkeyManager.keyName($0) == letter.uppercased() }.map { CGKeyCode($0) }
     }
 
     // MARK: - Reading the active field
@@ -277,7 +307,7 @@ enum Paster {
         let pasteboard = NSPasteboard.general
         let saved = snapshot(pasteboard)
         let marker = pasteboard.changeCount
-        post(key: keyCode(for: "C"), flags: .maskCommand)
+        post(key: keyCode(for: "C") ?? CGKeyCode(kVK_ANSI_C), flags: .maskCommand)
         try? await Task.sleep(nanoseconds: 180_000_000)
         var text = ""
         if pasteboard.changeCount != marker { text = pasteboard.string(forType: .string) ?? "" }

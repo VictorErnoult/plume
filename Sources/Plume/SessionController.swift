@@ -280,7 +280,7 @@ final class SessionController: ObservableObject {
         activeSessions.insert(id)
         let front = NSWorkspace.shared.frontmostApplication
         frontApp = front?.localizedName == "loginwindow" ? nil : front?.localizedName
-        frontBundleID = front?.bundleIdentifier
+        frontBundleID = AppRule.identifier(bundleID: front?.bundleIdentifier, processName: front?.localizedName)
         selection = ""
         hasSelection = false
         streaming = intent == .dictation && mode == .dictation && settings.streamingPaste && settings.pasteAfterDictation
@@ -848,7 +848,9 @@ final class SessionController: ObservableObject {
                 finish(.done(tr("Pasted")), hideAfter: 1.0)
             } else if Self.cursorProbablyMoved(
                 waited: Date().timeIntervalSince(stoppedAt), startedIn: bundleID,
-                nowIn: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+                nowIn: AppRule.identifier(
+                    bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                    processName: NSWorkspace.shared.frontmostApplication?.localizedName))
             {
                 Log.write("paste: copied only, \(Int(Date().timeIntervalSince(stoppedAt))) s wait and the front app changed")
                 Paster.copy(text)
@@ -858,8 +860,15 @@ final class SessionController: ObservableObject {
                 if settings.smartInsert, intent == .dictation, let context = Paster.insertionContext() {
                     toPaste = SmartInsert.adapt(text, context: context)
                 }
-                let pasted = Paster.paste(toPaste, restoreClipboard: settings.restoreClipboard, typing: rule?.typeText == true)
-                if pasted, pressReturn { Paster.pressReturn() }
+                var pasted = false
+                for step in Paster.plan(openKey: rule?.openKey ?? "", pressReturn: pressReturn) {
+                    switch step {
+                    case .press(let key, let at): Paster.press(key, after: at)
+                    case .paste(let at):
+                        pasted = Paster.paste(toPaste, restoreClipboard: settings.restoreClipboard, typing: rule?.typeText == true, after: at)
+                    case .pressReturn(let at): if pasted { Paster.pressReturn(after: at) }
+                    }
+                }
                 finish(.done(pasted ? tr("Pasted") : tr("Copied · ⌘V to paste")), hideAfter: pasted ? 1.0 : 2.5)
                 if !pasted, !askedForAccessibility {
                     // Without the Accessibility permission, pasting is impossible: ask for it once.

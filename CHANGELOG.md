@@ -6,6 +6,7 @@ One line per PR or PR stack, grouped by date, newest first. A version takes the 
 
 ### 2026-10-24
 
+- Applications: a "key to press first" per app, and a built-in Minecraft rule: T opens the chat, the dictation is pasted and sent with Return (#24)
 - Paste: the dictation lands in games that poll the keyboard (Minecraft chat), and a slow transcription still pastes when the app in front has not changed; the log says which path was taken (#23)
 
 ### 2026-10-06

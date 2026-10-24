@@ -127,6 +127,21 @@ struct PasterTests {
         #expect(SessionController.cursorProbablyMoved(waited: 20, startedIn: nil, nowIn: "b"))
     }
 
+    @Test func aPlainPasteIsOneStep() {
+        #expect(Paster.plan(openKey: "", pressReturn: false) == [.paste(at: 0.05)])
+    }
+
+    @Test func returnComesABeatAfterThePaste() {
+        #expect(Paster.plan(openKey: "", pressReturn: true) == [.paste(at: 0.05), .pressReturn(at: 0.3)])
+    }
+
+    /// Minecraft: T opens the chat, the paste waits for the box, Return sends the message.
+    @Test func anOpeningKeyComesFirstThenPasteThenReturn() {
+        #expect(Paster.plan(openKey: "T", pressReturn: true) == [
+            .press("T", at: 0), .paste(at: 0.2), .pressReturn(at: 0.45),
+        ])
+    }
+
     @Test func aCopyMadeInTheMeantimeStays() {
         withPasteboard { pasteboard in
             pasteboard.clearContents()
